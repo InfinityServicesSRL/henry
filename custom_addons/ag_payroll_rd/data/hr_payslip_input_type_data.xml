@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tipos de "otras entradas" (hr.payslip.input.type) — AG Supply
+    Estas entradas son los valores variables que se cargan recibo por recibo.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="input_type_incprod" model="hr.payslip.input.type">
+            <field name="name">Incentivo de producción</field>
+            <field name="code">INCPROD</field>
+            <field name="description">Bono por unidades producidas, calculado automáticamente desde las órdenes de fabricación</field>
+        </record>
+
+        <record id="input_type_comision" model="hr.payslip.input.type">
+            <field name="name">Comisión de ventas</field>
+            <field name="code">COMISION</field>
+            <field name="description">Comisiones del período. Gravable ISR. Cotiza TSS.</field>
+        </record>
+
+        <record id="input_type_he35" model="hr.payslip.input.type">
+            <field name="name">Horas extra 35% (días laborables)</field>
+            <field name="code">HE35</field>
+            <field name="description">Cantidad de horas extra en días de semana (Código Trabajo Art. 147 — 35% adicional)</field>
+        </record>
+
+        <record id="input_type_he100" model="hr.payslip.input.type">
+            <field name="name">Horas extra 100% (feriados/descanso)</field>
+            <field name="code">HE100</field>
+            <field name="description">Cantidad de horas trabajadas en día de descanso semanal o feriado (100% adicional)</field>
+        </record>
+
+        <record id="input_type_hnoc" model="hr.payslip.input.type">
+            <field name="name">Horas nocturnas (9pm – 7am)</field>
+            <field name="code">HNOC</field>
+            <field name="description">Cantidad de horas nocturnas. Reciben 15% adicional sobre el valor hora ordinaria.</field>
+        </record>
+
+        <record id="input_type_anticipo" model="hr.payslip.input.type">
+            <field name="name">Anticipo de quincena</field>
+            <field name="code">ANTICIPO</field>
+            <field name="description">Anticipo recibido en el período, a descontar en este recibo</field>
+        </record>
+
+        <record id="input_type_prestamo" model="hr.payslip.input.type">
+            <field name="name">Cuota préstamo interno</field>
+            <field name="code">PRESTAMO</field>
+            <field name="description">Descuento por préstamo otorgado por la empresa al empleado</field>
+        </record>
+
+        <record id="input_type_coop" model="hr.payslip.input.type">
+            <field name="name">Descuento cooperativa</field>
+            <field name="code">COOP</field>
+            <field name="description">Aporte o cuota de cooperativa descontado por planilla</field>
+        </record>
+
+        <record id="input_type_uniforme" model="hr.payslip.input.type">
+            <field name="name">Descuento uniformes</field>
+            <field name="code">UNIFORME</field>
+            <field name="description">Descuento por uniformes o equipos de protección personal</field>
+        </record>
+
+        <record id="input_type_embargo" model="hr.payslip.input.type">
+            <field name="name">Embargo judicial</field>
+            <field name="code">EMBARGO</field>
+            <field name="description">Descuento ordenado por resolución judicial</field>
+        </record>
+
+        <record id="input_type_ded_educativa" model="hr.payslip.input.type">
+            <field name="name">Deducción gastos educativos (Ley 179-09)</field>
+            <field name="code">DED_EDU</field>
+            <field name="description">Reduce la base ISR del empleado. Requiere registro ante la DGII por parte del empleado.</field>
+        </record>
+
+    </data>
+</odoo>

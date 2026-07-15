@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Estructuras salariales — AG Supply
+
+    struct_ag_quincenal   — Nómina quincenal regular (todas las quincenas del año)
+    struct_ag_regalia     — Regalía pascual (una vez al año, diciembre)
+    struct_ag_bono        — Bonificación Art. 223 CT (una vez al año)
+    struct_ag_liquidacion — Liquidación final (al terminar relación laboral)
+-->
+<odoo>
+    <data noupdate="1">
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             NÓMINA QUINCENAL REGULAR
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="struct_ag_quincenal" model="hr.payroll.structure">
+            <field name="name">Nómina Quincenal Regular — AG Supply</field>
+            <field name="type_id" ref="structure_type_ag"/>
+            <field name="schedule_pay">semi-monthly</field>
+            <field name="use_worked_day_lines">True</field>
+            <field name="payslip_name">Recibo de Nómina</field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             REGALÍA PASCUAL
+             - Exenta de ISR hasta 1/12 del salario ordinario anual
+             - NO cotiza TSS (no es salario ordinario)
+             - INFOTEP empleado NO aplica (aplica solo sobre bonificación)
+             - Pagar antes del 20 de diciembre
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="struct_ag_regalia" model="hr.payroll.structure">
+            <field name="name">Regalía Pascual — AG Supply</field>
+            <field name="type_id" ref="structure_type_ag"/>
+            <field name="schedule_pay">annually</field>
+            <field name="use_worked_day_lines">False</field>
+            <field name="payslip_name">Regalía Pascual</field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             BONIFICACIÓN (Participación en Beneficios — Art. 223 CT)
+             - 10% de utilidades netas; tope: 45 días (< 3 años) o 60 días (3+ años)
+             - INFOTEP empleado 0.5% sobre este monto
+             - Pagar dentro de 90–120 días del cierre fiscal
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="struct_ag_bono" model="hr.payroll.structure">
+            <field name="name">Bonificación Art. 223 CT — AG Supply</field>
+            <field name="type_id" ref="structure_type_ag"/>
+            <field name="schedule_pay">annually</field>
+            <field name="use_worked_day_lines">False</field>
+            <field name="payslip_name">Bonificación</field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             LIQUIDACIÓN FINAL
+             Incluye: preaviso + cesantía + vacaciones no disfrutadas + salarios pendientes
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="struct_ag_liquidacion" model="hr.payroll.structure">
+            <field name="name">Liquidación Final — AG Supply</field>
+            <field name="type_id" ref="structure_type_ag"/>
+            <field name="schedule_pay">annually</field>
+            <field name="use_worked_day_lines">False</field>
+            <field name="payslip_name">Liquidación Final</field>
+        </record>
+
+    </data>
+</odoo>

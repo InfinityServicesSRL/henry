@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Parámetros legales dominicanos para nómina — AG Supply, SRL.
+
+    IMPORTANTE: Estos valores tienen fecha de vigencia (date_from).
+    Cuando la TSS, la DGII o el Comité Nacional de Salarios emitan
+    nuevas resoluciones, agregar un nuevo record con la nueva date_from
+    SIN eliminar el anterior (el sistema toma el vigente según la fecha del recibo).
+
+    Fuentes:
+    - Resolución TSS 01-2025 (tasas TSS vigentes desde 01-feb-2026)
+    - Resolución DGII DDG-AR1-2026-00001 (escala ISR 2026)
+    - Resolución CNS-01-2025 (salarios mínimos desde 01-feb-2026)
+    - Ley 30-26 (nueva escala ISR desde 01-ene-2027)
+-->
+<odoo>
+    <data noupdate="0">
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             SALARIO MÍNIMO (Resolución CNS-01-2025)
+             Vigente desde 01-feb-2026
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="param_salario_minimo_2026" model="hr.rule.parameter">
+            <field name="name">RD — Salario mínimo cotizable TSS 2026</field>
+            <field name="code">rd_sm_nac</field>
+            <field name="parameter_version_ids">
+                <record id="param_salario_minimo_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">23223.00</field>
+                </record>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             TOPES DE COTIZACIÓN TSS (Resolución TSS 01-2025)
+             10 SM = tope SFS | 20 SM = tope AFP/FSS | 4 SM = tope SRL
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="param_tope_sfs_2026" model="hr.rule.parameter">
+            <field name="name">RD — Tope salarial SFS mensual 2026 (10 SM)</field>
+            <field name="code">rd_tope_sfs</field>
+            <field name="parameter_version_ids">
+                <record id="param_tope_sfs_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">232230.00</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_tope_afp_2026" model="hr.rule.parameter">
+            <field name="name">RD — Tope salarial AFP/FSS mensual 2026 (20 SM)</field>
+            <field name="code">rd_tope_afp</field>
+            <field name="parameter_version_ids">
+                <record id="param_tope_afp_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">464460.00</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_tope_srl_2026" model="hr.rule.parameter">
+            <field name="name">RD — Tope salarial SRL mensual 2026 (4 SM)</field>
+            <field name="code">rd_tope_srl</field>
+            <field name="parameter_version_ids">
+                <record id="param_tope_srl_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">92892.00</field>
+                </record>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             TASAS TSS (empleado)
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="param_sfs_emp" model="hr.rule.parameter">
+            <field name="name">RD — Tasa SFS empleado (ARS)</field>
+            <field name="code">rd_sfs_emp</field>
+            <field name="parameter_version_ids">
+                <record id="param_sfs_emp_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">0.0304</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_afp_emp" model="hr.rule.parameter">
+            <field name="name">RD — Tasa AFP empleado (pensiones)</field>
+            <field name="code">rd_afp_emp</field>
+            <field name="parameter_version_ids">
+                <record id="param_afp_emp_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">0.0287</field>
+                </record>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             TASAS TSS (patronal)
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="param_sfs_pat" model="hr.rule.parameter">
+            <field name="name">RD — Tasa SFS patronal (ARS)</field>
+            <field name="code">rd_sfs_pat</field>
+            <field name="parameter_version_ids">
+                <record id="param_sfs_pat_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">0.0709</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_afp_pat" model="hr.rule.parameter">
+            <field name="name">RD — Tasa AFP patronal (pensiones)</field>
+            <field name="code">rd_afp_pat</field>
+            <field name="parameter_version_ids">
+                <record id="param_afp_pat_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">0.0710</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_fss" model="hr.rule.parameter">
+            <field name="name">RD — Tasa Fondo de Solidaridad Social</field>
+            <field name="code">rd_fss</field>
+            <field name="parameter_version_ids">
+                <record id="param_fss_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">0.0040</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_srl" model="hr.rule.parameter">
+            <!--
+                CONFIRMAR con Angélica la clase de riesgo IDOPPRIL de AG Supply.
+                Manufactura de papel suele estar en clase III o IV (1.10% a 1.30%).
+                Valor provisional: 1.30% (manufactura)
+            -->
+            <field name="name">RD — Tasa SRL/IDOPPRIL patronal (PROVISIONAL — confirmar clase de riesgo)</field>
+            <field name="code">rd_srl</field>
+            <field name="parameter_version_ids">
+                <record id="param_srl_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-02-01</field>
+                    <field name="parameter_value">0.0130</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_infotep_pat" model="hr.rule.parameter">
+            <field name="name">RD — Tasa INFOTEP patronal (Ley 116-80)</field>
+            <field name="code">rd_infotep_pat</field>
+            <field name="parameter_version_ids">
+                <record id="param_infotep_pat_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2000-01-01</field>
+                    <field name="parameter_value">0.0100</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_infotep_emp" model="hr.rule.parameter">
+            <field name="name">RD — Tasa INFOTEP empleado sobre bonificación (0.5%)</field>
+            <field name="code">rd_infotep_emp</field>
+            <field name="parameter_version_ids">
+                <record id="param_infotep_emp_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2000-01-01</field>
+                    <field name="parameter_value">0.0050</field>
+                </record>
+            </field>
+        </record>
+
+        <!-- ══════════════════════════════════════════════════════════════════
+             ESCALA ISR 2026 (Resolución DGII DDG-AR1-2026-00001)
+             Valores de la tabla anual. Las reglas dividen entre 24 para quincenal.
+        ═══════════════════════════════════════════════════════════════════ -->
+        <record id="param_isr_exencion_2026" model="hr.rule.parameter">
+            <field name="name">RD — ISR 2026: Exención anual</field>
+            <field name="code">rd_isr_exencion</field>
+            <field name="parameter_version_ids">
+                <!-- 2026 — escala vigente desde 2018, congelada -->
+                <record id="param_isr_exencion_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-01-01</field>
+                    <field name="parameter_value">416220.00</field>
+                </record>
+                <!-- 2027 — Ley 30-26 (activo desde 01-ene-2027) -->
+                <record id="param_isr_exencion_2027_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2027-01-01</field>
+                    <field name="parameter_value">480000.00</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_isr_t2_techo_2026" model="hr.rule.parameter">
+            <field name="name">RD — ISR 2026: Techo tramo 15%</field>
+            <field name="code">rd_isr_t2_techo</field>
+            <field name="parameter_version_ids">
+                <record id="param_isr_t2_techo_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-01-01</field>
+                    <field name="parameter_value">624329.00</field>
+                </record>
+                <record id="param_isr_t2_techo_2027_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2027-01-01</field>
+                    <field name="parameter_value">720000.00</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_isr_t3_techo_2026" model="hr.rule.parameter">
+            <field name="name">RD — ISR 2026: Techo tramo 20%</field>
+            <field name="code">rd_isr_t3_techo</field>
+            <field name="parameter_version_ids">
+                <record id="param_isr_t3_techo_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-01-01</field>
+                    <field name="parameter_value">867123.00</field>
+                </record>
+                <record id="param_isr_t3_techo_2027_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2027-01-01</field>
+                    <field name="parameter_value">1000000.00</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_isr_t3_base_2026" model="hr.rule.parameter">
+            <field name="name">RD — ISR 2026: Monto fijo tramo 20% (RD$ 31,216)</field>
+            <field name="code">rd_isr_t3_base</field>
+            <field name="parameter_version_ids">
+                <record id="param_isr_t3_base_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-01-01</field>
+                    <field name="parameter_value">31216.00</field>
+                </record>
+                <record id="param_isr_t3_base_2027_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2027-01-01</field>
+                    <field name="parameter_value">36000.00</field>
+                </record>
+            </field>
+        </record>
+
+        <record id="param_isr_t4_base_2026" model="hr.rule.parameter">
+            <field name="name">RD — ISR 2026: Monto fijo tramo 25% (RD$ 79,776)</field>
+            <field name="code">rd_isr_t4_base</field>
+            <field name="parameter_version_ids">
+                <record id="param_isr_t4_base_2026_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2026-01-01</field>
+                    <field name="parameter_value">79776.00</field>
+                </record>
+                <record id="param_isr_t4_base_2027_v1" model="hr.rule.parameter.value">
+                    <field name="date_from">2027-01-01</field>
+                    <field name="parameter_value">92000.00</field>
+                </record>
+            </field>
+        </record>
+
+    </data>
+</odoo>

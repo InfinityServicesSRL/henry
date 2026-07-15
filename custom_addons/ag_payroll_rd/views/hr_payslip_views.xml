@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         HR.PAYSLIP — Extensión del recibo con campos RD
+         Hereda la vista nativa de hr_payroll para añadir:
+         - Ficha RD del empleado (AFP, ARS, NSS, banco)
+         - Botón "Calcular incentivo" en el lote de nómina
+    ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Extensión del formulario del contrato con campos RD -->
+    <record id="view_hr_contract_form_rd" model="ir.ui.view">
+        <field name="name">hr.contract.form.rd</field>
+        <field name="model">hr.contract</field>
+        <field name="inherit_id" ref="hr_payroll.hr_contract_view_form"/>
+        <field name="arch" type="xml">
+            <!-- Añadir pestaña "República Dominicana" al formulario del contrato -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Datos RD (TSS / Banco)" name="rd_datos">
+                    <group>
+                        <group string="Seguridad Social">
+                            <field name="rd_afp_id"
+                                   string="AFP"
+                                   help="Administradora de Fondos de Pensiones"/>
+                            <field name="rd_ars_id"
+                                   string="ARS"
+                                   help="Administradora de Riesgo de Salud (SFS)"/>
+                            <field name="rd_nss"
+                                   string="NSS"
+                                   help="Número de Seguridad Social (TSS)"/>
+                        </group>
+                        <group string="Banco de nómina">
+                            <field name="rd_banco_id" string="Banco"/>
+                            <field name="rd_cuenta_bancaria" string="No. de cuenta"/>
+                        </group>
+                    </group>
+                    <group string="Incentivo de producción">
+                        <field name="rd_aplica_incentivo"
+                               string="Aplica incentivo de producción"/>
+                        <field name="rd_centro_trabajo_ids"
+                               string="Centros de trabajo asignados"
+                               widget="many2many_tags"
+                               invisible="not rd_aplica_incentivo"/>
+                        <field name="rd_fecha_ingreso_real"
+                               string="Fecha de ingreso real"
+                               help="Para cálculo de antigüedad y regalía navideña"/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Extensión del lote de nómina (hr.payslip.run) con botón de incentivo -->
+    <record id="view_hr_payslip_run_form_rd" model="ir.ui.view">
+        <field name="name">hr.payslip.run.form.rd</field>
+        <field name="model">hr.payslip.run</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_run_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[last()]" position="after">
+                <button name="%(ag_payroll_rd.action_ag_incentivo_wizard)d"
+                        string="🏭 Calcular incentivo producción"
+                        type="action"
+                        class="btn-secondary"
+                        context="{'default_payslip_batch_id': active_id,
+                                  'default_date_from': date_start,
+                                  'default_date_to': date_end}"
+                        states="draft"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Extensión del recibo individual (hr.payslip): mostrar incentivo si existe -->
+    <record id="view_hr_payslip_form_rd" model="ir.ui.view">
+        <field name="name">hr.payslip.form.rd</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+        <field name="arch" type="xml">
+            <!-- Smart button de incentivo asociado al recibo -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="%(ag_payroll_rd.action_ag_incentivo_calculo)d"
+                        type="action"
+                        class="oe_stat_button"
+                        icon="fa-industry"
+                        context="{'search_default_payslip_id': active_id}">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Incentivo</span>
+                        <span class="o_stat_text">Producción</span>
+                    </div>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

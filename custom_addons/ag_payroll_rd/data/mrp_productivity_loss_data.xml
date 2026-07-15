@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Tipos de pérdida de producción — AG Supply, SRL.
+        Fábrica de papel tissue / higiene, Santiago RD.
+
+        Estos registros se crean/actualizan en cada instalación del módulo.
+        Se llaman desde el wizard de incentivo: solo loss_type='productive'
+        entra en el cálculo del bono quincenal.
+
+        Convención de nombres: "AG - " para distinguirlos de los nativos Odoo.
+    -->
+
+    <!-- ══════════════════════════════════════════════════════
+         PRODUCTIVO — tiempo estándar que CUENTA para incentivo
+    ══════════════════════════════════════════════════════ -->
+    <record id="loss_ag_productivo" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Tiempo Productivo</field>
+        <field name="loss_type">productive</field>
+        <field name="manual" eval="False"/>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════
+         DISPONIBILIDAD — paradas que NO cuentan para incentivo
+         (máquina disponible pero no produce)
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Avería mecánica inesperada -->
+    <record id="loss_ag_averia_maquina" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Avería de Máquina</field>
+        <field name="loss_type">availability</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- Corte de corriente o fallo del sistema eléctrico -->
+    <record id="loss_ag_fallo_electrico" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Fallo Eléctrico / Corte de Luz</field>
+        <field name="loss_type">availability</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- Bobina de papel no disponible en el momento requerido -->
+    <record id="loss_ag_espera_bobina" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Espera de Bobina / Materia Prima</field>
+        <field name="loss_type">availability</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- No hay operario disponible para operar la máquina -->
+    <record id="loss_ag_falta_operario" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Falta de Operario</field>
+        <field name="loss_type">availability</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- Tiempo de preparar/calibrar la máquina entre corridas -->
+    <record id="loss_ag_ajuste_setup" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Ajuste y Configuración de Máquina</field>
+        <field name="loss_type">availability</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- Mantenimiento planificado (PM) — conocido con anticipación -->
+    <record id="loss_ag_mantenimiento_preventivo" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Mantenimiento Preventivo (Programado)</field>
+        <field name="loss_type">availability</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- Limpieza periódica de la máquina (entre turnos o corridas) -->
+    <record id="loss_ag_limpieza" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Limpieza de Máquina</field>
+        <field name="loss_type">availability</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════
+         RENDIMIENTO — máquina corriendo pero por debajo de velocidad
+         estándar (NO cuenta para incentivo)
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Velocidad reducida por bobina defectuosa, temperatura, etc. -->
+    <record id="loss_ag_velocidad_reducida" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Velocidad Reducida</field>
+        <field name="loss_type">performance</field>
+        <field name="manual" eval="False"/>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════
+         CALIDAD — tiempo perdido por producto no conforme
+         (NO cuenta para incentivo)
+    ══════════════════════════════════════════════════════ -->
+
+    <!-- Producción no conforme: cortes mal, bobina rota, empaque fallido -->
+    <record id="loss_ag_merma" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Merma / Defecto de Proceso</field>
+        <field name="loss_type">quality</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+    <!-- Parada para ajustar calidad (gramaje, largo de hoja, humedad) -->
+    <record id="loss_ag_ajuste_calidad" model="mrp.workcenter.productivity.loss">
+        <field name="name">AG - Ajuste de Calidad</field>
+        <field name="loss_type">quality</field>
+        <field name="manual" eval="True"/>
+    </record>
+
+</odoo>
