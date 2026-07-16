@@ -208,35 +208,13 @@ result = base_cotizable * tasa
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
-# ISR anualizado según escala DGII vigente (parámetros con date_from)
-# Ley 30-26: escala cambia automáticamente el 01-ene-2027 sin tocar este código
-
-bruto_quincena = categories.GROSS  # ingresos brutos del período
-sfs_quincena   = rules.SFS_EMP.total if hasattr(rules, 'SFS_EMP') else 0
-afp_quincena   = rules.AFP_EMP.total if hasattr(rules, 'AFP_EMP') else 0
-tss_emp        = abs(sfs_quincena) + abs(afp_quincena)
-
-# Anualizar: (bruto - TSS) × 2 meses × 12
-base_anual = (bruto_quincena - tss_emp) * 2 * 12
-
-# Escala ISR vigente (leer parámetros para que cambie automáticamente en 2027)
-exencion = payslip._rule_parameter('rd_isr_exencion')
-t2_techo = payslip._rule_parameter('rd_isr_t2_techo')
-t3_techo = payslip._rule_parameter('rd_isr_t3_techo')
-t3_base  = payslip._rule_parameter('rd_isr_t3_base')
-t4_base  = payslip._rule_parameter('rd_isr_t4_base')
-
-if base_anual <= exencion:
-    isr_anual = 0.0
-elif base_anual <= t2_techo:
-    isr_anual = (base_anual - exencion) * 0.15
-elif base_anual <= t3_techo:
-    isr_anual = t3_base + (base_anual - t2_techo) * 0.20
-else:
-    isr_anual = t4_base + (base_anual - t3_techo) * 0.25
-
-# Retención quincenal = ISR anual / 24
-result = isr_anual / 24.0
+# Delega al método HrPayslip._get_rd_isr() que centraliza la lógica ISR.
+# Ley 30-26: escala cambia automáticamente el 01-ene-2027 sin tocar este código.
+# Los campos rd_base_isr_anual / rd_isr_anual / rd_isr_quincenal quedan
+# guardados en el recibo para trazabilidad con Angélica / DGII.
+sfs_quincena = rules.SFS_EMP.total if hasattr(rules, 'SFS_EMP') else 0.0
+afp_quincena = rules.AFP_EMP.total if hasattr(rules, 'AFP_EMP') else 0.0
+result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -340,7 +318,7 @@ result = categories.GROSS + categories.DED
             <field name="name">SFS — ARS patronal (7.09%)</field>
             <field name="code">SFS_PAT</field>
             <field name="sequence">300</field>
-            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="category_id" ref="hr_payroll.COMP"/>
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
@@ -357,7 +335,7 @@ result = base_cotizable * payslip._rule_parameter('rd_sfs_pat')
             <field name="name">AFP — Pensiones patronal (7.10%)</field>
             <field name="code">AFP_PAT</field>
             <field name="sequence">310</field>
-            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="category_id" ref="hr_payroll.COMP"/>
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
@@ -374,7 +352,7 @@ result = base_cotizable * payslip._rule_parameter('rd_afp_pat')
             <field name="name">Fondo de Solidaridad Social (0.40%)</field>
             <field name="code">FSS</field>
             <field name="sequence">320</field>
-            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="category_id" ref="hr_payroll.COMP"/>
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
@@ -392,7 +370,7 @@ result = base_cotizable * payslip._rule_parameter('rd_fss')
             <field name="name">SRL — Riesgos Laborales patronal (IDOPPRIL)</field>
             <field name="code">SRL</field>
             <field name="sequence">330</field>
-            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="category_id" ref="hr_payroll.COMP"/>
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
@@ -412,7 +390,7 @@ result = base_cotizable * payslip._rule_parameter('rd_srl')
             <field name="name">INFOTEP patronal (1%)</field>
             <field name="code">INFOTEP_PAT</field>
             <field name="sequence">340</field>
-            <field name="category_id" ref="hr_payroll.ALW"/>
+            <field name="category_id" ref="hr_payroll.COMP"/>
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">

@@ -1,6 +1,6 @@
 {
     'name': 'AG Supply — Nómina República Dominicana',
-    'version': '18.0.1.0.0',
+    'version': '18.0.1.1.0',
     'summary': 'Módulo de nómina quincenal con legislación RD 2026 e incentivo de producción',
     'author': 'AG Supply, SRL.',
     'website': '',

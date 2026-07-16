@@ -1,71 +1,80 @@
-from odoo import models, fields, api
-from odoo.exceptions import UserError
+from odoo import models, fields
 
 
 class HrPayslip(models.Model):
     """
-    Extensión del recibo de nómina para cálculo ISR dominicano anualizado.
+    Extensión del recibo de nómina para nómina dominicana.
 
-    El ISR (DGII) requiere anualizar el salario mensual, aplicar la escala vigente
-    y dividir entre 24 para obtener la retención por quincena.
+    Agrega campos de trazabilidad ISR (útiles para auditoría con DGII/Angélica)
+    y el método _get_rd_isr() que centraliza el cálculo ISR anualizado.
+    La regla salarial ISR llama directamente a este método para evitar duplicación.
     """
     _inherit = 'hr.payslip'
 
-    # ─── Campos de auditoría ISR ──────────────────────────────────────────────
+    # ─── Campos de trazabilidad ISR ───────────────────────────────────────────
     rd_base_isr_anual = fields.Float(
         string='Base ISR anualizada (RD$)',
-        help='Salario anual bruto menos TSS empleado anualizado. Base para escala DGII.',
+        digits=(12, 2),
         readonly=True,
+        help='Salario bruto anual proyectado menos TSS empleado. Base de la escala DGII.',
     )
     rd_isr_anual = fields.Float(
         string='ISR anual calculado (RD$)',
-        help='ISR según escala vigente antes de dividir entre 24.',
+        digits=(12, 2),
         readonly=True,
+        help='ISR resultante de aplicar la escala DGII vigente a la base anualizada.',
     )
     rd_isr_quincenal = fields.Float(
         string='Retención ISR quincenal (RD$)',
-        help='ISR anual / 24. Este valor va al recibo.',
+        digits=(12, 2),
         readonly=True,
+        help='ISR anual / 24 períodos. Coincide con el monto en la línea ISR del recibo.',
     )
 
-    # ─── Lógica de cálculo ISR ────────────────────────────────────────────────
+    # ─── Motor ISR — llamado desde la regla salarial ──────────────────────────
 
     def _get_rd_isr(self, bruto_quincena, sfs_emp_quincena, afp_emp_quincena):
         """
-        Calcula la retención ISR quincenal según la legislación dominicana 2026.
+        Calcula y registra la retención ISR quincenal (escala DGII vigente).
 
         Parámetros
         ----------
         bruto_quincena : float
-            Salario bruto del período (quincena), incluyendo incentivos y horas extra gravables.
+            GROSS del período (suma de categoría ALW: sueldo + extras + INCPROD + comisión - ausencias).
         sfs_emp_quincena : float
-            Descuento SFS al empleado en la quincena.
+            Total de la línea SFS_EMP (valor negativo en Odoo — se aplica abs()).
         afp_emp_quincena : float
-            Descuento AFP al empleado en la quincena.
+            Total de la línea AFP_EMP (valor negativo en Odoo — se aplica abs()).
 
         Retorna
         -------
         float
-            Retención ISR a descontar en este recibo.
+            Retención ISR quincenal a descontar al empleado.
 
-        Nota: la regalía pascual está EXENTA de ISR hasta 1/12 del salario ordinario anual.
-        Las comisiones e incentivos SÍ son gravables.
+        Notas
+        -----
+        - Los parámetros rd_isr_* se leen desde hr.rule.parameter con date_from,
+          por lo que la escala 2027 (Ley 30-26) entrará automáticamente el 01-ene-2027
+          sin necesidad de modificar este código.
+        - La regalía pascual y la bonificación Art. 223 tienen sus propias
+          estructuras de nómina con reglas ISR independientes.
         """
-        # Obtener parámetros de la DGII desde hr.rule.parameter (actualizables sin cambiar código)
         param = self.env['hr.rule.parameter']
         date = self.date_from or fields.Date.today()
 
-        exencion   = param._get_parameter_value('rd_isr_exencion', date)
-        t2_techo   = param._get_parameter_value('rd_isr_t2_techo', date)
-        t3_techo   = param._get_parameter_value('rd_isr_t3_techo', date)
-        t3_base    = param._get_parameter_value('rd_isr_t3_base', date)
-        t4_base    = param._get_parameter_value('rd_isr_t4_base', date)
+        exencion = param._get_parameter_value('rd_isr_exencion', date)
+        t2_techo  = param._get_parameter_value('rd_isr_t2_techo', date)
+        t3_techo  = param._get_parameter_value('rd_isr_t3_techo', date)
+        t3_base   = param._get_parameter_value('rd_isr_t3_base', date)
+        t4_base   = param._get_parameter_value('rd_isr_t4_base', date)
 
-        # 1. Proyectar a mensual (quincena × 2) y anualizar (× 12)
-        tss_emp_quincena = sfs_emp_quincena + afp_emp_quincena
-        base_anual = (bruto_quincena - tss_emp_quincena) * 2 * 12
+        # TSS empleado quincena (SFS + AFP, en valor absoluto)
+        tss_emp = abs(sfs_emp_quincena) + abs(afp_emp_quincena)
 
-        # 2. Aplicar escala vigente
+        # Base anual: proyectar quincena a mensual (×2) y a anual (×12)
+        base_anual = (bruto_quincena - tss_emp) * 2 * 12
+
+        # Escala progresiva DGII
         if base_anual <= exencion:
             isr_anual = 0.0
         elif base_anual <= t2_techo:
@@ -77,17 +86,12 @@ class HrPayslip(models.Model):
 
         isr_quincenal = isr_anual / 24.0
 
-        # Guardar para auditoría
-        self.rd_base_isr_anual = base_anual
-        self.rd_isr_anual = isr_anual
-        self.rd_isr_quincenal = isr_quincenal
+        # Guardar campos de trazabilidad (útil para revisión con Angélica / DGII)
+        # Usamos _write para evitar disparar recomputaciones innecesarias
+        self._write({
+            'rd_base_isr_anual': base_anual,
+            'rd_isr_anual': isr_anual,
+            'rd_isr_quincenal': isr_quincenal,
+        })
 
         return isr_quincenal
-
-    # ─── Función localcode accesible desde las reglas salariales ─────────────
-
-    def _get_localdict(self, line, categories, rules, worked_days, inputs):
-        """Inyecta _rd_isr al diccionario local para que las reglas puedan llamarlo."""
-        localdict = super()._get_localdict(line, categories, rules, worked_days, inputs)
-        localdict['_rd_isr'] = self._get_rd_isr
-        return localdict
