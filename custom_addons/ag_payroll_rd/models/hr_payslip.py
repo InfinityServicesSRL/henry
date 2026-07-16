@@ -62,11 +62,11 @@ class HrPayslip(models.Model):
         param = self.env['hr.rule.parameter']
         date = self.date_from or fields.Date.today()
 
-        exencion = param._get_parameter_value('rd_isr_exencion', date)
-        t2_techo  = param._get_parameter_value('rd_isr_t2_techo', date)
-        t3_techo  = param._get_parameter_value('rd_isr_t3_techo', date)
-        t3_base   = param._get_parameter_value('rd_isr_t3_base', date)
-        t4_base   = param._get_parameter_value('rd_isr_t4_base', date)
+        exencion = param._get_parameter_from_code('rd_isr_exencion', date)
+        t2_techo  = param._get_parameter_from_code('rd_isr_t2_techo', date)
+        t3_techo  = param._get_parameter_from_code('rd_isr_t3_techo', date)
+        t3_base   = param._get_parameter_from_code('rd_isr_t3_base', date)
+        t4_base   = param._get_parameter_from_code('rd_isr_t4_base', date)
 
         # TSS empleado quincena (SFS + AFP, en valor absoluto)
         tss_emp = abs(sfs_emp_quincena) + abs(afp_emp_quincena)

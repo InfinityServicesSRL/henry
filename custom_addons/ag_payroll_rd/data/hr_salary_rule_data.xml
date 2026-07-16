@@ -47,13 +47,13 @@ result = contract.wage / 2.0
             <field name="sequence">20</field>
             <field name="category_id" ref="hr_payroll.ALW"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.HE35 and inputs.HE35.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('HE35') and (inputs['HE35'].amount if 'HE35' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # Valor hora ordinaria = salario mensual / 23.83 días / 8 horas
 hora_ordinaria = contract.wage / 23.83 / 8.0
 # Hora extra 35%: 1.35 veces el valor hora ordinaria
-result = inputs.HE35.amount * hora_ordinaria * 1.35
+result = (inputs['HE35'].amount if 'HE35' in inputs else 0.0) * hora_ordinaria * 1.35
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -66,12 +66,12 @@ result = inputs.HE35.amount * hora_ordinaria * 1.35
             <field name="sequence">25</field>
             <field name="category_id" ref="hr_payroll.ALW"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.HE100 and inputs.HE100.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('HE100') and (inputs['HE100'].amount if 'HE100' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 hora_ordinaria = contract.wage / 23.83 / 8.0
 # Feriado o descanso semanal: 2.0 veces el valor hora ordinaria
-result = inputs.HE100.amount * hora_ordinaria * 2.0
+result = (inputs['HE100'].amount if 'HE100' in inputs else 0.0) * hora_ordinaria * 2.0
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -84,12 +84,12 @@ result = inputs.HE100.amount * hora_ordinaria * 2.0
             <field name="sequence">30</field>
             <field name="category_id" ref="hr_payroll.ALW"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.HNOC and inputs.HNOC.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('HNOC') and (inputs['HNOC'].amount if 'HNOC' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # Solo el RECARGO 15% — la hora ordinaria ya está en SUELDO
 hora_ordinaria = contract.wage / 23.83 / 8.0
-result = inputs.HNOC.amount * hora_ordinaria * 0.15
+result = (inputs['HNOC'].amount if 'HNOC' in inputs else 0.0) * hora_ordinaria * 0.15
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -102,13 +102,21 @@ result = inputs.HNOC.amount * hora_ordinaria * 0.15
             <field name="sequence">35</field>
             <field name="category_id" ref="hr_payroll.ALW"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.INCPROD and inputs.INCPROD.amount > 0)</field>
+            <field name="condition_python">
+# Lee de ag.incentivo.calculo (sobrevive al recompute de l10n_do, que borra los inputs);
+# si no hay cálculo guardado, cae al input INCPROD como respaldo.
+calc = payslip.env['ag.incentivo.calculo'].search([('employee_id','=',payslip.employee_id.id),('date_from','=',payslip.date_from),('date_to','=',payslip.date_to)])
+_inc = sum(calc.mapped('monto_incentivo')) or (inputs['INCPROD'].amount if 'INCPROD' in inputs else 0.0)
+result = _inc &gt; 0
+            </field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # El monto ya viene calculado desde el wizard ag.incentivo (unidades × tarifa por producto).
-# Cargado como 'otra entrada' tipo INCPROD antes de confirmar el recibo.
+# Se lee del registro ag.incentivo.calculo del período (robusto ante la localización l10n_do,
+# cuyo compute_sheet regenera y borra los inputs manuales). Respaldo: input INCPROD.
 # Cotiza TSS y es gravable ISR (no es regalía ni bonificación).
-result = inputs.INCPROD.amount
+calc = payslip.env['ag.incentivo.calculo'].search([('employee_id','=',payslip.employee_id.id),('date_from','=',payslip.date_from),('date_to','=',payslip.date_to)])
+result = sum(calc.mapped('monto_incentivo')) or (inputs['INCPROD'].amount if 'INCPROD' in inputs else 0.0)
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -121,12 +129,12 @@ result = inputs.INCPROD.amount
             <field name="sequence">40</field>
             <field name="category_id" ref="hr_payroll.ALW"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.COMISION and inputs.COMISION.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('COMISION') and (inputs['COMISION'].amount if 'COMISION' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # Cargada manualmente por Solanyi/Henry cada quincena según ventas cobradas.
 # Cotiza TSS (es salario regular Art. 194 CT) y es gravable ISR.
-result = inputs.COMISION.amount
+result = (inputs['COMISION'].amount if 'COMISION' in inputs else 0.0)
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -137,22 +145,36 @@ result = inputs.COMISION.amount
             <field name="name">Descuento ausencias injustificadas</field>
             <field name="code">AUSENCIA</field>
             <field name="sequence">50</field>
-            <field name="category_id" ref="hr_payroll.DED"/>
+            <field name="category_id" ref="hr_payroll.ALW"/>
             <field name="condition_select">python</field>
             <field name="condition_python">
-result = bool(worked_days.LEAVE_UNPAID and worked_days.LEAVE_UNPAID.number_of_days > 0)
+result = bool(worked_days.get('LEAVE_UNPAID') and (worked_days['LEAVE_UNPAID'].number_of_days if 'LEAVE_UNPAID' in worked_days else 0.0) > 0)
             </field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # Salario diario = salario mensual / 23.83 (días hábiles dominicanos)
 salario_diario = contract.wage / 23.83
-dias_ausentes = worked_days.LEAVE_UNPAID.number_of_days if worked_days.LEAVE_UNPAID else 0
-result = salario_diario * dias_ausentes
+dias_ausentes = (worked_days['LEAVE_UNPAID'].number_of_days if 'LEAVE_UNPAID' in worked_days else 0.0) if worked_days.get('LEAVE_UNPAID') else 0
+result = -(salario_diario * dias_ausentes)
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
 
         <!-- ── 8. SFS EMPLEADO (ARS — Seguro Familiar de Salud) ──────────── -->
+        <record id="rule_bruto" model="hr.salary.rule">
+            <field name="struct_id" ref="struct_ag_quincenal"/>
+            <field name="name">Bruto quincenal (base TSS/ISR)</field>
+            <field name="code">GROSS</field>
+            <field name="sequence">90</field>
+            <field name="category_id" ref="hr_payroll.GROSS"/>
+            <field name="condition_select">none</field>
+            <field name="amount_select">code</field>
+            <field name="amount_python_compute">
+result = categories['ALW']
+            </field>
+            <field name="appears_on_payslip">True</field>
+        </record>
+
         <record id="rule_sfs_emp" model="hr.salary.rule">
             <field name="struct_id" ref="struct_ag_quincenal"/>
             <field name="name">SFS — ARS empleado (3.04%)</field>
@@ -168,10 +190,10 @@ tope_sfs_mensual = payslip._rule_parameter('rd_tope_sfs')
 tope_sfs_quincenal = tope_sfs_mensual / 2.0
 
 # GROSS aquí incluye: SUELDO + HE35 + HE100 + HNOC + INCPROD + COMISION - AUSENCIA
-bruto = categories.GROSS
+bruto = result_rules['GROSS']['total']
 base_cotizable = min(bruto, tope_sfs_quincenal)
 tasa = payslip._rule_parameter('rd_sfs_emp')
-result = base_cotizable * tasa
+result = -(base_cotizable * tasa)
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -190,10 +212,10 @@ result = base_cotizable * tasa
 tope_afp_mensual = payslip._rule_parameter('rd_tope_afp')
 tope_afp_quincenal = tope_afp_mensual / 2.0
 
-bruto = categories.GROSS
+bruto = result_rules['GROSS']['total']
 base_cotizable = min(bruto, tope_afp_quincenal)
 tasa = payslip._rule_parameter('rd_afp_emp')
-result = base_cotizable * tasa
+result = -(base_cotizable * tasa)
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -212,9 +234,9 @@ result = base_cotizable * tasa
 # Ley 30-26: escala cambia automáticamente el 01-ene-2027 sin tocar este código.
 # Los campos rd_base_isr_anual / rd_isr_anual / rd_isr_quincenal quedan
 # guardados en el recibo para trazabilidad con Angélica / DGII.
-sfs_quincena = rules.SFS_EMP.total if hasattr(rules, 'SFS_EMP') else 0.0
-afp_quincena = rules.AFP_EMP.total if hasattr(rules, 'AFP_EMP') else 0.0
-result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
+sfs_quincena = result_rules['SFS_EMP']['total']
+afp_quincena = result_rules['AFP_EMP']['total']
+result = -payslip._get_rd_isr(result_rules['GROSS']['total'], abs(sfs_quincena), abs(afp_quincena))
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -227,9 +249,9 @@ result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
             <field name="sequence">130</field>
             <field name="category_id" ref="hr_payroll.DED"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.PRESTAMO and inputs.PRESTAMO.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('PRESTAMO') and (inputs['PRESTAMO'].amount if 'PRESTAMO' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
-            <field name="amount_python_compute">result = inputs.PRESTAMO.amount</field>
+            <field name="amount_python_compute">result = -(inputs['PRESTAMO'].amount if 'PRESTAMO' in inputs else 0.0)</field>
             <field name="appears_on_payslip">True</field>
         </record>
 
@@ -241,9 +263,9 @@ result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
             <field name="sequence">140</field>
             <field name="category_id" ref="hr_payroll.DED"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.COOP and inputs.COOP.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('COOP') and (inputs['COOP'].amount if 'COOP' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
-            <field name="amount_python_compute">result = inputs.COOP.amount</field>
+            <field name="amount_python_compute">result = -(inputs['COOP'].amount if 'COOP' in inputs else 0.0)</field>
             <field name="appears_on_payslip">True</field>
         </record>
 
@@ -255,9 +277,9 @@ result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
             <field name="sequence">150</field>
             <field name="category_id" ref="hr_payroll.DED"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.ANTICIPO and inputs.ANTICIPO.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('ANTICIPO') and (inputs['ANTICIPO'].amount if 'ANTICIPO' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
-            <field name="amount_python_compute">result = inputs.ANTICIPO.amount</field>
+            <field name="amount_python_compute">result = -(inputs['ANTICIPO'].amount if 'ANTICIPO' in inputs else 0.0)</field>
             <field name="appears_on_payslip">True</field>
         </record>
 
@@ -269,9 +291,9 @@ result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
             <field name="sequence">160</field>
             <field name="category_id" ref="hr_payroll.DED"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.UNIFORME and inputs.UNIFORME.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('UNIFORME') and (inputs['UNIFORME'].amount if 'UNIFORME' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
-            <field name="amount_python_compute">result = inputs.UNIFORME.amount</field>
+            <field name="amount_python_compute">result = -(inputs['UNIFORME'].amount if 'UNIFORME' in inputs else 0.0)</field>
             <field name="appears_on_payslip">True</field>
         </record>
 
@@ -283,9 +305,9 @@ result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
             <field name="sequence">165</field>
             <field name="category_id" ref="hr_payroll.DED"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = bool(inputs.EMBARGO and inputs.EMBARGO.amount > 0)</field>
+            <field name="condition_python">result = bool(inputs.get('EMBARGO') and (inputs['EMBARGO'].amount if 'EMBARGO' in inputs else 0.0) > 0)</field>
             <field name="amount_select">code</field>
-            <field name="amount_python_compute">result = inputs.EMBARGO.amount</field>
+            <field name="amount_python_compute">result = -(inputs['EMBARGO'].amount if 'EMBARGO' in inputs else 0.0)</field>
             <field name="appears_on_payslip">True</field>
         </record>
 
@@ -301,7 +323,7 @@ result = payslip._get_rd_isr(categories.GROSS, sfs_quincena, afp_quincena)
             <field name="amount_python_compute">
 # GROSS = suma de categoría ALW (ingresos)
 # DED   = suma de categoría DED (deducciones, en negativo)
-result = categories.GROSS + categories.DED
+result = result_rules['GROSS']['total'] + categories['DED']
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -323,7 +345,7 @@ result = categories.GROSS + categories.DED
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 tope_quincenal = payslip._rule_parameter('rd_tope_sfs') / 2.0
-base_cotizable = min(categories.GROSS, tope_quincenal)
+base_cotizable = min(result_rules['GROSS']['total'], tope_quincenal)
 result = base_cotizable * payslip._rule_parameter('rd_sfs_pat')
             </field>
             <field name="appears_on_payslip">False</field>
@@ -340,7 +362,7 @@ result = base_cotizable * payslip._rule_parameter('rd_sfs_pat')
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 tope_quincenal = payslip._rule_parameter('rd_tope_afp') / 2.0
-base_cotizable = min(categories.GROSS, tope_quincenal)
+base_cotizable = min(result_rules['GROSS']['total'], tope_quincenal)
 result = base_cotizable * payslip._rule_parameter('rd_afp_pat')
             </field>
             <field name="appears_on_payslip">False</field>
@@ -358,7 +380,7 @@ result = base_cotizable * payslip._rule_parameter('rd_afp_pat')
             <field name="amount_python_compute">
 # Mismo tope que AFP (20 SM)
 tope_quincenal = payslip._rule_parameter('rd_tope_afp') / 2.0
-base_cotizable = min(categories.GROSS, tope_quincenal)
+base_cotizable = min(result_rules['GROSS']['total'], tope_quincenal)
 result = base_cotizable * payslip._rule_parameter('rd_fss')
             </field>
             <field name="appears_on_payslip">False</field>
@@ -378,7 +400,7 @@ result = base_cotizable * payslip._rule_parameter('rd_fss')
 # Manufactura papel: provisional 1.30% (tope 4 SM = RD$ 92,892 mensual)
 # Art. 191 Ley 87-01: PROHIBIDO descontar SRL al empleado
 tope_quincenal = payslip._rule_parameter('rd_tope_srl') / 2.0
-base_cotizable = min(categories.GROSS, tope_quincenal)
+base_cotizable = min(result_rules['GROSS']['total'], tope_quincenal)
 result = base_cotizable * payslip._rule_parameter('rd_srl')
             </field>
             <field name="appears_on_payslip">False</field>
@@ -395,7 +417,7 @@ result = base_cotizable * payslip._rule_parameter('rd_srl')
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # 1% de la nómina quincenal bruta. Sin tope.
-result = categories.GROSS * payslip._rule_parameter('rd_infotep_pat')
+result = result_rules['GROSS']['total'] * payslip._rule_parameter('rd_infotep_pat')
             </field>
             <field name="appears_on_payslip">False</field>
         </record>
@@ -437,12 +459,12 @@ result = contract.wage  # = 1/12 × 12 meses = 1 salario mensual (provisión exa
 # Solo retener ISR si la regalía supera 1/12 del salario ordinario anual
 # Exención: 1 salario mensual (lo que calculamos como REGALIA base)
 # El excedente es gravable. Para la mayoría de empleados de AG Supply: exento.
-result = categories.GROSS > contract.wage
+result = categories['ALW'] > contract.wage
             </field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 exento = contract.wage
-excedente = categories.GROSS - exento
+excedente = categories['ALW'] - exento
 # Aplicar tasa marginal ISR del empleado sobre el excedente anualizado
 base_anual = excedente * 12
 exencion = payslip._rule_parameter('rd_isr_exencion')
@@ -450,11 +472,11 @@ t2_techo = payslip._rule_parameter('rd_isr_t2_techo')
 t3_techo = payslip._rule_parameter('rd_isr_t3_techo')
 t3_base  = payslip._rule_parameter('rd_isr_t3_base')
 t4_base  = payslip._rule_parameter('rd_isr_t4_base')
-if base_anual <= exencion:
+if base_anual &lt;= exencion:
     result = 0.0
-elif base_anual <= t2_techo:
+elif base_anual &lt;= t2_techo:
     result = (base_anual - exencion) * 0.15 / 12
-elif base_anual <= t3_techo:
+elif base_anual &lt;= t3_techo:
     result = (t3_base + (base_anual - t2_techo) * 0.20) / 12
 else:
     result = (t4_base + (base_anual - t3_techo) * 0.25) / 12
@@ -470,7 +492,7 @@ else:
             <field name="category_id" ref="hr_payroll.NET"/>
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
-            <field name="amount_python_compute">result = categories.GROSS + categories.DED</field>
+            <field name="amount_python_compute">result = categories['ALW'] + categories['DED']</field>
             <field name="appears_on_payslip">True</field>
         </record>
 
@@ -491,7 +513,7 @@ else:
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # El monto se carga como input BONO_MONTO (calculado por Martín/Angélica desde utilidades)
-result = inputs.BONO_MONTO.amount if inputs.BONO_MONTO else 0.0
+result = (inputs['BONO_MONTO'].amount if 'BONO_MONTO' in inputs else 0.0) if inputs.get('BONO_MONTO') else 0.0
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -505,7 +527,7 @@ result = inputs.BONO_MONTO.amount if inputs.BONO_MONTO else 0.0
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
-result = categories.GROSS * payslip._rule_parameter('rd_infotep_emp')
+result = categories['ALW'] * payslip._rule_parameter('rd_infotep_emp')
             </field>
             <field name="appears_on_payslip">True</field>
         </record>
@@ -517,23 +539,23 @@ result = categories.GROSS * payslip._rule_parameter('rd_infotep_emp')
             <field name="sequence">110</field>
             <field name="category_id" ref="hr_payroll.DED"/>
             <field name="condition_select">python</field>
-            <field name="condition_python">result = categories.GROSS > 0</field>
+            <field name="condition_python">result = categories['ALW'] > 0</field>
             <field name="amount_select">code</field>
             <field name="amount_python_compute">
 # La bonificación es gravable ISR. Usar tasa marginal del empleado.
 # Simplificación: usar tasa del último tramo activo del empleado.
 # TODO: integrar con el recibo de nómina del mes para tasa exacta.
-base_anual = categories.GROSS * 12
+base_anual = categories['ALW'] * 12
 exencion = payslip._rule_parameter('rd_isr_exencion')
 t2_techo = payslip._rule_parameter('rd_isr_t2_techo')
 t3_techo = payslip._rule_parameter('rd_isr_t3_techo')
 t3_base  = payslip._rule_parameter('rd_isr_t3_base')
 t4_base  = payslip._rule_parameter('rd_isr_t4_base')
-if base_anual <= exencion:
+if base_anual &lt;= exencion:
     result = 0.0
-elif base_anual <= t2_techo:
+elif base_anual &lt;= t2_techo:
     result = (base_anual - exencion) * 0.15 / 12
-elif base_anual <= t3_techo:
+elif base_anual &lt;= t3_techo:
     result = (t3_base + (base_anual - t2_techo) * 0.20) / 12
 else:
     result = (t4_base + (base_anual - t3_techo) * 0.25) / 12
@@ -549,7 +571,7 @@ else:
             <field name="category_id" ref="hr_payroll.NET"/>
             <field name="condition_select">none</field>
             <field name="amount_select">code</field>
-            <field name="amount_python_compute">result = categories.GROSS + categories.DED</field>
+            <field name="amount_python_compute">result = categories['ALW'] + categories['DED']</field>
             <field name="appears_on_payslip">True</field>
         </record>
 

@@ -2,94 +2,9 @@
 <odoo>
 
     <!-- ══════════════════════════════════════════════════════════════════
-         AG.INCENTIVO.TARIFA — Tarifas de incentivo por producto
-    ══════════════════════════════════════════════════════════════════════ -->
-
-    <record id="view_ag_incentivo_tarifa_list" model="ir.ui.view">
-        <field name="name">ag.incentivo.tarifa.list</field>
-        <field name="model">ag.incentivo.tarifa</field>
-        <field name="arch" type="xml">
-            <list string="Tarifas de incentivo" editable="bottom"
-                  decoration-muted="not active">
-                <field name="product_id"/>
-                <field name="workcenter_id"/>
-                <field name="tarifa" string="RD$/unidad"/>
-                <field name="unidad_medida" string="UdM"/>
-                <field name="date_from"/>
-                <field name="date_to"/>
-                <field name="active" column_invisible="1"/>
-            </list>
-        </field>
-    </record>
-
-    <record id="view_ag_incentivo_tarifa_form" model="ir.ui.view">
-        <field name="name">ag.incentivo.tarifa.form</field>
-        <field name="model">ag.incentivo.tarifa</field>
-        <field name="arch" type="xml">
-            <form string="Tarifa de incentivo">
-                <sheet>
-                    <widget name="web_ribbon" title="Archivado"
-                            bg_color="text-bg-danger"
-                            invisible="active"/>
-                    <group>
-                        <group string="Producto y centro de trabajo">
-                            <field name="product_id"/>
-                            <field name="workcenter_id"
-                                   help="Dejar vacío = aplica a todos los centros"/>
-                            <field name="unidad_medida"/>
-                        </group>
-                        <group string="Tarifa y vigencia">
-                            <field name="tarifa"/>
-                            <field name="date_from"/>
-                            <field name="date_to"/>
-                            <field name="active"/>
-                        </group>
-                    </group>
-                    <group string="Notas">
-                        <field name="notes" nolabel="1"/>
-                    </group>
-                </sheet>
-            </form>
-        </field>
-    </record>
-
-    <record id="view_ag_incentivo_tarifa_search" model="ir.ui.view">
-        <field name="name">ag.incentivo.tarifa.search</field>
-        <field name="model">ag.incentivo.tarifa</field>
-        <field name="arch" type="xml">
-            <search>
-                <field name="product_id"/>
-                <field name="workcenter_id"/>
-                <filter name="active" string="Activas" domain="[('active','=',True)]"/>
-                <filter name="archived" string="Archivadas" domain="[('active','=',False)]"/>
-                <group expand="0" string="Agrupar por">
-                    <filter name="group_product" string="Producto"
-                            context="{'group_by': 'product_id'}"/>
-                    <filter name="group_workcenter" string="Centro de trabajo"
-                            context="{'group_by': 'workcenter_id'}"/>
-                </group>
-            </search>
-        </field>
-    </record>
-
-    <record id="action_ag_incentivo_tarifa" model="ir.actions.act_window">
-        <field name="name">Tarifas de incentivo</field>
-        <field name="res_model">ag.incentivo.tarifa</field>
-        <field name="view_mode">list,form</field>
-        <field name="context">{'search_default_active': 1}</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                Crea la primera tarifa de incentivo
-            </p>
-            <p>
-                Define el monto en RD$ por unidad producida para cada producto.
-                El wizard de incentivo usará estas tarifas al calcular el bono quincenal.
-            </p>
-        </field>
-    </record>
-
-    <!-- ══════════════════════════════════════════════════════════════════
          AG.INCENTIVO.CALCULO — Resultados por empleado y período
+         (El incentivo RD$/unidad se configura en la Operación de la lista
+          de materiales — ver views/mrp_operation_views.xml)
     ══════════════════════════════════════════════════════════════════════ -->
 
     <record id="view_ag_incentivo_calculo_list" model="ir.ui.view">
@@ -111,7 +26,7 @@
                 <field name="state" widget="badge"
                        decoration-success="state == 'paid'"
                        decoration-info="state == 'loaded'"
-                       decoration-secondary="state == 'draft'"/>
+                       decoration-muted="state == 'draft'"/>
             </list>
         </field>
     </record>
@@ -292,8 +207,8 @@
     <!-- Sub-menú "Incentivo Producción" -->
     <menuitem id="menu_ag_incentivo_root"
               name="Incentivo Producción"
-              parent="hr_payroll.menu_hr_payroll_root"
-              sequence="25"/>
+              parent="hr_work_entry_contract_enterprise.menu_hr_payroll_root"
+              sequence="75"/>
 
     <menuitem id="menu_ag_incentivo_wizard"
               name="Calcular incentivo (quincena)"
@@ -306,11 +221,5 @@
               parent="menu_ag_incentivo_root"
               action="action_ag_incentivo_calculo"
               sequence="20"/>
-
-    <menuitem id="menu_ag_incentivo_tarifa"
-              name="Tarifas por producto"
-              parent="menu_ag_incentivo_root"
-              action="action_ag_incentivo_tarifa"
-              sequence="30"/>
 
 </odoo>

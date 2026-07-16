@@ -7,29 +7,14 @@
     <data noupdate="1">
 
         <!-- Asistencia regular — 100% del salario -->
-        <record id="work_entry_asistencia" model="hr.work.entry.type">
-            <field name="name">Asistencia regular</field>
-            <field name="code">WORK100</field>
-            <field name="color">10</field><!-- verde -->
-            <field name="time_type">work</field>
-            <field name="is_leave">False</field>
-        </record>
 
         <!-- Vacaciones pagadas (14 días primer año, 18 días 5+ años) -->
-        <record id="work_entry_vacaciones" model="hr.work.entry.type">
-            <field name="name">Vacaciones</field>
-            <field name="code">LEAVE100</field>
-            <field name="color">4</field><!-- azul -->
-            <field name="time_type">leave</field>
-            <field name="is_leave">True</field>
-        </record>
 
         <!-- Licencia médica — TSS paga desde el 4to día, empresa paga primeros 3 -->
         <record id="work_entry_licencia_medica" model="hr.work.entry.type">
             <field name="name">Licencia médica (subsidio TSS)</field>
             <field name="code">SICK_TSS</field>
             <field name="color">2</field><!-- amarillo -->
-            <field name="time_type">leave</field>
             <field name="is_leave">True</field>
         </record>
 
@@ -38,7 +23,6 @@
             <field name="name">Ausencia injustificada</field>
             <field name="code">LEAVE_UNPAID</field>
             <field name="color">1</field><!-- rojo -->
-            <field name="time_type">leave</field>
             <field name="is_leave">True</field>
         </record>
 
@@ -47,7 +31,6 @@
             <field name="name">Hora extra 35% (día laborable)</field>
             <field name="code">HE35</field>
             <field name="color">6</field><!-- naranja -->
-            <field name="time_type">work</field>
             <field name="is_leave">False</field>
         </record>
 
@@ -56,7 +39,6 @@
             <field name="name">Hora extra 100% (feriado/descanso semanal)</field>
             <field name="code">HE100</field>
             <field name="color">1</field><!-- rojo -->
-            <field name="time_type">work</field>
             <field name="is_leave">False</field>
         </record>
 
@@ -65,7 +47,6 @@
             <field name="name">Feriado nacional</field>
             <field name="code">HOLIDAY</field>
             <field name="color">5</field><!-- morado -->
-            <field name="time_type">leave</field>
             <field name="is_leave">True</field>
         </record>
 
@@ -74,7 +55,6 @@
             <field name="name">Hora nocturna (9pm–7am)</field>
             <field name="code">HNOC</field>
             <field name="color">0</field><!-- gris -->
-            <field name="time_type">work</field>
             <field name="is_leave">False</field>
         </record>
 
@@ -83,7 +63,6 @@
             <field name="name">Licencia de maternidad (84 días)</field>
             <field name="code">MATERNIDAD</field>
             <field name="color">9</field><!-- rosa -->
-            <field name="time_type">leave</field>
             <field name="is_leave">True</field>
         </record>
 
@@ -92,7 +71,6 @@
             <field name="name">Licencia de paternidad (2 días)</field>
             <field name="code">PATERNIDAD</field>
             <field name="color">4</field>
-            <field name="time_type">leave</field>
             <field name="is_leave">True</field>
         </record>
 

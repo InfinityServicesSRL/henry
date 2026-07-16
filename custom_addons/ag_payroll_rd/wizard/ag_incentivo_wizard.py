@@ -15,7 +15,7 @@ class AgIncentivoWizard(models.TransientModel):
       1. El usuario selecciona el período (date_from, date_to).
       2. El wizard lee todas las órdenes de fabricación CONFIRMADAS/TERMINADAS
          del período con empleados asignados.
-      3. Cruza con la tabla ag.incentivo.tarifa para obtener RD$/unidad por producto.
+      3. Lee el incentivo RD$/unidad desde la operación de cada workorder (tarifa viva).
       4. Calcula el incentivo total por empleado.
       5. Crea o actualiza registros ag.incentivo.calculo.
       6. Opcionalmente carga los montos directamente a los recibos si ya fueron generados.
@@ -45,15 +45,22 @@ class AgIncentivoWizard(models.TransientModel):
 
     # ── Configuración ─────────────────────────────────────────────────────────
     modo_distribucion = fields.Selection([
+        ('proporcional', 'Proporcional — según minutos trabajados por cada operario en la OF'),
         ('equitativo', 'Equitativo — dividir entre todos los operarios del turno'),
         ('individual', 'Individual — por empleado asignado directamente en la OF'),
-    ], string='Modo de distribución', required=True, default='individual',
+    ], string='Modo de distribución', required=True, default='proporcional',
         help='Define cómo se asigna el incentivo cuando hay múltiples operarios en una OF.')
 
     auto_cargar_recibos = fields.Boolean(
         string='Cargar automáticamente a recibos',
         default=True,
         help='Si está activo y se seleccionó un lote, los montos se cargan al completar el wizard.',
+    )
+    incluir_pagadas = fields.Boolean(
+        string='Incluir órdenes ya pagadas',
+        default=False,
+        help='Normalmente solo se toman las órdenes de trabajo con incentivo PENDIENTE. '
+             'Marque esto solo si necesita recalcular incluyendo órdenes ya pagadas en una quincena anterior.',
     )
 
     # ── Vista previa (readonly) ───────────────────────────────────────────────
@@ -88,22 +95,24 @@ class AgIncentivoWizard(models.TransientModel):
         # Borrar líneas previas de esta sesión del wizard
         self.preview_line_ids.unlink()
 
-        # Obtener órdenes de fabricación del período
-        producciones = self._get_producciones()
-        if not producciones:
+        # Obtener órdenes de trabajo del período con incentivo configurado
+        workorders = self._get_workorders()
+        if not workorders:
             raise UserError(
-                f'No se encontraron órdenes de fabricación confirmadas entre '
-                f'{self.date_from} y {self.date_to}.'
+                f'No se encontraron órdenes de trabajo con incentivo entre '
+                f'{self.date_from} y {self.date_to}.\n'
+                f'Verifique que las operaciones tengan "Incentivo RD$/unidad" configurado '
+                f'y que las órdenes tengan producción registrada.'
             )
 
         # Calcular incentivo por empleado
-        incentivos_por_empleado = self._calcular_incentivos(producciones)
+        incentivos_por_empleado = self._calcular_incentivos(workorders)
 
         if not incentivos_por_empleado:
             raise UserError(
                 'No se pudo calcular el incentivo. Verifique que:\n'
-                '1. Las OFs tienen empleados asignados.\n'
-                '2. Los productos tienen tarifa configurada en ag.incentivo.tarifa.\n'
+                '1. Las operaciones tienen "Incentivo RD$/unidad" configurado.\n'
+                '2. Hay operarios con tiempo registrado en las órdenes de trabajo.\n'
                 '3. Las cantidades producidas son mayores a cero.'
             )
 
@@ -116,6 +125,7 @@ class AgIncentivoWizard(models.TransientModel):
                 'unidades_producidas': data['unidades'],
                 'monto_incentivo': data['monto'],
                 'produccion_ids': [(6, 0, data['of_ids'])],
+                'workorder_ids': [(6, 0, list(set(data['wo_ids'])))],
                 'notas': data.get('detalle', ''),
             }))
         self.preview_line_ids = lines
@@ -129,110 +139,96 @@ class AgIncentivoWizard(models.TransientModel):
             'target': 'new',
         }
 
-    def _get_producciones(self):
-        """Retorna órdenes de fabricación confirmadas o terminadas en el período."""
+    def _get_workorders(self):
+        """
+        Retorna las órdenes de trabajo (workorders) del período cuya operación
+        tiene un incentivo por unidad configurado (> 0).
+
+        El incentivo vive en la OPERACIÓN (mrp.routing.workcenter). Cada workorder
+        de una OF apunta a su operación; leemos ese valor en vivo al calcular.
+        """
         domain = [
-            ('state', 'in', ['confirmed', 'progress', 'done']),
+            ('production_id.state', 'in', ['confirmed', 'progress', 'to_close', 'done']),
             ('date_start', '>=', str(self.date_from)),
             ('date_start', '<=', str(self.date_to) + ' 23:59:59'),
             ('qty_produced', '>', 0),
+            ('operation_id.ag_incentivo_unidad', '>', 0),
         ]
-        return self.env['mrp.production'].search(domain)
+        # Por defecto, solo órdenes con incentivo PENDIENTE (evita pagar dos veces).
+        if not self.incluir_pagadas:
+            domain.append(('ag_incentivo_estado', '=', 'pendiente'))
+        return self.env['mrp.workorder'].search(domain)
 
-    def _calcular_incentivos(self, producciones):
+    def _calcular_incentivos(self, workorders):
         """
-        Cruza las OFs con las tarifas de incentivo y distribuye por empleado.
+        Recorre las workorders y calcula el incentivo por operación:
+            monto_wo = qty_produced × operacion.ag_incentivo_unidad   (tarifa viva)
+        y lo reparte entre los operarios según el modo de distribución.
 
-        Retorna: dict {employee_id: {'unidades': float, 'monto': float, 'of_ids': list}}
+        Retorna: dict {employee_id: {'unidades': float, 'monto': float, 'of_ids': list, 'wo_ids': list}}
         """
-        Tarifa = self.env['ag.incentivo.tarifa']
-        resultado = defaultdict(lambda: {'unidades': 0.0, 'monto': 0.0, 'of_ids': [], 'detalle': ''})
+        resultado = defaultdict(lambda: {'unidades': 0.0, 'monto': 0.0, 'of_ids': [], 'wo_ids': [], 'detalle': ''})
 
-        for prod in producciones:
-            # Buscar tarifa vigente para este producto/centro de trabajo
-            tarifa_rec = Tarifa.search([
-                ('product_id', '=', prod.product_id.id),
-                '|',
-                ('workcenter_id', '=', False),
-                ('workcenter_id', '=', prod.workcenter_id.id if prod.workcenter_id else False),
-                ('date_from', '<=', str(self.date_to)),
-                '|',
-                ('date_to', '=', False),
-                ('date_to', '>=', str(self.date_from)),
-                ('active', '=', True),
-            ], order='workcenter_id desc, date_from desc', limit=1)
+        for wo in workorders:
+            tarifa = wo.operation_id.ag_incentivo_unidad   # tarifa viva desde la operación
+            qty = wo.qty_produced
+            monto_wo = qty * tarifa
+            prod = wo.production_id
+            etiqueta = f"{prod.name}/{wo.operation_id.name}"
 
-            if not tarifa_rec:
-                _logger.warning(
-                    'Sin tarifa de incentivo para producto %s (OF %s). Omitida.',
-                    prod.product_id.display_name, prod.name
-                )
+            # Minutos por empleado en ESTA workorder (operación)
+            tiempos = self.env['mrp.workcenter.productivity'].search([
+                ('workorder_id', '=', wo.id),
+                ('employee_id', '!=', False),
+            ])
+            minutos_por_emp = defaultdict(float)
+            for t in tiempos:
+                minutos_por_emp[t.employee_id.id] += t.duration
+            total_min = sum(minutos_por_emp.values())
+
+            # ── PROPORCIONAL: repartir según minutos de cada operario ──
+            if self.modo_distribucion == 'proporcional':
+                if total_min <= 0:
+                    _logger.warning('WO %s sin tiempos de empleado. Omitida (proporcional).', wo.name)
+                    continue
+                for emp_id, mins in minutos_por_emp.items():
+                    frac = mins / total_min
+                    resultado[emp_id]['unidades'] += qty * frac
+                    resultado[emp_id]['monto'] += monto_wo * frac
+                    if prod.id not in resultado[emp_id]['of_ids']:
+                        resultado[emp_id]['of_ids'].append(prod.id)
+                    resultado[emp_id]['wo_ids'].append(wo.id)
+                    resultado[emp_id]['detalle'] += (
+                        f"{etiqueta}: {qty:.2f} u × RD${tarifa:.4f} × {frac*100:.1f}% "
+                        f"({mins:.0f} de {total_min:.0f} min) = RD${monto_wo*frac:.2f}\n"
+                    )
                 continue
 
-            tarifa = tarifa_rec.tarifa
-            qty = prod.qty_produced
-            monto_of = qty * tarifa
-
-            # Obtener empleados de la OF
-            empleados = self._get_empleados_of(prod)
+            # ── EQUITATIVO / INDIVIDUAL: usar los operarios que registraron tiempo ──
+            empleados = list(minutos_por_emp.keys())
             if not empleados:
-                _logger.warning('OF %s sin empleados asignados. Omitida para incentivo.', prod.name)
+                _logger.warning('WO %s sin operarios. Omitida.', wo.name)
                 continue
 
-            # Distribuir el monto de la OF entre los empleados
             if self.modo_distribucion == 'equitativo':
-                monto_por_emp = monto_of / len(empleados)
+                monto_por_emp = monto_wo / len(empleados)
                 unidades_por_emp = qty / len(empleados)
-            else:
-                # individual: asignar el total al empleado principal (primero de la lista)
-                monto_por_emp = monto_of
+            else:  # individual: total al primer operario
+                monto_por_emp = monto_wo
                 unidades_por_emp = qty
                 empleados = empleados[:1]
 
-            for emp in empleados:
-                resultado[emp.id]['unidades'] += unidades_por_emp
-                resultado[emp.id]['monto'] += monto_por_emp
-                resultado[emp.id]['of_ids'].append(prod.id)
-                resultado[emp.id]['detalle'] += (
-                    f"{prod.name}: {qty:.2f} u × RD${tarifa:.4f} = RD${monto_por_emp:.2f}\n"
+            for emp_id in empleados:
+                resultado[emp_id]['unidades'] += unidades_por_emp
+                resultado[emp_id]['monto'] += monto_por_emp
+                if prod.id not in resultado[emp_id]['of_ids']:
+                    resultado[emp_id]['of_ids'].append(prod.id)
+                resultado[emp_id]['wo_ids'].append(wo.id)
+                resultado[emp_id]['detalle'] += (
+                    f"{etiqueta}: {qty:.2f} u × RD${tarifa:.4f} = RD${monto_por_emp:.2f}\n"
                 )
 
         return dict(resultado)
-
-    def _get_empleados_of(self, produccion):
-        """
-        Retorna los empleados asociados a una orden de fabricación.
-
-        Odoo 18 no tiene un campo nativo de empleado en mrp.production.
-        AG Supply puede usar:
-          A. El campo time_ids (hr.workcenter.productivity) que registra quién
-             trabajó en la OF cuando se usa el módulo de tiempos de OF.
-          B. Un campo custom 'operario_ids' añadido al módulo.
-          C. Todos los empleados cuyo contrato tenga asignado ese centro de trabajo.
-
-        Implementación actual: opción C (más robusta mientras no haya time_ids).
-        Prioridad futura: opción A (una vez que se registren tiempos en planta).
-        """
-        # Opción A: usar tiempos registrados en la OF (si existe el módulo)
-        if hasattr(produccion, 'time_ids') and produccion.time_ids:
-            employees = produccion.time_ids.mapped('employee_id').filtered(lambda e: e.active)
-            if employees:
-                return employees
-
-        # Opción B: campo custom 'operario_ids' si se añadió al módulo
-        if hasattr(produccion, 'operario_ids') and produccion.operario_ids:
-            return produccion.operario_ids
-
-        # Opción C: contratos activos asignados a ese centro de trabajo
-        if produccion.workcenter_id:
-            contratos = self.env['hr.contract'].search([
-                ('state', '=', 'open'),
-                ('rd_aplica_incentivo', '=', True),
-                ('rd_centro_trabajo_ids', 'in', produccion.workcenter_id.id),
-            ])
-            return contratos.mapped('employee_id')
-
-        return self.env['hr.employee'].browse()
 
     # ── Paso 2: Confirmar (guarda y opcionalmente carga a recibos) ───────────
 
@@ -262,6 +258,7 @@ class AgIncentivoWizard(models.TransientModel):
                 'monto_incentivo': line.monto_incentivo,
                 'payslip_id': payslip.id if payslip else False,
                 'production_ids': [(6, 0, line.produccion_ids.ids)],
+                'workorder_ids': [(6, 0, line.workorder_ids.ids)],
                 'notes': line.notas,
             })
             calculos_creados |= calculo
@@ -269,6 +266,17 @@ class AgIncentivoWizard(models.TransientModel):
             # Cargar automáticamente al recibo si se eligió esa opción
             if self.auto_cargar_recibos and payslip:
                 calculo.action_load_to_payslip()
+
+        # ── Sellar las órdenes de trabajo como PAGADAS (trazabilidad + no repago) ──
+        wos_pagadas = calculos_creados.mapped('workorder_ids')
+        if wos_pagadas:
+            wos_pagadas.write({
+                'ag_incentivo_estado': 'pagado',
+                'ag_incentivo_fecha_pago': fields.Date.today(),
+                'ag_incentivo_periodo': f"{self.date_from} a {self.date_to}",
+            })
+            for calc in calculos_creados:
+                calc.workorder_ids.write({'ag_incentivo_calculo_ids': [(4, calc.id)]})
 
         # Mostrar los cálculos creados
         return {
@@ -293,6 +301,7 @@ class AgIncentivoWizardLine(models.TransientModel):
     unidades_producidas = fields.Float(string='Unidades producidas', digits=(12, 2))
     monto_incentivo = fields.Float(string='Incentivo RD$', digits=(12, 2))
     produccion_ids = fields.Many2many('mrp.production', string='Órdenes incluidas')
+    workorder_ids = fields.Many2many('mrp.workorder', string='Órdenes de trabajo incluidas')
     notas = fields.Text(string='Detalle')
     incluir = fields.Boolean(
         string='Incluir',

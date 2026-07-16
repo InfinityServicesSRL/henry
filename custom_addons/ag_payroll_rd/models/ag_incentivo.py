@@ -5,53 +5,6 @@ import logging
 _logger = logging.getLogger(__name__)
 
 
-class AgIncentivoPorProducto(models.Model):
-    """
-    Tabla de tarifas de incentivo de producción por producto.
-
-    Cada producto fabricado tiene una tarifa en RD$ por unidad producida.
-    Esta tarifa multiplica la cantidad producida por el empleado en el período
-    para calcular su bono de incentivo quincenal.
-    """
-    _name = 'ag.incentivo.tarifa'
-    _description = 'Tarifa de incentivo por producto (AG Supply)'
-    _order = 'product_id'
-
-    product_id = fields.Many2one(
-        'product.product',
-        string='Producto',
-        required=True,
-        domain=[('type', '=', 'product')],
-    )
-    workcenter_id = fields.Many2one(
-        'mrp.workcenter',
-        string='Centro de trabajo',
-        help='Si se deja vacío, aplica a todos los centros de trabajo',
-    )
-    tarifa = fields.Float(
-        string='Tarifa RD$ / unidad',
-        required=True,
-        digits=(12, 4),
-        help='Monto en pesos dominicanos por unidad producida (caja, rollo, paquete según UdM)',
-    )
-    unidad_medida = fields.Char(
-        string='Unidad de medida',
-        related='product_id.uom_id.name',
-        readonly=True,
-    )
-    date_from = fields.Date(
-        string='Vigente desde',
-        required=True,
-        default=fields.Date.today,
-    )
-    date_to = fields.Date(
-        string='Vigente hasta',
-        help='Dejar vacío si la tarifa es indefinida',
-    )
-    active = fields.Boolean(default=True)
-    notes = fields.Text(string='Notas')
-
-
 class AgIncentivoCalculo(models.Model):
     """
     Resultado del cálculo de incentivo por empleado y período.
@@ -79,6 +32,14 @@ class AgIncentivoCalculo(models.Model):
         'mrp.production',
         string='Órdenes de fabricación incluidas',
         help='Órdenes que contribuyeron a este cálculo',
+    )
+    workorder_ids = fields.Many2many(
+        'mrp.workorder',
+        'ag_incentivo_calculo_workorder_rel',
+        'calculo_id',
+        'workorder_id',
+        string='Órdenes de trabajo incluidas',
+        help='Órdenes de trabajo (operaciones) cuyo incentivo se repartió en este cálculo',
     )
     notes = fields.Text(string='Detalle del cálculo')
 

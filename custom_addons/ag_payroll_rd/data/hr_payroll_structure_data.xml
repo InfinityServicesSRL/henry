@@ -62,5 +62,11 @@
             <field name="payslip_name">Liquidación Final</field>
         </record>
 
+
+        <!-- Se asigna al final: la estructura ya existe (evita referencia circular) -->
+        <record id="structure_type_ag" model="hr.payroll.structure.type">
+            <field name="default_struct_id" ref="struct_ag_quincenal"/>
+        </record>
+
     </data>
 </odoo>

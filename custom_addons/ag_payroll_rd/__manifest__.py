@@ -1,6 +1,6 @@
 {
     'name': 'AG Supply — Nómina República Dominicana',
-    'version': '18.0.1.1.0',
+    'version': '18.0.1.5.0',
     'summary': 'Módulo de nómina quincenal con legislación RD 2026 e incentivo de producción',
     'author': 'AG Supply, SRL.',
     'website': '',
@@ -20,8 +20,10 @@
         'data/hr_payroll_structure_type_data.xml',  # Tipos de estructura (Producción, Admin, Ventas)
         'data/hr_payroll_structure_data.xml',    # Estructuras quincenal + regalía + liquidación
         'data/hr_salary_rule_data.xml',          # Reglas TSS, ISR, incentivos
-        'views/hr_payslip_views.xml',
         'views/ag_incentivo_views.xml',
+        'views/mrp_operation_views.xml',   # Campo incentivo RD$/unidad en la operación
+        'views/mrp_workorder_views.xml',   # Trazabilidad incentivo pendiente/pagado
+        'views/hr_payslip_views.xml',
         'report/report_payslip_rd.xml',
     ],
     'demo': [],

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Lista de ordenes de trabajo con estado de incentivo -->
+    <record id="view_mrp_workorder_incentivo_list" model="ir.ui.view">
+        <field name="name">mrp.workorder.incentivo.list</field>
+        <field name="model">mrp.workorder</field>
+        <field name="arch" type="xml">
+            <list string="Órdenes de trabajo — Incentivo"
+                  decoration-success="ag_incentivo_estado == 'pagado'"
+                  decoration-warning="ag_incentivo_estado == 'pendiente'"
+                  create="false">
+                <field name="ag_incentivo_periodo" optional="show"/>
+                <field name="production_id"/>
+                <field name="name" string="Operación"/>
+                <field name="workcenter_id"/>
+                <field name="qty_produced" string="Producido"/>
+                <field name="date_start" string="Fecha"/>
+                <field name="ag_incentivo_estado" widget="badge"
+                       decoration-success="ag_incentivo_estado == 'pagado'"
+                       decoration-warning="ag_incentivo_estado == 'pendiente'"/>
+                <field name="ag_incentivo_fecha_pago" optional="show"/>
+                <field name="ag_incentivo_calculo_ids" widget="many2many_tags" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_mrp_workorder_incentivo_search" model="ir.ui.view">
+        <field name="name">mrp.workorder.incentivo.search</field>
+        <field name="model">mrp.workorder</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="production_id"/>
+                <field name="workcenter_id"/>
+                <field name="ag_incentivo_periodo"/>
+                <filter name="pendiente" string="Pendientes"
+                        domain="[('ag_incentivo_estado','=','pendiente')]"/>
+                <filter name="pagado" string="Pagadas"
+                        domain="[('ag_incentivo_estado','=','pagado')]"/>
+                <separator/>
+                <filter name="con_incentivo" string="Con incentivo configurado"
+                        domain="[('operation_id.ag_incentivo_unidad','&gt;',0)]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="g_periodo" string="Período" context="{'group_by': 'ag_incentivo_periodo'}"/>
+                    <filter name="g_estado" string="Estado" context="{'group_by': 'ag_incentivo_estado'}"/>
+                    <filter name="g_wc" string="Centro de trabajo" context="{'group_by': 'workcenter_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Accion 1: pendientes de incentivo -->
+    <record id="action_wo_incentivo_pendiente" model="ir.actions.act_window">
+        <field name="name">Órdenes pendientes de incentivo</field>
+        <field name="res_model">mrp.workorder</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mrp_workorder_incentivo_search"/>
+        <field name="domain">[('operation_id.ag_incentivo_unidad','&gt;',0),('qty_produced','&gt;',0),('ag_incentivo_estado','=','pendiente')]</field>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay órdenes pendientes de incentivo</p>
+            <p>Aquí ves lo que aún no se ha pagado en incentivo. Se paga corriendo el wizard de la quincena.</p>
+        </field>
+    </record>
+
+    <!-- Accion 2: pagadas por quincena -->
+    <record id="action_wo_incentivo_pagado" model="ir.actions.act_window">
+        <field name="name">Órdenes con incentivo pagado</field>
+        <field name="res_model">mrp.workorder</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_mrp_workorder_incentivo_search"/>
+        <field name="domain">[('ag_incentivo_estado','=','pagado')]</field>
+        <field name="context">{'search_default_g_periodo': 1}</field>
+    </record>
+
+    <menuitem id="menu_wo_incentivo_pendiente"
+              name="Pendientes de incentivo"
+              parent="menu_ag_incentivo_root"
+              action="action_wo_incentivo_pendiente"
+              sequence="30"/>
+
+    <menuitem id="menu_wo_incentivo_pagado"
+              name="Pagadas por quincena"
+              parent="menu_ag_incentivo_root"
+              action="action_wo_incentivo_pagado"
+              sequence="40"/>
+
+</odoo>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Añade "Incentivo RD$/unidad" al formulario de la Operación,
+         junto al tiempo/duración manual de la lista de materiales. -->
+    <record id="view_mrp_routing_workcenter_form_ag" model="ir.ui.view">
+        <field name="name">mrp.routing.workcenter.form.ag.incentivo</field>
+        <field name="model">mrp.routing.workcenter</field>
+        <field name="inherit_id" ref="mrp.mrp_routing_workcenter_form_view"/>
+        <field name="arch" type="xml">
+            <field name="time_cycle_manual" position="after">
+                <field name="ag_incentivo_unidad"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

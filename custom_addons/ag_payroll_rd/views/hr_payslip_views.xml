@@ -12,7 +12,7 @@
     <record id="view_hr_contract_form_rd" model="ir.ui.view">
         <field name="name">hr.contract.form.rd</field>
         <field name="model">hr.contract</field>
-        <field name="inherit_id" ref="hr_payroll.hr_contract_view_form"/>
+        <field name="inherit_id" ref="hr_contract.hr_contract_view_form"/>
         <field name="arch" type="xml">
             <!-- Añadir pestaña "República Dominicana" al formulario del contrato -->
             <xpath expr="//notebook" position="inside">
@@ -54,17 +54,17 @@
     <record id="view_hr_payslip_run_form_rd" model="ir.ui.view">
         <field name="name">hr.payslip.run.form.rd</field>
         <field name="model">hr.payslip.run</field>
-        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_run_form"/>
+        <field name="inherit_id" ref="hr_payroll.hr_payslip_run_form"/>
         <field name="arch" type="xml">
             <xpath expr="//header/button[last()]" position="after">
                 <button name="%(ag_payroll_rd.action_ag_incentivo_wizard)d"
                         string="🏭 Calcular incentivo producción"
                         type="action"
                         class="btn-secondary"
-                        context="{'default_payslip_batch_id': active_id,
+                        context="{'default_payslip_batch_id': id,
                                   'default_date_from': date_start,
                                   'default_date_to': date_end}"
-                        states="draft"/>
+                        invisible="state != 'draft'"/>
             </xpath>
         </field>
     </record>
@@ -81,7 +81,7 @@
                         type="action"
                         class="oe_stat_button"
                         icon="fa-industry"
-                        context="{'search_default_payslip_id': active_id}">
+                        context="{'search_default_payslip_id': id}">
                     <div class="o_stat_info">
                         <span class="o_stat_text">Incentivo</span>
                         <span class="o_stat_text">Producción</span>

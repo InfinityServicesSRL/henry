@@ -15,7 +15,6 @@
             <field name="wage_type">monthly</field>
             <!-- default_schedule_pay: quincenal = semi-monthly -->
             <field name="default_schedule_pay">semi-monthly</field>
-            <field name="default_struct_id" ref="struct_ag_quincenal"/>
         </record>
 
     </data>
