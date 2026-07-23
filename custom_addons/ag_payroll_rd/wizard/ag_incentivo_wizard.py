@@ -2,6 +2,7 @@ from odoo import models, fields, api
 from odoo.exceptions import UserError
 import logging
 from collections import defaultdict
+from datetime import datetime
 
 _logger = logging.getLogger(__name__)
 
@@ -160,23 +161,25 @@ class AgIncentivoWizard(models.TransientModel):
         return self.env['mrp.workorder'].search(domain)
 
     def _calcular_incentivos(self, workorders):
-        """
-        Recorre las workorders y calcula el incentivo por operación:
-            monto_wo = qty_produced × operacion.ag_incentivo_unidad   (tarifa viva)
-        y lo reparte entre los operarios según el modo de distribución.
+        """v1.6.0 - Destajo con piso diario (modelo AG Supply).
 
-        Retorna: dict {employee_id: {'unidades': float, 'monto': float, 'of_ids': list, 'wo_ids': list}}
+        Reparte el destajo (qty x tarifa) entre operarios segun el modo de
+        distribucion, acumulandolo POR DIA. Luego, por empleado y dia:
+            incentivo_dia = max(0, destajo_dia - (jornal_diario + HE_dia))
+        El jornal ya se paga como sueldo fijo; el incentivo es solo el
+        excedente. HE desde Asistencias (hr.attendance).
         """
         resultado = defaultdict(lambda: {'unidades': 0.0, 'monto': 0.0, 'of_ids': [], 'wo_ids': [], 'detalle': ''})
+        destajo_dia = defaultdict(lambda: defaultdict(float))
 
         for wo in workorders:
-            tarifa = wo.operation_id.ag_incentivo_unidad   # tarifa viva desde la operación
+            tarifa = wo.operation_id.ag_incentivo_unidad
             qty = wo.qty_produced
             monto_wo = qty * tarifa
             prod = wo.production_id
             etiqueta = f"{prod.name}/{wo.operation_id.name}"
+            fecha_wo = (wo.date_start or wo.create_date).date()
 
-            # Minutos por empleado en ESTA workorder (operación)
             tiempos = self.env['mrp.workcenter.productivity'].search([
                 ('workorder_id', '=', wo.id),
                 ('employee_id', '!=', False),
@@ -186,7 +189,6 @@ class AgIncentivoWizard(models.TransientModel):
                 minutos_por_emp[t.employee_id.id] += t.duration
             total_min = sum(minutos_por_emp.values())
 
-            # ── PROPORCIONAL: repartir según minutos de cada operario ──
             if self.modo_distribucion == 'proporcional':
                 if total_min <= 0:
                     _logger.warning('WO %s sin tiempos de empleado. Omitida (proporcional).', wo.name)
@@ -194,17 +196,16 @@ class AgIncentivoWizard(models.TransientModel):
                 for emp_id, mins in minutos_por_emp.items():
                     frac = mins / total_min
                     resultado[emp_id]['unidades'] += qty * frac
-                    resultado[emp_id]['monto'] += monto_wo * frac
+                    destajo_dia[emp_id][fecha_wo] += monto_wo * frac
                     if prod.id not in resultado[emp_id]['of_ids']:
                         resultado[emp_id]['of_ids'].append(prod.id)
                     resultado[emp_id]['wo_ids'].append(wo.id)
                     resultado[emp_id]['detalle'] += (
-                        f"{etiqueta}: {qty:.2f} u × RD${tarifa:.4f} × {frac*100:.1f}% "
+                        f"{etiqueta}: {qty:.2f} u x RD${tarifa:.4f} x {frac*100:.1f}% "
                         f"({mins:.0f} de {total_min:.0f} min) = RD${monto_wo*frac:.2f}\n"
                     )
                 continue
 
-            # ── EQUITATIVO / INDIVIDUAL: usar los operarios que registraron tiempo ──
             empleados = list(minutos_por_emp.keys())
             if not empleados:
                 _logger.warning('WO %s sin operarios. Omitida.', wo.name)
@@ -213,22 +214,75 @@ class AgIncentivoWizard(models.TransientModel):
             if self.modo_distribucion == 'equitativo':
                 monto_por_emp = monto_wo / len(empleados)
                 unidades_por_emp = qty / len(empleados)
-            else:  # individual: total al primer operario
+            else:
                 monto_por_emp = monto_wo
                 unidades_por_emp = qty
                 empleados = empleados[:1]
 
             for emp_id in empleados:
                 resultado[emp_id]['unidades'] += unidades_por_emp
-                resultado[emp_id]['monto'] += monto_por_emp
+                destajo_dia[emp_id][fecha_wo] += monto_por_emp
                 if prod.id not in resultado[emp_id]['of_ids']:
                     resultado[emp_id]['of_ids'].append(prod.id)
                 resultado[emp_id]['wo_ids'].append(wo.id)
                 resultado[emp_id]['detalle'] += (
-                    f"{etiqueta}: {qty:.2f} u × RD${tarifa:.4f} = RD${monto_por_emp:.2f}\n"
+                    f"{etiqueta}: {qty:.2f} u x RD${tarifa:.4f} = RD${monto_por_emp:.2f}\n"
                 )
 
+        for emp_id, por_dia in destajo_dia.items():
+            piso_info = self._piso_diario(emp_id, sorted(por_dia.keys()))
+            total_emp = 0.0
+            resultado[emp_id]['detalle'] += "\n--- PISO DIARIO (jornal + HE) ---\n"
+            for fecha in sorted(por_dia.keys()):
+                destajo = por_dia[fecha]
+                piso, he_monto = piso_info.get(fecha, (0.0, 0.0))
+                inc = max(0.0, destajo - piso)
+                total_emp += inc
+                resultado[emp_id]['detalle'] += (
+                    f"{fecha}: destajo RD${destajo:.2f} vs piso RD${piso:.2f} "
+                    f"(incl. HE RD${he_monto:.2f}) -> incentivo RD${inc:.2f}\n"
+                )
+            resultado[emp_id]['monto'] = total_emp
+
         return dict(resultado)
+
+    def _piso_diario(self, emp_id, fechas):
+        """Piso del dia = jornal diario + monto de horas extras del dia.
+
+        Jornal diario = wage mensual / 23.83 (dias laborables promedio RD).
+        HE desde Asistencias: horas del dia por encima de 8, pagadas a
+        (jornal/8) x (1 + overtime_pay_percent/100).
+        Limitacion conocida: el corte de dia usa la fecha del check_in.
+        """
+        res = {}
+        if not fechas:
+            return res
+        contrato = self.env['hr.contract'].search([
+            ('employee_id', '=', emp_id),
+            ('state', '=', 'open'),
+        ], limit=1)
+        jornal = (contrato.wage / 23.83) if contrato and contrato.wage else 0.0
+        try:
+            ovt = self.env['hr.rule.parameter']._get_parameter_from_code(
+                'overtime_pay_percent', self.date_to)
+        except Exception:
+            ovt = 35.0
+        factor_he = 1.0 + (ovt or 0.0) / 100.0
+
+        asistencias = self.env['hr.attendance'].search([
+            ('employee_id', '=', emp_id),
+            ('check_in', '>=', datetime.combine(min(fechas), datetime.min.time())),
+            ('check_in', '<=', datetime.combine(max(fechas), datetime.max.time())),
+        ])
+        horas_dia = defaultdict(float)
+        for a in asistencias:
+            if a.check_in:
+                horas_dia[a.check_in.date()] += a.worked_hours or 0.0
+        for f in fechas:
+            he_horas = max(0.0, horas_dia.get(f, 0.0) - 8.0)
+            he_monto = he_horas * (jornal / 8.0) * factor_he
+            res[f] = (jornal + he_monto, he_monto)
+        return res
 
     # ── Paso 2: Confirmar (guarda y opcionalmente carga a recibos) ───────────
 
