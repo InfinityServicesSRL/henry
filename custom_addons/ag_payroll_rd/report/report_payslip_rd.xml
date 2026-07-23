@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         ACCIÓN DE REPORTE — Volante de Pago RD
+         Aparece en el menú "Imprimir" de hr.payslip (binding).
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <record id="action_report_payslip_rd" model="ir.actions.report">
+        <field name="name">Volante de Pago — AG Supply</field>
+        <field name="model">hr.payslip</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ag_payroll_rd.report_payslip_rd</field>
+        <field name="report_file">ag_payroll_rd.report_payslip_rd</field>
+        <field name="binding_model_id" ref="hr_payroll.model_hr_payslip"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="base.paperformat_euro"/>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════════
+         PLANTILLA QWEB — Volante de Pago República Dominicana
+         Diseño: una página por recibo, dos secciones (devengos / deducciones)
+    ══════════════════════════════════════════════════════════════════════════ -->
+    <template id="report_payslip_rd">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+
+                <!-- Variables de trabajo -->
+                <t t-set="devengos"
+                   t-value="o.line_ids.filtered(lambda l: l.category_id.code in ('ALW','BASIC') and l.appears_on_payslip and l.total != 0)"/>
+                <t t-set="deducciones"
+                   t-value="o.line_ids.filtered(lambda l: l.category_id.code == 'DED' and l.appears_on_payslip and l.total != 0)"/>
+                <t t-set="total_dev"
+                   t-value="sum(devengos.mapped('total'))"/>
+                <t t-set="total_ded"
+                   t-value="abs(sum(deducciones.mapped('total')))"/>
+                <t t-set="net_line"
+                   t-value="o.line_ids.filtered(lambda l: l.code == 'NET')"/>
+                <t t-set="neto"
+                   t-value="net_line[0].total if net_line else (total_dev - total_ded)"/>
+                <t t-set="contrato"
+                   t-value="o.employee_id.contract_id"/>
+
+                <t t-call="web.external_layout">
+                    <div class="page" style="font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; color: #1a1a1a;">
+
+                        <!-- ── TÍTULO ─────────────────────────────────────────────── -->
+                        <div style="text-align: center; border-bottom: 3px solid #1B3A5C; padding-bottom: 6px; margin-bottom: 12px;">
+                            <h2 style="margin: 0 0 2px 0; color: #1B3A5C; font-size: 14pt; letter-spacing: 1px;">
+                                VOLANTE DE PAGO
+                            </h2>
+                            <span style="font-size: 9.5pt; color: #555;">
+                                Período:&#160;
+                                <strong>
+                                    <t t-esc="o.date_from.strftime('%d/%m/%Y') if o.date_from else ''"/>
+                                </strong>
+                                &#160;al&#160;
+                                <strong>
+                                    <t t-esc="o.date_to.strftime('%d/%m/%Y') if o.date_to else ''"/>
+                                </strong>
+                                &#160;&#160;|&#160;&#160;
+                                Estructura:&#160;<t t-esc="o.struct_id.name or ''"/>
+                                &#160;&#160;|&#160;&#160;
+                                No.:&#160;<t t-esc="o.number or 'Borrador'"/>
+                            </span>
+                        </div>
+
+                        <!-- ── DATOS DEL EMPLEADO ──────────────────────────────────── -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; background: #EEF2F7; border: 1px solid #c5cfe0;">
+                            <tr>
+                                <td style="padding: 5px 10px; width: 50%; vertical-align: top; border-right: 1px solid #c5cfe0;">
+                                    <strong style="color: #1B3A5C;">Empleado:</strong>&#160;
+                                    <t t-esc="o.employee_id.name"/>
+                                </td>
+                                <td style="padding: 5px 10px; width: 50%; vertical-align: top;">
+                                    <strong style="color: #1B3A5C;">Cargo:</strong>&#160;
+                                    <t t-esc="o.employee_id.job_id.name or '—'"/>
+                                </td>
+                            </tr>
+                            <tr style="border-top: 1px solid #c5cfe0;">
+                                <td style="padding: 4px 10px; border-right: 1px solid #c5cfe0;">
+                                    <strong style="color: #1B3A5C;">Departamento:</strong>&#160;
+                                    <t t-esc="o.employee_id.department_id.name or '—'"/>
+                                </td>
+                                <td style="padding: 4px 10px;">
+                                    <strong style="color: #1B3A5C;">Empresa:</strong>&#160;
+                                    <t t-esc="o.company_id.name"/>
+                                </td>
+                            </tr>
+                            <tr style="border-top: 1px solid #c5cfe0;">
+                                <td style="padding: 4px 10px; border-right: 1px solid #c5cfe0;">
+                                    <strong style="color: #1B3A5C;">NSS:</strong>&#160;
+                                    <t t-esc="contrato.rd_nss or '—'"/>
+                                    &#160;&#160;
+                                    <strong style="color: #1B3A5C;">AFP:</strong>&#160;
+                                    <t t-esc="contrato.rd_afp_id.name if contrato and contrato.rd_afp_id else '—'"/>
+                                </td>
+                                <td style="padding: 4px 10px;">
+                                    <strong style="color: #1B3A5C;">ARS:</strong>&#160;
+                                    <t t-esc="contrato.rd_ars_id.name if contrato and contrato.rd_ars_id else '—'"/>
+                                    &#160;&#160;
+                                    <strong style="color: #1B3A5C;">Banco:</strong>&#160;
+                                    <t t-esc="contrato.rd_banco_id.name if contrato and contrato.rd_banco_id else '—'"/>
+                                </td>
+                            </tr>
+                            <t t-if="contrato and contrato.rd_cuenta_bancaria">
+                                <tr style="border-top: 1px solid #c5cfe0;">
+                                    <td colspan="2" style="padding: 4px 10px;">
+                                        <strong style="color: #1B3A5C;">Cuenta bancaria:</strong>&#160;
+                                        <t t-esc="contrato.rd_cuenta_bancaria"/>
+                                    </td>
+                                </tr>
+                            </t>
+                        </table>
+
+                        <!-- ── DEVENGOS ───────────────────────────────────────────── -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
+                            <thead>
+                                <tr>
+                                    <th colspan="2" style="background: #1B3A5C; color: white; padding: 5px 10px; text-align: left; font-size: 10pt; letter-spacing: 0.5px;">
+                                        DEVENGOS
+                                    </th>
+                                </tr>
+                                <tr style="background: #d6e0ef;">
+                                    <th style="padding: 4px 10px; text-align: left; font-weight: 600; font-size: 9.5pt; border-bottom: 1px solid #aab;">
+                                        Concepto
+                                    </th>
+                                    <th style="padding: 4px 10px; text-align: right; font-weight: 600; font-size: 9.5pt; border-bottom: 1px solid #aab; width: 22%;">
+                                        Monto (RD$)
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="devengos" t-as="line">
+                                    <tr t-attf-style="background: {{ '#FFFFFF' if line_index % 2 == 0 else '#F7F9FC' }}">
+                                        <td style="padding: 4px 10px; border-bottom: 1px solid #e2e8f0;">
+                                            <t t-esc="line.name"/>
+                                        </td>
+                                        <td style="padding: 4px 10px; text-align: right; border-bottom: 1px solid #e2e8f0;">
+                                            <t t-esc="'{:,.2f}'.format(line.total)"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                                <t t-if="not devengos">
+                                    <tr>
+                                        <td colspan="2" style="padding: 6px 10px; color: #888; font-style: italic; text-align: center;">
+                                            Sin devengos registrados
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: #d6e0ef; font-weight: bold;">
+                                    <td style="padding: 5px 10px; text-align: right; border-top: 2px solid #1B3A5C;">
+                                        TOTAL DEVENGADO:
+                                    </td>
+                                    <td style="padding: 5px 10px; text-align: right; border-top: 2px solid #1B3A5C;">
+                                        <t t-esc="'{:,.2f}'.format(total_dev)"/>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <!-- ── DEDUCCIONES ────────────────────────────────────────── -->
+                        <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
+                            <thead>
+                                <tr>
+                                    <th colspan="2" style="background: #8B1A1A; color: white; padding: 5px 10px; text-align: left; font-size: 10pt; letter-spacing: 0.5px;">
+                                        DEDUCCIONES
+                                    </th>
+                                </tr>
+                                <tr style="background: #f5dede;">
+                                    <th style="padding: 4px 10px; text-align: left; font-weight: 600; font-size: 9.5pt; border-bottom: 1px solid #daa;">
+                                        Concepto
+                                    </th>
+                                    <th style="padding: 4px 10px; text-align: right; font-weight: 600; font-size: 9.5pt; border-bottom: 1px solid #daa; width: 22%;">
+                                        Monto (RD$)
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="deducciones" t-as="line">
+                                    <tr t-attf-style="background: {{ '#FFFFFF' if line_index % 2 == 0 else '#FDF6F6' }}">
+                                        <td style="padding: 4px 10px; border-bottom: 1px solid #f0e0e0;">
+                                            <t t-esc="line.name"/>
+                                        </td>
+                                        <td style="padding: 4px 10px; text-align: right; border-bottom: 1px solid #f0e0e0;">
+                                            <t t-esc="'{:,.2f}'.format(abs(line.total))"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                                <t t-if="not deducciones">
+                                    <tr>
+                                        <td colspan="2" style="padding: 6px 10px; color: #888; font-style: italic; text-align: center;">
+                                            Sin deducciones
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                            <tfoot>
+                                <tr style="background: #f5dede; font-weight: bold;">
+                                    <td style="padding: 5px 10px; text-align: right; border-top: 2px solid #8B1A1A;">
+                                        TOTAL DEDUCCIONES:
+                                    </td>
+                                    <td style="padding: 5px 10px; text-align: right; border-top: 2px solid #8B1A1A;">
+                                        <t t-esc="'{:,.2f}'.format(total_ded)"/>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+
+                        <!-- ── NETO A PAGAR ────────────────────────────────────────── -->
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 20px;">
+                            <tr>
+                                <td style="background: #1B3A5C; color: white; text-align: right; padding: 10px 16px; font-size: 12.5pt; font-weight: bold; border-radius: 3px;">
+                                    NETO A PAGAR:&#160;&#160;
+                                    RD$&#160;<t t-esc="'{:,.2f}'.format(neto)"/>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- ── DÍAS TRABAJADOS ─────────────────────────────────────── -->
+                        <t t-if="o.worked_days_line_ids">
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9pt;">
+                                <thead>
+                                    <tr style="background: #e8edf5;">
+                                        <th style="padding: 4px 10px; text-align: left; border-bottom: 1px solid #c0cde0;">Días trabajados</th>
+                                        <th style="padding: 4px 10px; text-align: right; border-bottom: 1px solid #c0cde0; width: 22%;">Días / Horas</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="o.worked_days_line_ids" t-as="wd">
+                                        <tr>
+                                            <td style="padding: 3px 10px; color: #444;"><t t-esc="wd.name"/></td>
+                                            <td style="padding: 3px 10px; text-align: right; color: #444;">
+                                                <t t-esc="'{:.2f}'.format(wd.number_of_days)"/> días /
+                                                <t t-esc="'{:.2f}'.format(wd.number_of_hours)"/> h
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <!-- ── FIRMAS ──────────────────────────────────────────────── -->
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 30px;">
+                            <tr>
+                                <td style="width: 42%; text-align: center; padding-top: 4px; border-top: 1px solid #333; font-size: 9pt;">
+                                    Firma del empleado
+                                    <br/>
+                                    <span style="font-size: 8.5pt; color: #555;">
+                                        <t t-esc="o.employee_id.name"/>
+                                    </span>
+                                </td>
+                                <td style="width: 16%;"></td>
+                                <td style="width: 42%; text-align: center; padding-top: 4px; border-top: 1px solid #333; font-size: 9pt;">
+                                    Recursos Humanos / Nómina
+                                    <br/>
+                                    <span style="font-size: 8.5pt; color: #555;">AG Supply, SRL.</span>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- ── PIE LEGAL ───────────────────────────────────────────── -->
+                        <div style="margin-top: 20px; font-size: 8pt; color: #888; text-align: center; border-top: 1px solid #ddd; padding-top: 6px;">
+                            Comprobante generado conforme a la Ley 87-01 (TSS), Código de Trabajo RD y regulaciones DGII vigentes.
+                            &#160;|&#160; AG Supply, SRL. — RNC 130816778 — Santiago de los Caballeros, RD
+                        </div>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

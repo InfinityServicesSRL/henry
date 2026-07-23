@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ag_incentivo_calculo_manager,ag.incentivo.calculo.manager,model_ag_incentivo_calculo,hr_payroll.group_hr_payroll_manager,1,1,1,1
+access_ag_incentivo_calculo_user,ag.incentivo.calculo.user,model_ag_incentivo_calculo,hr_payroll.group_hr_payroll_user,1,1,0,0
+access_ag_incentivo_wizard_manager,ag.incentivo.wizard.manager,model_ag_incentivo_wizard,hr_payroll.group_hr_payroll_manager,1,1,1,1
+access_ag_incentivo_wizard_user,ag.incentivo.wizard.user,model_ag_incentivo_wizard,hr_payroll.group_hr_payroll_user,1,1,1,1
+access_ag_incentivo_wizard_line_manager,ag.incentivo.wizard.line.manager,model_ag_incentivo_wizard_line,hr_payroll.group_hr_payroll_manager,1,1,1,1
+access_ag_incentivo_wizard_line_user,ag.incentivo.wizard.line.user,model_ag_incentivo_wizard_line,hr_payroll.group_hr_payroll_user,1,1,1,1

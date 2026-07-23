@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         AG.INCENTIVO.CALCULO — Resultados por empleado y período
+         (El incentivo RD$/unidad se configura en la Operación de la lista
+          de materiales — ver views/mrp_operation_views.xml)
+    ══════════════════════════════════════════════════════════════════════ -->
+
+    <record id="view_ag_incentivo_calculo_list" model="ir.ui.view">
+        <field name="name">ag.incentivo.calculo.list</field>
+        <field name="model">ag.incentivo.calculo</field>
+        <field name="arch" type="xml">
+            <list string="Incentivos calculados"
+                  decoration-success="state == 'paid'"
+                  decoration-info="state == 'loaded'"
+                  decoration-muted="state == 'draft'">
+                <field name="date_from" string="Período desde"/>
+                <field name="date_to" string="Período hasta"/>
+                <field name="employee_id"/>
+                <field name="unidades_producidas" string="Unidades"/>
+                <field name="monto_incentivo" string="Incentivo RD$"
+                       widget="monetary"
+                       options="{'currency_field': False}"/>
+                <field name="payslip_id" string="Recibo"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'paid'"
+                       decoration-info="state == 'loaded'"
+                       decoration-muted="state == 'draft'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ag_incentivo_calculo_form" model="ir.ui.view">
+        <field name="name">ag.incentivo.calculo.form</field>
+        <field name="model">ag.incentivo.calculo</field>
+        <field name="arch" type="xml">
+            <form string="Incentivo de producción">
+                <header>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,loaded,paid"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Empleado y período">
+                            <field name="employee_id"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group string="Cálculo">
+                            <field name="unidades_producidas"/>
+                            <field name="monto_incentivo"/>
+                            <field name="payslip_id"/>
+                        </group>
+                    </group>
+                    <group string="Órdenes de fabricación incluidas">
+                        <field name="production_ids" nolabel="1">
+                            <list>
+                                <field name="name"/>
+                                <field name="product_id"/>
+                                <field name="qty_produced"/>
+                                <field name="date_start"/>
+                                <field name="state"/>
+                            </list>
+                        </field>
+                    </group>
+                    <group string="Detalle del cálculo">
+                        <field name="notes" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ag_incentivo_calculo_search" model="ir.ui.view">
+        <field name="name">ag.incentivo.calculo.search</field>
+        <field name="model">ag.incentivo.calculo</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <field name="payslip_id"/>
+                <filter name="draft" string="Calculado" domain="[('state','=','draft')]"/>
+                <filter name="loaded" string="Cargado al recibo" domain="[('state','=','loaded')]"/>
+                <filter name="paid" string="Pagado" domain="[('state','=','paid')]"/>
+                <separator/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="group_period" string="Período"
+                            context="{'group_by': 'date_from'}"/>
+                    <filter name="group_employee" string="Empleado"
+                            context="{'group_by': 'employee_id'}"/>
+                    <filter name="group_payslip" string="Recibo"
+                            context="{'group_by': 'payslip_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ag_incentivo_calculo" model="ir.actions.act_window">
+        <field name="name">Incentivos calculados</field>
+        <field name="res_model">ag.incentivo.calculo</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Aún no hay incentivos calculados
+            </p>
+            <p>
+                Usa el botón <b>Calcular incentivo de producción</b> en un lote de nómina
+                para generar los cálculos del período.
+            </p>
+        </field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         AG.INCENTIVO.WIZARD — Formulario del asistente
+    ══════════════════════════════════════════════════════════════════════ -->
+
+    <record id="view_ag_incentivo_wizard_form" model="ir.ui.view">
+        <field name="name">ag.incentivo.wizard.form</field>
+        <field name="model">ag.incentivo.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Calcular incentivo de producción">
+
+                <!-- PASO 1: Parámetros del cálculo -->
+                <group string="Período y configuración"
+                       invisible="preview_line_ids">
+                    <group>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                        <field name="payslip_batch_id"/>
+                    </group>
+                    <group>
+                        <field name="modo_distribucion" widget="radio"/>
+                        <field name="auto_cargar_recibos"/>
+                    </group>
+                </group>
+
+                <!-- PASO 2: Vista previa (aparece tras calcular) -->
+                <group invisible="not preview_line_ids">
+                    <group string="Período">
+                        <field name="date_from" readonly="1"/>
+                        <field name="date_to" readonly="1"/>
+                        <field name="payslip_batch_id" readonly="1"/>
+                    </group>
+                    <group string="Totales">
+                        <field name="total_incentivo" string="Total a pagar RD$"/>
+                    </group>
+                </group>
+
+                <field name="preview_line_ids"
+                       invisible="not preview_line_ids"
+                       string="Vista previa — revisa y desmarca para excluir">
+                    <list editable="bottom"
+                          decoration-muted="not incluir"
+                          decoration-success="incluir">
+                        <field name="incluir" optional="show"/>
+                        <field name="employee_id" readonly="1"/>
+                        <field name="department_id" readonly="1"/>
+                        <field name="unidades_producidas" readonly="1"/>
+                        <field name="monto_incentivo" readonly="1"
+                               widget="monetary"
+                               options="{'currency_field': False}"/>
+                        <field name="notas" readonly="1" optional="hide"/>
+                        <field name="produccion_ids" column_invisible="1"/>
+                    </list>
+                </field>
+
+                <footer>
+                    <!-- Botón paso 1 -->
+                    <button name="action_calcular"
+                            string="Calcular"
+                            type="object"
+                            class="btn-primary"
+                            invisible="preview_line_ids"/>
+
+                    <!-- Botones paso 2 -->
+                    <button name="action_confirmar"
+                            string="Confirmar y cargar a recibos"
+                            type="object"
+                            class="btn-primary"
+                            invisible="not preview_line_ids"/>
+                    <button name="action_calcular"
+                            string="Recalcular"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="not preview_line_ids"/>
+
+                    <button string="Cancelar" class="btn-secondary"
+                            special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- Acción para lanzar el wizard desde menú -->
+    <record id="action_ag_incentivo_wizard" model="ir.actions.act_window">
+        <field name="name">Calcular incentivo de producción</field>
+        <field name="res_model">ag.incentivo.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- ══════════════════════════════════════════════════════════════════
+         MENÚS — bajo el menú principal de Nómina (hr_payroll)
+    ══════════════════════════════════════════════════════════════════════ -->
+
+    <!-- Sub-menú "Incentivo Producción" -->
+    <menuitem id="menu_ag_incentivo_root"
+              name="Incentivo Producción"
+              parent="hr_work_entry_contract_enterprise.menu_hr_payroll_root"
+              sequence="75"/>
+
+    <menuitem id="menu_ag_incentivo_wizard"
+              name="Calcular incentivo (quincena)"
+              parent="menu_ag_incentivo_root"
+              action="action_ag_incentivo_wizard"
+              sequence="10"/>
+
+    <menuitem id="menu_ag_incentivo_calculo"
+              name="Incentivos calculados"
+              parent="menu_ag_incentivo_root"
+              action="action_ag_incentivo_calculo"
+              sequence="20"/>
+
+</odoo>

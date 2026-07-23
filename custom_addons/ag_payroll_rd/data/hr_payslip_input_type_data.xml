@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tipos de "otras entradas" (hr.payslip.input.type) — AG Supply
+    Estas entradas son los valores variables que se cargan recibo por recibo.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="input_type_incprod" model="hr.payslip.input.type">
+            <field name="name">Incentivo de producción</field>
+            <field name="code">INCPROD</field>
+        </record>
+
+        <record id="input_type_comision" model="hr.payslip.input.type">
+            <field name="name">Comisión de ventas</field>
+            <field name="code">COMISION</field>
+        </record>
+
+        <record id="input_type_he35" model="hr.payslip.input.type">
+            <field name="name">Horas extra 35% (días laborables)</field>
+            <field name="code">HE35</field>
+        </record>
+
+        <record id="input_type_he100" model="hr.payslip.input.type">
+            <field name="name">Horas extra 100% (feriados/descanso)</field>
+            <field name="code">HE100</field>
+        </record>
+
+        <record id="input_type_hnoc" model="hr.payslip.input.type">
+            <field name="name">Horas nocturnas (9pm – 7am)</field>
+            <field name="code">HNOC</field>
+        </record>
+
+        <record id="input_type_anticipo" model="hr.payslip.input.type">
+            <field name="name">Anticipo de quincena</field>
+            <field name="code">ANTICIPO</field>
+        </record>
+
+        <record id="input_type_prestamo" model="hr.payslip.input.type">
+            <field name="name">Cuota préstamo interno</field>
+            <field name="code">PRESTAMO</field>
+        </record>
+
+        <record id="input_type_coop" model="hr.payslip.input.type">
+            <field name="name">Descuento cooperativa</field>
+            <field name="code">COOP</field>
+        </record>
+
+        <record id="input_type_uniforme" model="hr.payslip.input.type">
+            <field name="name">Descuento uniformes</field>
+            <field name="code">UNIFORME</field>
+        </record>
+
+        <record id="input_type_embargo" model="hr.payslip.input.type">
+            <field name="name">Embargo judicial</field>
+            <field name="code">EMBARGO</field>
+        </record>
+
+        <record id="input_type_ded_educativa" model="hr.payslip.input.type">
+            <field name="name">Deducción gastos educativos (Ley 179-09)</field>
+            <field name="code">DED_EDU</field>
+        </record>
+
+    </data>
+</odoo>

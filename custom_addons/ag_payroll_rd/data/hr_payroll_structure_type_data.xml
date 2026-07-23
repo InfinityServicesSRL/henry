@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Tipos de estructura salarial — AG Supply
+
+    Usamos UN solo tipo "AG Supply" que aplica a todos los empleados.
+    La diferencia entre producción, administración y ventas se maneja
+    con condiciones en las reglas (si el input no existe, la regla retorna 0).
+    Esto simplifica el mantenimiento: un solo lugar para actualizar reglas.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="structure_type_ag" model="hr.payroll.structure.type">
+            <field name="name">AG Supply — Empleado</field>
+            <field name="wage_type">monthly</field>
+            <!-- default_schedule_pay: quincenal = semi-monthly -->
+            <field name="default_schedule_pay">semi-monthly</field>
+        </record>
+
+    </data>
+</odoo>
