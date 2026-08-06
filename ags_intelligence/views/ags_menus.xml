@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Menu raiz de la aplicacion -->
+    <menuitem id="menu_ags_root"
+              name="Inteligencia"
+              sequence="90"
+              groups="ags_intelligence.group_ags_manager"/>
+
+    <!-- Pantalla de inicio (Fase 1). Los tableros de abajo se activan en la Fase 2. -->
+    <menuitem id="menu_ags_inicio"
+              name="Inicio"
+              parent="menu_ags_root"
+              action="action_ags_welcome"
+              sequence="1"/>
+
+    <!--
+        Estructura prevista (se agregan sus acciones en la Fase 2+):
+        - Cockpit de Gerencia
+        - Demanda y Ventas
+        - Inventario y Materiales
+        - Costos y Rentabilidad
+        - Financiero y Caja
+        - Inteligencia Comercial
+        - Configuracion
+    -->
+
+</odoo>
