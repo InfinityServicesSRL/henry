@@ -1,0 +1,450 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         SECCION: SALUD DEL ERP
+         Capa fundacional. Si los datos entran mal, todo tablero
+         posterior miente con formato bonito.
+         ============================================================ -->
+
+    <record id="param_ots_abiertas_vencidas" model="ags.parametro">
+        <field name="codigo">OTS_ABIERTAS_VENCIDAS</field>
+        <field name="name">Ordenes de produccion abiertas vencidas</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">OTs que siguen abiertas despues de su fecha planificada de cierre. Distorsionan el costo de produccion y la disponibilidad real de inventario.</field>
+        <field name="unidad">cantidad</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_calculo">mrp.production con state no en done/cancel y date_finished anterior a hoy.</field>
+        <field name="metodo_tecnico">_calc_ots_abiertas_vencidas</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">semanal</field>
+    </record>
+
+    <record id="param_asientos_borrador" model="ags.parametro">
+        <field name="codigo">ASIENTOS_BORRADOR</field>
+        <field name="name">Asientos contables en borrador</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Facturas y asientos sin publicar. Mientras existan, ningun estado financiero del periodo es confiable.</field>
+        <field name="unidad">cantidad</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_calculo">account.move en state draft, excluyendo move_type entry.</field>
+        <field name="metodo_tecnico">_calc_asientos_borrador</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">semanal</field>
+    </record>
+
+    <record id="param_oc_sin_confirmar" model="ags.parametro">
+        <field name="codigo">OC_SIN_CONFIRMAR</field>
+        <field name="name">Ordenes de compra sin confirmar (15+ dias)</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">30</field>
+        <field name="descripcion">OCs enviadas hace mas de 15 dias que el proveedor no ha confirmado. Riesgo de quiebre no visible en la planeacion.</field>
+        <field name="unidad">cantidad</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_oc_sin_confirmar</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">semanal</field>
+    </record>
+
+    <record id="param_movimientos_sin_validar" model="ags.parametro">
+        <field name="codigo">MOV_SIN_VALIDAR</field>
+        <field name="name">Movimientos de inventario sin validar</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">40</field>
+        <field name="descripcion">Transferencias con fecha programada pasada que siguen pendientes. Causa principal de diferencias entre stock del sistema y stock fisico.</field>
+        <field name="unidad">cantidad</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_movimientos_sin_validar</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">semanal</field>
+    </record>
+
+    <!-- ============================================================
+         SECCION: COSTOS Y RENTABILIDAD
+         ============================================================ -->
+
+    <record id="param_margen_bruto" model="ags.parametro">
+        <field name="codigo">MARGEN_BRUTO</field>
+        <field name="name">Margen bruto</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">Ventas netas menos costo de ventas, sobre ventas netas. En un convertidor puro es estructuralmente menor que en un fabricante integrado porque no captura el margen de fabricacion de la bobina.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Referencia: Softys 33.2% y KIMBER 40.9% son fabricantes INTEGRADOS. Industria papel general 26.37%. Las bandas cargadas estan ajustadas a la baja para reflejar la realidad de un convertidor.</field>
+    </record>
+
+    <record id="param_margen_ebitda" model="ags.parametro">
+        <field name="codigo">MARGEN_EBITDA</field>
+        <field name="name">Margen EBITDA</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Utilidad operativa antes de intereses, impuestos, depreciacion y amortizacion, sobre ventas.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_merma_conversion" model="ags.parametro">
+        <field name="codigo">MERMA_CONVERSION</field>
+        <field name="name">Merma de conversion</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">30</field>
+        <field name="descripcion">Desperdicio total del proceso de conversion sobre materia prima consumida: rebobinado, corte, embolsado y empaque. En un negocio de margen neto delgado, cada punto de merma pesa desproporcionadamente.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Referencia TAPPI: trim loss 3%-5.5%, objetivo alcanzable 3%. La banda incluye todas las etapas, no solo corte.</field>
+    </record>
+
+    <record id="param_mp_pct_ventas" model="ags.parametro">
+        <field name="codigo">MP_PCT_VENTAS</field>
+        <field name="name">Costo de materia prima sobre ventas</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">40</field>
+        <field name="descripcion">Costo de bobina madre y empaque sobre ventas netas. En un convertidor la bobina es el mayor componente unico de costo.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Sin benchmark publico confiable para convertidores puros. Construir desde Odoo y comparar contra historico propio.</field>
+    </record>
+
+    <record id="param_kwh_por_tonelada" model="ags.parametro">
+        <field name="codigo">KWH_POR_TONELADA</field>
+        <field name="name">Consumo electrico por tonelada convertida</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">50</field>
+        <field name="descripcion">kWh consumidos por tonelada de producto terminado. Relevante porque la energia industrial dominicana esta entre las mas caras de la region.</field>
+        <field name="unidad">kwh_ton</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="captura">manual</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <!-- ============================================================
+         SECCION: FINANCIERO Y CAJA
+         ============================================================ -->
+
+    <record id="param_dso" model="ags.parametro">
+        <field name="codigo">DSO</field>
+        <field name="name">Dias de cobro (DSO)</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">Dias promedio que tarda AG Supply en cobrar despues de facturar. Cada 10 dias que se recortan liberan 10 dias de capital de trabajo.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">No existe dato publico dominicano de plazos de pago por canal. Medir por canal (institucional, mayorista, detalle, ruta) desde Odoo.</field>
+    </record>
+
+    <record id="param_dio" model="ags.parametro">
+        <field name="codigo">DIO</field>
+        <field name="name">Dias de inventario (DIO)</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Dias que el inventario permanece antes de venderse. Separar materia prima importada de producto terminado: la bobina en transito infla el indicador.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_dpo" model="ags.parametro">
+        <field name="codigo">DPO</field>
+        <field name="name">Dias de pago a proveedores (DPO)</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">30</field>
+        <field name="descripcion">Dias promedio que AG Supply tarda en pagar. Un DPO mayor reduce el ciclo de efectivo, pero solo si viene de terminos negociados y no de atrasos.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_ccc" model="ags.parametro">
+        <field name="codigo">CCC</field>
+        <field name="name">Ciclo de conversion de efectivo</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">40</field>
+        <field name="descripcion">DIO + DSO - DPO. Cuantos dias el efectivo queda atrapado en la operacion antes de volver como cobranza.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_cartera_corriente" model="ags.parametro">
+        <field name="codigo">PCT_CARTERA_CORRIENTE</field>
+        <field name="name">Porcentaje de cartera corriente (0-30 dias)</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">50</field>
+        <field name="descripcion">Proporcion de la cartera que esta al dia. Es el indicador de salud de CxC mas util porque no se deja distorsionar por unos pocos saldos grandes.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">semanal</field>
+    </record>
+
+    <record id="param_tasa_interes_dop" model="ags.parametro">
+        <field name="codigo">TASA_INTERES_DOP</field>
+        <field name="name">Tasa promedio de deuda en DOP</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">60</field>
+        <field name="descripcion">Tasa promedio ponderada que paga AG Supply por su deuda en pesos. Comparable directamente contra el promedio del sector industrial dominicano.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">a</field>
+        <field name="captura">manual</field>
+        <field name="frecuencia">trimestral</field>
+        <field name="notas">DATO DURO: el sector industrial dominicano paga 12.3% en moneda nacional. Si AG Supply paga mas, hay margen de negociacion medible.</field>
+    </record>
+
+    <!-- ============================================================
+         SECCION: DEMANDA Y VENTAS
+         ============================================================ -->
+
+    <record id="param_ventas_mensuales" model="ags.parametro">
+        <field name="codigo">VENTAS_MENSUALES</field>
+        <field name="name">Ventas netas mensuales</field>
+        <field name="seccion">demanda</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">Ventas netas del mes en RD$. Parametro base para el analisis de estacionalidad.</field>
+        <field name="unidad">dop</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="aplica_estacionalidad">True</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_crecimiento_vs_sector" model="ags.parametro">
+        <field name="codigo">CRECIMIENTO_VS_SECTOR</field>
+        <field name="name">Crecimiento de ventas vs manufactura local</field>
+        <field name="seccion">demanda</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Crecimiento interanual de ventas de AG Supply comparado con el de la manufactura local que publica el BCRD. Crecer menos que el sector es perder participacion.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">a</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_erosion_precio" model="ags.parametro">
+        <field name="codigo">EROSION_PRECIO</field>
+        <field name="name">Erosion de precio</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">Diferencia entre precio de lista y precio realizado. En un negocio de margen neto delgado, dos puntos de descuento discrecional pueden consumir la utilidad completa de una venta.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Sin benchmark publico confiable. Medir por vendedor, por cliente y por SKU. Fijar linea base interna y revisar trimestralmente.</field>
+    </record>
+
+    <record id="param_notas_credito" model="ags.parametro">
+        <field name="codigo">PCT_NOTAS_CREDITO</field>
+        <field name="name">Notas de credito sobre ventas</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Devoluciones y notas de credito como porcentaje de ventas brutas, agrupadas por causa.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_otif" model="ags.parametro">
+        <field name="codigo">OTIF</field>
+        <field name="name">Entregas completas y a tiempo (OTIF)</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">30</field>
+        <field name="descripcion">Porcentaje de pedidos entregados completos y en la fecha comprometida. Mide la promesa comercial, no solo la logistica.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <!-- ============================================================
+         SECCION: INVENTARIO Y MATERIALES
+         ============================================================ -->
+
+    <record id="param_cobertura_mp" model="ags.parametro">
+        <field name="codigo">COBERTURA_MP_DIAS</field>
+        <field name="name">Cobertura de materia prima en dias</field>
+        <field name="seccion">inventario</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">Dias de consumo que cubre el inventario actual de bobina y empaque. Se mide en dias, no en unidades: las unidades no dicen nada sin el ritmo de consumo.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">semanal</field>
+        <field name="notas">Direccion neutra: poca cobertura es riesgo de quiebre, mucha es capital inmovilizado. La banda correcta depende del lead time real de cada proveedor.</field>
+    </record>
+
+    <record id="param_lead_time_real" model="ags.parametro">
+        <field name="codigo">LEAD_TIME_REAL</field>
+        <field name="name">Lead time real vs prometido</field>
+        <field name="seccion">inventario</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Diferencia entre el plazo de entrega prometido por el proveedor y el real. Alimenta el punto de reorden dinamico y da poder de negociacion.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_exposicion_usd" model="ags.parametro">
+        <field name="codigo">EXPOSICION_USD</field>
+        <field name="name">Exposicion cambiaria neta en USD</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">70</field>
+        <field name="descripcion">Pasivos en USD menos activos en USD. AG Supply compra bobina en dolares y vende en pesos: cada movimiento del tipo de cambio le mueve el margen.</field>
+        <field name="unidad">usd</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <!-- ============================================================
+         SECCION: PERSONAL Y NOMINA
+         ============================================================ -->
+
+    <record id="param_costo_nomina_ventas" model="ags.parametro">
+        <field name="codigo">COSTO_NOMINA_PCT_VENTAS</field>
+        <field name="name">Costo de nomina sobre ventas</field>
+        <field name="seccion">rrhh</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">Costo total de nomina incluyendo cargas sociales sobre ventas netas.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_rotacion_personal" model="ags.parametro">
+        <field name="codigo">ROTACION_PERSONAL</field>
+        <field name="name">Rotacion de personal</field>
+        <field name="seccion">rrhh</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Salidas de personal sobre plantilla promedio, anualizado.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">trimestral</field>
+    </record>
+
+    <record id="param_ausentismo" model="ags.parametro">
+        <field name="codigo">AUSENTISMO</field>
+        <field name="name">Ausentismo laboral</field>
+        <field name="seccion">rrhh</field>
+        <field name="secuencia">30</field>
+        <field name="descripcion">Horas no trabajadas por ausencia sobre horas programadas. Importa la composicion: faltas cortas frecuentes y licencias largas tienen causas distintas.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_ventas_por_empleado" model="ags.parametro">
+        <field name="codigo">VENTAS_POR_EMPLEADO</field>
+        <field name="name">Ventas por empleado</field>
+        <field name="seccion">rrhh</field>
+        <field name="secuencia">40</field>
+        <field name="descripcion">Ventas netas anualizadas divididas entre la plantilla promedio.</field>
+        <field name="unidad">dop</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="frecuencia">trimestral</field>
+        <field name="notas">No existe benchmark publico aplicable a un convertidor de tissue de esta escala. Comparar contra si mismo en el tiempo.</field>
+    </record>
+
+    <!-- ============================================================
+         SECCION: PRODUCCION (via costos)
+         ============================================================ -->
+
+    <record id="param_oee" model="ags.parametro">
+        <field name="codigo">OEE_GLOBAL</field>
+        <field name="name">Eficiencia global de equipos (OEE)</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">60</field>
+        <field name="descripcion">Disponibilidad por rendimiento por calidad. Mide cuanto de la capacidad teorica se convierte en producto bueno.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="captura">manual</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">ADVERTENCIA: se calcula desde registros manuales de OT en Odoo. La captura manual sobreestima el OEE en 8-12 puntos frente a la medicion automatica. Las bandas cargadas ya estan ajustadas por ese sesgo. Nunca comparar este valor contra un benchmark de medicion automatica sin corregir.</field>
+    </record>
+
+    <!-- ============================================================
+         SECCION: CONTEXTO MACROECONOMICO
+         Variables de contexto, no metas. Direccion neutra.
+         ============================================================ -->
+
+    <record id="param_tipo_cambio" model="ags.parametro">
+        <field name="codigo">TIPO_CAMBIO_DOP_USD</field>
+        <field name="name">Tipo de cambio DOP/USD</field>
+        <field name="seccion">macro</field>
+        <field name="secuencia">10</field>
+        <field name="descripcion">Tasa de venta del dolar. Variable viva, nunca un parametro congelado: mueve directamente el costo de la bobina importada.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">a</field>
+        <field name="captura">externa</field>
+        <field name="frecuencia">semanal</field>
+    </record>
+
+    <record id="param_inflacion_rd" model="ags.parametro">
+        <field name="codigo">INFLACION_RD</field>
+        <field name="name">Inflacion interanual RD</field>
+        <field name="seccion">macro</field>
+        <field name="secuencia">20</field>
+        <field name="descripcion">Inflacion general publicada por el BCRD. Rango meta 4.0% mas o menos 1.0%.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">a</field>
+        <field name="captura">externa</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_imam" model="ags.parametro">
+        <field name="codigo">IMAM_AIRD</field>
+        <field name="name">Indice de actividad manufacturera (IMAM)</field>
+        <field name="seccion">macro</field>
+        <field name="secuencia">30</field>
+        <field name="descripcion">Termometro del sector industrial dominicano. Umbral 50. Sirve para distinguir entre mercado dificil y perdida de participacion propia.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">a</field>
+        <field name="captura">externa</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_precio_nbsk" model="ags.parametro">
+        <field name="codigo">PRECIO_NBSK</field>
+        <field name="name">Precio de pulpa NBSK (fibra larga)</field>
+        <field name="seccion">macro</field>
+        <field name="secuencia">40</field>
+        <field name="descripcion">Precio internacional de la pulpa de fibra larga. El precio de la bobina madre sigue al de la pulpa con rezago.</field>
+        <field name="unidad">usd</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="captura">externa</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+</odoo>

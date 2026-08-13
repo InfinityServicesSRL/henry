@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ==================== BASELINE ==================== -->
+
+    <record id="view_ags_baseline_list" model="ir.ui.view">
+        <field name="name">ags.baseline.list</field>
+        <field name="model">ags.baseline</field>
+        <field name="arch" type="xml">
+            <list string="Baselines" decoration-muted="not vigente">
+                <field name="parametro_id"/>
+                <field name="version"/>
+                <field name="valor"/>
+                <field name="unidad"/>
+                <field name="periodo_desde"/>
+                <field name="periodo_hasta"/>
+                <field name="calidad_dato" widget="badge"
+                       decoration-success="calidad_dato == 'verificado'"
+                       decoration-warning="calidad_dato == 'parcial'"
+                       decoration-danger="calidad_dato == 'sucio'"/>
+                <field name="congelado" widget="boolean_toggle"/>
+                <field name="vigente" widget="boolean_toggle"/>
+                <field name="variacion_vs_baseline"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_baseline_form" model="ir.ui.view">
+        <field name="name">ags.baseline.form</field>
+        <field name="model">ags.baseline</field>
+        <field name="arch" type="xml">
+            <form string="Baseline">
+                <header>
+                    <button name="action_congelar" type="object" string="Congelar"
+                            class="btn-primary" invisible="congelado"
+                            confirm="Congelar el baseline es irreversible. El registro no admitira mas cambios. Confirma?"/>
+                    <button name="action_nueva_version" type="object"
+                            string="Crear version nueva" invisible="not congelado"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Congelado" invisible="not congelado"/>
+                    <div class="oe_title">
+                        <h1><field name="parametro_id" options="{'no_create': True}"/></h1>
+                        <h3>Version <field name="version" class="oe_inline"/></h3>
+                    </div>
+                    <group>
+                        <group string="Valor congelado">
+                            <field name="valor"/>
+                            <field name="unidad"/>
+                            <field name="periodo_desde"/>
+                            <field name="periodo_hasta"/>
+                        </group>
+                        <group string="Trazabilidad">
+                            <field name="metodo_captura"/>
+                            <field name="calidad_dato"/>
+                            <field name="vigente"/>
+                            <field name="fecha_congelamiento" invisible="not congelado"/>
+                            <field name="congelado_por_id" invisible="not congelado"/>
+                        </group>
+                    </group>
+                    <group string="Notas de calidad del dato">
+                        <field name="notas" nolabel="1"
+                               placeholder="Ser honesto aqui es lo que permite interpretar el baseline correctamente mas adelante"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_baseline" model="ir.actions.act_window">
+        <field name="name">Baselines</field>
+        <field name="res_model">ags.baseline</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Punto de partida congelado</p>
+            <p>Un baseline congelado no se modifica nunca. Si se recalculara con cada
+               consulta, se perderia la capacidad de medir mejora.</p>
+        </field>
+    </record>
+
+    <!-- ==================== BENCHMARK ==================== -->
+
+    <record id="view_ags_benchmark_list" model="ir.ui.view">
+        <field name="name">ags.benchmark.list</field>
+        <field name="model">ags.benchmark</field>
+        <field name="arch" type="xml">
+            <list string="Benchmarks" decoration-muted="not es_vigente">
+                <field name="parametro_id"/>
+                <field name="tipo_benchmark"/>
+                <field name="version"/>
+                <field name="valor_minimo"/>
+                <field name="valor_objetivo"/>
+                <field name="valor_clase_mundial"/>
+                <field name="unidad"/>
+                <field name="fuente_id"/>
+                <field name="vigente_desde"/>
+                <field name="vigente_hasta"/>
+                <field name="es_vigente" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_benchmark_form" model="ir.ui.view">
+        <field name="name">ags.benchmark.form</field>
+        <field name="model">ags.benchmark</field>
+        <field name="arch" type="xml">
+            <form string="Benchmark">
+                <sheet>
+                    <widget name="web_ribbon" title="Vigente" bg_color="text-bg-success"
+                            invisible="not es_vigente"/>
+                    <div class="oe_title">
+                        <h1><field name="parametro_id" options="{'no_create': True}"/></h1>
+                        <h3>Version <field name="version" class="oe_inline"/></h3>
+                    </div>
+                    <group>
+                        <group string="Bandas">
+                            <field name="valor_minimo"/>
+                            <field name="valor_objetivo"/>
+                            <field name="valor_clase_mundial"/>
+                            <field name="unidad"/>
+                            <field name="direccion"/>
+                        </group>
+                        <group string="Vigencia y origen">
+                            <field name="tipo_benchmark"/>
+                            <field name="fuente_id"/>
+                            <field name="fuente_detalle"/>
+                            <field name="vigente_desde"/>
+                            <field name="vigente_hasta"/>
+                        </group>
+                    </group>
+                    <group string="Ajuste aplicado al dato de origen">
+                        <field name="ajuste_aplicado" nolabel="1"
+                               placeholder="Si el dato viene de un fabricante integrado o de otro metodo de medicion, documentar aqui como se ajusto a la realidad de AG Supply"/>
+                    </group>
+                    <group string="Notas">
+                        <field name="notas" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_benchmark" model="ir.actions.act_window">
+        <field name="name">Benchmarks</field>
+        <field name="res_model">ags.benchmark</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ==================== MEDICION ==================== -->
+
+    <record id="view_ags_medicion_list" model="ir.ui.view">
+        <field name="name">ags.medicion.list</field>
+        <field name="model">ags.medicion</field>
+        <field name="arch" type="xml">
+            <list string="Mediciones"
+                  decoration-danger="semaforo == 'rojo'"
+                  decoration-warning="semaforo == 'amarillo'"
+                  decoration-success="semaforo == 'verde'">
+                <field name="fecha_periodo"/>
+                <field name="parametro_id"/>
+                <field name="seccion" optional="hide"/>
+                <field name="valor"/>
+                <field name="unidad"/>
+                <field name="semaforo" widget="badge"/>
+                <field name="variacion_baseline"/>
+                <field name="tendencia_baseline" widget="badge"
+                       decoration-success="tendencia_baseline == 'mejora'"
+                       decoration-danger="tendencia_baseline == 'deterioro'"/>
+                <field name="brecha_objetivo" optional="show"/>
+                <field name="desvio_estacional" optional="hide"/>
+                <field name="origen" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_medicion_form" model="ir.ui.view">
+        <field name="name">ags.medicion.form</field>
+        <field name="model">ags.medicion</field>
+        <field name="arch" type="xml">
+            <form string="Medicion">
+                <sheet>
+                    <group>
+                        <group string="Medicion">
+                            <field name="parametro_id" options="{'no_create': True}"/>
+                            <field name="fecha_periodo"/>
+                            <field name="valor"/>
+                            <field name="unidad"/>
+                            <field name="origen"/>
+                            <field name="fecha_calculo"/>
+                        </group>
+                        <group string="Comparaciones">
+                            <field name="semaforo" widget="badge"/>
+                            <field name="brecha_objetivo"/>
+                            <field name="variacion_baseline"/>
+                            <field name="tendencia_baseline"/>
+                            <field name="valor_esperado_estacional"/>
+                            <field name="desvio_estacional"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="notas" nolabel="1" placeholder="Notas de la medicion"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_medicion_graph" model="ir.ui.view">
+        <field name="name">ags.medicion.graph</field>
+        <field name="model">ags.medicion</field>
+        <field name="arch" type="xml">
+            <graph string="Evolucion" type="line">
+                <field name="fecha_periodo" interval="month"/>
+                <field name="valor" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_ags_medicion_search" model="ir.ui.view">
+        <field name="name">ags.medicion.search</field>
+        <field name="model">ags.medicion</field>
+        <field name="arch" type="xml">
+            <search string="Buscar mediciones">
+                <field name="parametro_id"/>
+                <field name="fecha_periodo"/>
+                <filter name="f_rojo" string="En rojo" domain="[('semaforo','=','rojo')]"/>
+                <filter name="f_deterioro" string="Deteriorando"
+                        domain="[('tendencia_baseline','=','deterioro')]"/>
+                <group expand="1" string="Agrupar por">
+                    <filter name="g_param" string="Parametro" context="{'group_by':'parametro_id'}"/>
+                    <filter name="g_seccion" string="Seccion" context="{'group_by':'seccion'}"/>
+                    <filter name="g_periodo" string="Periodo" context="{'group_by':'fecha_periodo:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_medicion" model="ir.actions.act_window">
+        <field name="name">Mediciones</field>
+        <field name="res_model">ags.medicion</field>
+        <field name="view_mode">list,graph,form</field>
+    </record>
+
+    <!-- ==================== ESTACIONALIDAD ==================== -->
+
+    <record id="view_ags_estacionalidad_list" model="ir.ui.view">
+        <field name="name">ags.estacionalidad.list</field>
+        <field name="model">ags.estacionalidad</field>
+        <field name="arch" type="xml">
+            <list string="Estacionalidad" editable="bottom">
+                <field name="parametro_id"/>
+                <field name="categoria_id"/>
+                <field name="mes"/>
+                <field name="factor"/>
+                <field name="anios_base"/>
+                <field name="n_observaciones"/>
+                <field name="confiabilidad" widget="badge"
+                       decoration-success="confiabilidad == 'alta'"
+                       decoration-warning="confiabilidad == 'media'"
+                       decoration-danger="confiabilidad == 'baja'"/>
+                <field name="fecha_calculo"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_ags_estacionalidad" model="ir.actions.act_window">
+        <field name="name">Estacionalidad</field>
+        <field name="res_model">ags.estacionalidad</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Factores de estacionalidad</p>
+            <p>Se calculan desde el historico real de ventas de AG Supply, no se
+               cargan con supuestos. Un factor de 1.20 significa 20% por encima
+               del mes promedio.</p>
+        </field>
+    </record>
+
+    <!-- ==================== PROYECCION ==================== -->
+
+    <record id="view_ags_proyeccion_list" model="ir.ui.view">
+        <field name="name">ags.proyeccion.list</field>
+        <field name="model">ags.proyeccion</field>
+        <field name="arch" type="xml">
+            <list string="Proyecciones">
+                <field name="fecha_periodo"/>
+                <field name="parametro_id"/>
+                <field name="valor_proyectado"/>
+                <field name="valor_real"/>
+                <field name="error_pct"/>
+                <field name="metodo"/>
+                <field name="confianza"/>
+                <field name="aprobado" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_proyeccion_form" model="ir.ui.view">
+        <field name="name">ags.proyeccion.form</field>
+        <field name="model">ags.proyeccion</field>
+        <field name="arch" type="xml">
+            <form string="Proyeccion">
+                <header>
+                    <button name="action_aprobar" type="object" string="Aprobar"
+                            class="btn-primary" invisible="aprobado"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Aprobada" invisible="not aprobado"/>
+                    <group>
+                        <group>
+                            <field name="parametro_id" options="{'no_create': True}"/>
+                            <field name="fecha_periodo"/>
+                            <field name="valor_proyectado"/>
+                            <field name="unidad"/>
+                        </group>
+                        <group>
+                            <field name="metodo"/>
+                            <field name="confianza"/>
+                            <field name="valor_real"/>
+                            <field name="error_pct"/>
+                        </group>
+                    </group>
+                    <group string="Supuestos">
+                        <field name="supuestos" nolabel="1"
+                               placeholder="Que se asumio para llegar a este numero. Obligatorio si la proyeccion alimenta decisiones de compra o de caja."/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_proyeccion" model="ir.actions.act_window">
+        <field name="name">Proyecciones</field>
+        <field name="res_model">ags.proyeccion</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

@@ -14,4 +14,22 @@
         <field name="comment">Acceso completo a AG Intelligence. Informacion sensible restringida a Gerencia y Contabilidad.</field>
     </record>
 
+    <!-- Auto-asignacion al administrador durante la instalacion.
+         Sin esto, en cada instalacion limpia nadie ve el menu hasta que
+         alguien asigna el grupo manualmente, y el modulo parece no haberse
+         instalado. Se detecto en las pruebas de la Fase 1. -->
+    <record id="base.user_admin" model="res.users">
+        <field name="groups_id" eval="[(4, ref('ags_intelligence.group_ags_manager'))]"/>
+    </record>
+
+    <!--
+        NOTA DE DISENO PENDIENTE (Fase 2B):
+        Hoy existe un solo grupo con acceso total. Cuando el modulo maneje
+        margenes por cliente, P&L y costos unitarios, conviene evaluar una
+        separacion entre:
+          - quien consulta tableros comerciales (vendedores)
+          - quien ve informacion financiera sensible (Gerencia, Contabilidad)
+        Con un solo grupo la decision es binaria: o entran a todo o a nada.
+    -->
+
 </odoo>

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ================================================================
+         BENCHMARKS INICIALES - VERSION 1 (agosto 2026)
+
+         REGLA APLICADA: solo se cargan bandas para parametros tipo A y B,
+         donde existe una fuente externa verificable. Los parametros tipo C
+         quedan deliberadamente SIN benchmark hasta que se congele el
+         baseline propio.
+
+         Un vacio honesto es preferible a un numero inventado, porque estos
+         valores se congelan como referencia en un sistema de gestion real.
+         ================================================================ -->
+
+    <!-- ===== TIPO A: DATOS DUROS DOMINICANOS ===== -->
+
+    <record id="bm_tasa_interes_dop_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_tasa_interes_dop"/>
+        <field name="valor_minimo">15.0</field>
+        <field name="valor_objetivo">12.3</field>
+        <field name="valor_clase_mundial">9.4</field>
+        <field name="fuente_id" ref="fuente_sb_rd"/>
+        <field name="fuente_detalle">Tabla 6 - Tasa de interes promedio ponderada por tipo de deudor, diciembre 2025</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Minimo = tasa de menores deudores (15.0%). Objetivo = promedio del sector industrial en moneda nacional (12.3%). Clase mundial = tasa de mayores deudores (9.4%). Comparacion directa y accionable: si AG Supply paga por encima del objetivo, el diferencial es negociable con el banco.</field>
+    </record>
+
+    <record id="bm_crecimiento_vs_sector_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_crecimiento_vs_sector"/>
+        <field name="valor_minimo">2.5</field>
+        <field name="valor_objetivo">5.0</field>
+        <field name="valor_clase_mundial">8.0</field>
+        <field name="fuente_id" ref="fuente_bcrd"/>
+        <field name="fuente_detalle">Crecimiento interanual de manufactura local, junio 2026</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">El minimo es el crecimiento de la manufactura local dominicana: crecer menos que eso es retroceder en terminos relativos. Revisar esta banda cada vez que el BCRD publique cifras nuevas.</field>
+    </record>
+
+    <record id="bm_inflacion_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_inflacion_rd"/>
+        <field name="valor_minimo">5.0</field>
+        <field name="valor_objetivo">4.0</field>
+        <field name="valor_clase_mundial">3.0</field>
+        <field name="fuente_id" ref="fuente_bcrd"/>
+        <field name="fuente_detalle">Rango meta de inflacion del BCRD: 4.0% mas o menos 1.0%</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Variable de contexto, no meta de AG Supply. Se carga el rango meta del BCRD como referencia para interpretar el entorno de precios.</field>
+    </record>
+
+    <!-- ===== TIPO B: RANGOS DE INDUSTRIA ADAPTADOS ===== -->
+
+    <record id="bm_margen_bruto_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_margen_bruto"/>
+        <field name="valor_minimo">15.0</field>
+        <field name="valor_objetivo">22.0</field>
+        <field name="valor_clase_mundial">28.0</field>
+        <field name="fuente_id" ref="fuente_cmpc_softys"/>
+        <field name="fuente_detalle">Segmento Softys FY2024: margen bruto 33.2%. Industria papel general 1Q2026: 26.37%</field>
+        <field name="ajuste_aplicado">AJUSTE A LA BAJA POR MODELO DE NEGOCIO. Softys (33.2%) y Kimberly-Clark Mexico (40.9%) son fabricantes INTEGRADOS que producen su propia bobina madre y capturan el margen de fabricacion. AG Supply es convertidor puro: compra la bobina ya fabricada. Por diseno estructural su margen bruto es menor. Las bandas se fijaron restando el margen tipico de fabricacion de bobina. Revisar y ajustar una vez congelado el baseline propio.</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_margen_ebitda_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_margen_ebitda"/>
+        <field name="valor_minimo">8.0</field>
+        <field name="valor_objetivo">13.0</field>
+        <field name="valor_clase_mundial">18.0</field>
+        <field name="fuente_id" ref="fuente_industria_papel"/>
+        <field name="fuente_detalle">Manufactura pequena: saludable 10-15%, primer nivel 18-20%. International Paper EBITDA 13%. Softys 15.0%</field>
+        <field name="ajuste_aplicado">La banda combina la referencia de manufactura pequena (10-15%) con la de tissue LATAM (15-17%). Se fija el objetivo en el punto medio realista para un convertidor de escala mediana.</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_merma_conversion_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_merma_conversion"/>
+        <field name="valor_minimo">10.0</field>
+        <field name="valor_objetivo">5.0</field>
+        <field name="valor_clase_mundial">3.0</field>
+        <field name="fuente_id" ref="fuente_tappi"/>
+        <field name="fuente_detalle">Trim loss 3%-5.5% segun ancho de bobina y patron de corte; objetivo alcanzable tan bajo como 3%</field>
+        <field name="ajuste_aplicado">La fuente mide solo merma de corte y rebobinado. La banda cargada cubre el proceso completo de conversion (rebobinado, corte, embolsado, empaque), por lo que el minimo aceptable se fija mas holgado que el 5.5% de la fuente original.</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Con margen neto de un digito bajo en papel, cada punto de merma pesa desproporcionadamente. Superar 10% de forma sostenida justifica un evento Kaizen en conversion.</field>
+    </record>
+
+    <record id="bm_oee_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_oee"/>
+        <field name="valor_minimo">50.0</field>
+        <field name="valor_objetivo">65.0</field>
+        <field name="valor_clase_mundial">78.0</field>
+        <field name="fuente_id" ref="fuente_valmet"/>
+        <field name="fuente_detalle">Valmet: OEE promedio alcanzable ~60% en conversion de tissue, clase mundial 85%+. Escala FMCG: 40-55% empezando, 60-70% promedio, 75-80% bueno, 85%+ clase mundial</field>
+        <field name="ajuste_aplicado">AJUSTE POR METODO DE CAPTURA. Las referencias publicadas provienen mayormente de medicion automatica. AG Supply calcula desde registros manuales de OT en Odoo, que sobreestiman el OEE en 8-12 puntos. Para evitar comparar peras con manzanas, las bandas se cargaron aproximadamente 7 puntos POR ENCIMA de la referencia externa: un 65% medido manualmente equivale aproximadamente a un 55-58% real. Si en el futuro se instala captura automatica, estas bandas deben recalibrarse hacia abajo.</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_cartera_corriente_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_cartera_corriente"/>
+        <field name="valor_minimo">70.0</field>
+        <field name="valor_objetivo">80.0</field>
+        <field name="valor_clase_mundial">88.0</field>
+        <field name="fuente_id" ref="fuente_otif"/>
+        <field name="fuente_detalle">Benchmark de aging saludable: 80%+ corriente (0-30 dias), menos de 12% en 31-60, menos de 5% en 61-90, menos de 3% en mas de 90</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_dio_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_dio"/>
+        <field name="valor_minimo">120.0</field>
+        <field name="valor_objetivo">75.0</field>
+        <field name="valor_clase_mundial">45.0</field>
+        <field name="fuente_id" ref="fuente_industria_papel"/>
+        <field name="fuente_detalle">Manufactura general: DIO 60-120 dias</field>
+        <field name="ajuste_aplicado">El tissue es producto voluminoso y de bajo valor por metro cubico, por lo que conviene apuntar a la banda baja del rango de manufactura. Advertencia de medicion: separar materia prima importada de producto terminado, porque la bobina en transito infla el indicador sin reflejar lentitud operativa.</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_otif_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_otif"/>
+        <field name="valor_minimo">88.0</field>
+        <field name="valor_objetivo">93.0</field>
+        <field name="valor_clase_mundial">97.0</field>
+        <field name="fuente_id" ref="fuente_otif"/>
+        <field name="fuente_detalle">Consumo masivo con retail grande 95-98%; distribucion mayorista B2B real 88-94%</field>
+        <field name="ajuste_aplicado">Se fija el objetivo en el rango de distribucion mayorista B2B (88-94%) y no en el de proveedores de retail grande (95-98%), por la escala y el mix de canales de AG Supply. Elevar la banda cuando el canal institucional gane peso.</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_rotacion_personal_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_rotacion_personal"/>
+        <field name="valor_minimo">25.0</field>
+        <field name="valor_objetivo">16.0</field>
+        <field name="valor_clase_mundial">10.0</field>
+        <field name="fuente_id" ref="fuente_rotacion_latam"/>
+        <field name="fuente_detalle">Promedio regional LATAM ~16%; manufactura por encima del promedio; umbral sano bajo 15%</field>
+        <field name="ajuste_aplicado">Dato regional dominado por Mexico. Republica Dominicana aparece reportada entre las de menor rotacion de la region, por lo que el objetivo de 16% es exigente pero razonable. Confiabilidad media.</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_ausentismo_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_ausentismo"/>
+        <field name="valor_minimo">6.0</field>
+        <field name="valor_objetivo">4.0</field>
+        <field name="valor_clase_mundial">2.0</field>
+        <field name="fuente_id" ref="fuente_rotacion_latam"/>
+        <field name="fuente_detalle">Referencia de gestion: 4-6% como umbral de atencion</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Importa la composicion tanto como el nivel: faltas cortas frecuentes y licencias largas tienen causas y remedios distintos.</field>
+    </record>
+
+    <!-- ================================================================
+         PARAMETROS DELIBERADAMENTE SIN BENCHMARK (tipo C)
+
+         MP_PCT_VENTAS, DSO, DPO, CCC, KWH_POR_TONELADA, EROSION_PRECIO,
+         PCT_NOTAS_CREDITO, COSTO_NOMINA_PCT_VENTAS, VENTAS_POR_EMPLEADO,
+         COBERTURA_MP_DIAS, LEAD_TIME_REAL, EXPOSICION_USD, VENTAS_MENSUALES,
+         y todos los de Salud del ERP.
+
+         No existe dato publico confiable para un convertidor de tissue
+         dominicano de esta escala. Estos parametros se evaluan unicamente
+         contra el baseline propio hasta que una investigacion futura aporte
+         una referencia externa legitima.
+         ================================================================ -->
+
+</odoo>

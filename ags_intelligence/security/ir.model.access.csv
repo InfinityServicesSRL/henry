@@ -1,2 +1,9 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_ags_welcome_manager,ags.welcome.manager,model_ags_welcome,group_ags_manager,1,1,1,1
+access_ags_welcome_manager,ags.welcome.manager,model_ags_welcome,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_fuente_manager,ags.fuente.manager,model_ags_fuente,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_parametro_manager,ags.parametro.manager,model_ags_parametro,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_benchmark_manager,ags.benchmark.manager,model_ags_benchmark,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_baseline_manager,ags.baseline.manager,model_ags_baseline,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_medicion_manager,ags.medicion.manager,model_ags_medicion,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_estacionalidad_manager,ags.estacionalidad.manager,model_ags_estacionalidad,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_proyeccion_manager,ags.proyeccion.manager,model_ags_proyeccion,ags_intelligence.group_ags_manager,1,1,1,1

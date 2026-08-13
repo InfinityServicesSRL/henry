@@ -1,28 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- Menu raiz de la aplicacion -->
+    <!-- Menu raiz de la aplicacion.
+         web_icon agregado en Fase 2A: sin el, el menu raiz no siempre se
+         renderiza en la cuadricula de aplicaciones de Odoo 18. -->
     <menuitem id="menu_ags_root"
-              name="Inteligencia"
-              sequence="90"
-              groups="ags_intelligence.group_ags_manager"/>
+            name="Inteligencia"
+            sequence="90"
+            web_icon="ags_intelligence,static/description/icon.png"
+            groups="ags_intelligence.group_ags_manager"/>
 
-    <!-- Pantalla de inicio (Fase 1). Los tableros de abajo se activan en la Fase 2. -->
+    <!-- Pantalla de inicio -->
     <menuitem id="menu_ags_inicio"
-              name="Inicio"
-              parent="menu_ags_root"
-              action="action_ags_welcome"
-              sequence="1"/>
+            name="Inicio"
+            parent="menu_ags_root"
+            action="action_ags_welcome"
+            sequence="1"/>
+
+    <!-- ============================================================
+         SISTEMA DE PARAMETROS (Fase 2A)
+         El tablero de control del sistema: aqui se define que se mide,
+         contra que se compara y como evoluciona.
+         ============================================================ -->
+
+    <menuitem id="menu_ags_parametros_root"
+            name="Parametros"
+            parent="menu_ags_root"
+            sequence="10"/>
+
+    <menuitem id="menu_ags_parametro"
+            name="Catalogo de parametros"
+            parent="menu_ags_parametros_root"
+            action="action_ags_parametro"
+            sequence="10"/>
+
+    <menuitem id="menu_ags_medicion"
+            name="Mediciones"
+            parent="menu_ags_parametros_root"
+            action="action_ags_medicion"
+            sequence="20"/>
+
+    <menuitem id="menu_ags_baseline"
+            name="Baselines congelados"
+            parent="menu_ags_parametros_root"
+            action="action_ags_baseline"
+            sequence="30"/>
+
+    <menuitem id="menu_ags_benchmark"
+            name="Benchmarks de mercado"
+            parent="menu_ags_parametros_root"
+            action="action_ags_benchmark"
+            sequence="40"/>
+
+    <menuitem id="menu_ags_proyeccion"
+            name="Proyecciones"
+            parent="menu_ags_parametros_root"
+            action="action_ags_proyeccion"
+            sequence="50"/>
+
+    <!-- ============================================================
+         CONFIGURACION
+         ============================================================ -->
+
+    <menuitem id="menu_ags_config"
+            name="Configuracion"
+            parent="menu_ags_root"
+            sequence="99"/>
+
+    <menuitem id="menu_ags_estacionalidad"
+            name="Factores de estacionalidad"
+            parent="menu_ags_config"
+            action="action_ags_estacionalidad"
+            sequence="10"/>
+
+    <menuitem id="menu_ags_fuente"
+            name="Fuentes de investigacion"
+            parent="menu_ags_config"
+            action="action_ags_fuente"
+            sequence="20"/>
 
     <!--
-        Estructura prevista (se agregan sus acciones en la Fase 2+):
-        - Cockpit de Gerencia
-        - Demanda y Ventas
-        - Inventario y Materiales
-        - Costos y Rentabilidad
-        - Financiero y Caja
-        - Inteligencia Comercial
-        - Configuracion
+        Estructura prevista para fases siguientes:
+          - Cockpit de Gerencia      (Fase 2A, cierre)
+          - Costos y Rentabilidad    (Fase 2B)
+          - Financiero y Caja        (Fase 2C)
+          - Demanda y Ventas         (Fase 2D)
+          - Inventario y Materiales  (Fase 2D)
+          - Inteligencia Comercial   (Fase 2E)
     -->
 
 </odoo>

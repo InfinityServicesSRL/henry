@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ============================================================
+         FUENTES OFICIALES DOMINICANAS
+         ============================================================ -->
+
+    <record id="fuente_sb_rd" model="ags.fuente">
+        <field name="name">Superintendencia de Bancos de la Republica Dominicana</field>
+        <field name="documento">Informe sobre la Banca y la Industria Nacional - Diciembre 2025</field>
+        <field name="url">https://sb.gob.do/media/c1lbahc3/informe-banca-e-industria-2026_vf.pdf</field>
+        <field name="fecha_publicacion">2026-04-01</field>
+        <field name="tipo">oficial_rd</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">Fuente oficial. Reporta tasas de interes, morosidad y LTV del sector industrial dominicano por tipo de deudor. Es el mejor dato duro disponible para comparar el costo de financiamiento de AG Supply contra su sector.</field>
+    </record>
+
+    <record id="fuente_aird" model="ags.fuente">
+        <field name="name">Asociacion de Industrias de la Republica Dominicana (AIRD)</field>
+        <field name="documento">Indice Mensual de Actividad Manufacturera (IMAM)</field>
+        <field name="url">https://aird.org.do/es/indicadores-industriales/imam/</field>
+        <field name="fecha_publicacion">2026-08-11</field>
+        <field name="tipo">gremial_rd</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">Adaptacion dominicana del PMI. Cinco variables: ventas, produccion, empleo, inventario de MP y plazos de entrega. Umbral 50. Sirve como termometro externo: si el IMAM expande y AG Supply esta plana, es perdida de participacion, no mercado dificil.</field>
+    </record>
+
+    <record id="fuente_bcrd" model="ags.fuente">
+        <field name="name">Banco Central de la Republica Dominicana</field>
+        <field name="documento">IMAE e indicadores de precios</field>
+        <field name="url">https://www.bancentral.gov.do</field>
+        <field name="fecha_publicacion">2026-08-01</field>
+        <field name="tipo">oficial_rd</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">Inflacion, tipo de cambio y crecimiento de manufactura local. El tipo de cambio es critico: AG Supply compra bobina en USD y vende en DOP.</field>
+    </record>
+
+    <record id="fuente_mt_rd" model="ags.fuente">
+        <field name="name">Ministerio de Trabajo - Comite Nacional de Salarios</field>
+        <field name="documento">Resolucion CNS-01-2025 - Salario minimo sector privado no sectorizado</field>
+        <field name="fecha_publicacion">2026-02-01</field>
+        <field name="tipo">oficial_rd</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">Vigente desde el 1 de febrero de 2026. Micro RD$16,993.20 / Pequena RD$18,421.20 / Mediana RD$27,489.60 / Grande RD$29,988.00. Verificar en que categoria cae AG Supply segun ventas brutas y empleados registrados en TSS.</field>
+    </record>
+
+    <!-- ============================================================
+         INDUSTRIA TISSUE
+         ============================================================ -->
+
+    <record id="fuente_valmet" model="ags.fuente">
+        <field name="name">Valmet</field>
+        <field name="documento">How tissue converters use OEE to improve production and profitability</field>
+        <field name="url">https://www.valmet.com/insights/blogs/tissue-converting/oee-improve-tissue-converting-production-profitability/</field>
+        <field name="fecha_publicacion">2024-02-07</field>
+        <field name="tipo">industria</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">Fabricante del equipo de conversion. Sitúa el OEE promedio alcanzable en conversion de tissue alrededor de 60% y clase mundial en 85% o mas.</field>
+    </record>
+
+    <record id="fuente_oee_automatico" model="ags.fuente">
+        <field name="name">Symestic - Analisis sobre 15,000+ maquinas conectadas</field>
+        <field name="documento">OEE Benchmarks: Realistic Values by Industry 2026</field>
+        <field name="url">https://www.symestic.com/en-us/blog/oee/oee-benchmarks</field>
+        <field name="fecha_publicacion">2026-06-01</field>
+        <field name="tipo">industria</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">HALLAZGO CRITICO: el OEE capturado manualmente es sistematicamente 8-12 puntos porcentuales mas alto que el medido automaticamente. AG Supply calcula desde registros manuales de OT en Odoo, por lo que su OEE real esta probablemente por debajo de lo que muestra. Las bandas cargadas ya estan ajustadas por esto.</field>
+    </record>
+
+    <record id="fuente_tappi" model="ags.fuente">
+        <field name="name">TAPPI Tissue</field>
+        <field name="documento">Why Converting Line Tissue Waste is Desperate for a Kaizen Event</field>
+        <field name="url">https://tissue360.tappi.org/2021/10/19/why-converting-line-tissue-waste-is-desperate-for-a-kaizen-event/</field>
+        <field name="fecha_publicacion">2021-10-19</field>
+        <field name="tipo">industria</field>
+        <field name="confiabilidad">media</field>
+        <field name="notas">Merma de corte y rebobinado 3%-5.5%; objetivo alcanzable tan bajo como 3%. Cada empalme de bobina madre genera log waste. Dato de 2021, sigue siendo referencia valida de proceso.</field>
+    </record>
+
+    <record id="fuente_cmpc_softys" model="ags.fuente">
+        <field name="name">Empresas CMPC - Segmento Softys</field>
+        <field name="documento">Earnings Release 4Q24</field>
+        <field name="fecha_publicacion">2025-01-01</field>
+        <field name="tipo">financiero</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">SALVEDAD IMPORTANTE: Softys es fabricante integrado, produce su propia bobina madre. AG Supply es convertidor puro. Margen bruto Softys ~33.2%, EBITDA 15.0%, materia prima ~92% del costo de ventas. Un convertidor tiene margen bruto estructuralmente MENOR y costo de MP sobre ventas MAYOR. Las bandas cargadas ya reflejan ese ajuste.</field>
+    </record>
+
+    <record id="fuente_kimber" model="ags.fuente">
+        <field name="name">Kimberly-Clark de Mexico (KIMBER, BMV)</field>
+        <field name="documento">Informe Anual 2024 - Estados financieros auditados</field>
+        <field name="fecha_publicacion">2025-02-11</field>
+        <field name="tipo">financiero</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">Margen bruto 40.9% FY2024 auditado; margen EBITDA ~26.7%; ciclo de conversion de efectivo negativo (~-8 dias) por DPO alto con confirming. Es lider integrado con marcas premium: usar como TECHO ASPIRACIONAL, nunca como meta directa para un convertidor dominicano.</field>
+    </record>
+
+    <record id="fuente_fastmarkets" model="ags.fuente">
+        <field name="name">Fastmarkets RISI</field>
+        <field name="documento">Indices de precios de pulpa NBSK y BEK</field>
+        <field name="fecha_publicacion">2026-01-01</field>
+        <field name="tipo">indice</field>
+        <field name="confiabilidad">alta</field>
+        <field name="notas">NBSK spot EE.UU. US$700-730/ton en enero 2026. BEK lista ~US$1,500-1,530/ton. El precio de bobina madre sigue al de pulpa con rezago. Los precios CIF reales de AG Supply no son publicos: capturarlos desde las OC en Odoo.</field>
+    </record>
+
+    <record id="fuente_industria_papel" model="ags.fuente">
+        <field name="name">CSIMarket - Paper and Paper Products Industry</field>
+        <field name="documento">Industry Profitability 1Q 2026</field>
+        <field name="fecha_publicacion">2026-06-11</field>
+        <field name="tipo">financiero</field>
+        <field name="confiabilidad">media</field>
+        <field name="notas">Margen bruto 26.37%, margen neto 1.31%, ROE 2.97% (TTM 1Q2026). Confirma que en papel el margen neto de un digito bajo es lo normal. Por eso merma y disciplina de precio deciden entre ganar y perder.</field>
+    </record>
+
+    <!-- ============================================================
+         OPERACIONES Y PERSONAL
+         ============================================================ -->
+
+    <record id="fuente_otif" model="ags.fuente">
+        <field name="name">Speed Commerce / Fabric Inc</field>
+        <field name="documento">OTIF Benchmarks 2026</field>
+        <field name="fecha_publicacion">2026-01-01</field>
+        <field name="tipo">industria</field>
+        <field name="confiabilidad">media</field>
+        <field name="notas">OTIF consumo masivo 95-98% para proveedores de retail grande; distribucion mayorista B2B 88-94% real. Para AG Supply se fija meta inicial mas conservadora dada su escala.</field>
+    </record>
+
+    <record id="fuente_rotacion_latam" model="ags.fuente">
+        <field name="name">Evaluar - Informe de Rotacion de Personal en Latinoamerica</field>
+        <field name="url">https://blogs.evaluar.com/rotacion-de-personal-informe-evaluar-latam</field>
+        <field name="fecha_publicacion">2025-01-01</field>
+        <field name="tipo">industria</field>
+        <field name="confiabilidad">media</field>
+        <field name="notas">Promedio regional ~16%; manufactura por encima del promedio. RD reportada entre las de menor rotacion de la region. Dato regional dominado por Mexico: confiabilidad media para RD.</field>
+    </record>
+
+</odoo>
