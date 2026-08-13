@@ -1,24 +1,30 @@
 # -*- coding: utf-8 -*-
+import logging
+from dateutil.relativedelta import relativedelta
 from odoo import models, fields, api
+
+_logger = logging.getLogger(__name__)
 
 
 class AgsCalculador(models.AbstractModel):
     """Motor de calculo de parametros desde los datos de Odoo.
 
-    Cada parametro declara en su campo metodo_tecnico el nombre del metodo
-    que lo calcula. Los calculadores se van implementando por fase; este
-    archivo crece a medida que avanzan las fases.
+    Cada parametro declara en metodo_tecnico el nombre del metodo que lo
+    calcula. Ninguno escribe directo en la base: todos pasan por _registrar()
+    para que la trazabilidad sea uniforme.
 
-    Convencion: todo metodo recibe el parametro y una fecha de corte, calcula
-    el valor y registra una medicion. Ninguno escribe directo en la base:
-    todos pasan por _registrar() para que la trazabilidad sea uniforme.
+    CONVENCION DE SIGNOS EN account.move.line:
+      balance = debit - credit
+      Cuentas de ingreso  -> balance NEGATIVO (se acredita)
+      Cuentas de gasto    -> balance POSITIVO (se debita)
+    Por eso las ventas se obtienen invirtiendo el signo del balance.
     """
     _name = "ags.calculador"
     _description = "AG Intelligence - Motor de Calculo"
 
-    # ------------------------------------------------------------------
-    # Infraestructura comun
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # INFRAESTRUCTURA COMUN
+    # ==================================================================
 
     @api.model
     def _registrar(self, parametro, valor, fecha_periodo, origen="auto", notas=False):
@@ -46,26 +52,51 @@ class AgsCalculador(models.AbstractModel):
 
     @api.model
     def _rango_mes(self, fecha=None):
-        """Devuelve el primer y ultimo dia del mes de la fecha dada."""
+        """Primer y ultimo dia del mes de la fecha dada."""
         fecha = fecha or fields.Date.context_today(self)
         primero = fecha.replace(day=1)
-        if fecha.month == 12:
-            siguiente = fecha.replace(year=fecha.year + 1, month=1, day=1)
-        else:
-            siguiente = fecha.replace(month=fecha.month + 1, day=1)
-        ultimo = fields.Date.subtract(siguiente, days=1)
+        ultimo = primero + relativedelta(months=1, days=-1)
         return primero, ultimo
 
-    # ------------------------------------------------------------------
-    # Fase 2A - Salud del ERP
-    # Estos son los primeros en implementarse porque validan la calidad de
-    # los datos sobre los que se apoya todo lo demas.
-    # ------------------------------------------------------------------
+    @api.model
+    def _config(self):
+        return self.env["ags.config"].get_config()
 
     @api.model
-    def _calc_ots_abiertas_vencidas(self, parametro):
-        """Ordenes de produccion abiertas con fecha planificada ya pasada."""
-        hoy = fields.Date.context_today(self)
+    def _saldo_cuentas(self, cuentas, desde, hasta, invertir=False):
+        """Suma el balance de las cuentas dadas en el periodo, solo asientos
+        publicados. Con invertir=True devuelve el signo contable natural de
+        las cuentas de ingreso."""
+        if not cuentas:
+            return 0.0
+        grupos = self.env["account.move.line"]._read_group(
+            [
+                ("account_id", "in", cuentas.ids),
+                ("date", ">=", desde),
+                ("date", "<=", hasta),
+                ("parent_state", "=", "posted"),
+            ],
+            aggregates=["balance:sum"],
+        )
+        total = grupos[0][0] if grupos else 0.0
+        total = total or 0.0
+        return -total if invertir else total
+
+    @api.model
+    def _valor_movimientos(self, movimientos):
+        """Valor absoluto de las capas de valoracion de unos movimientos."""
+        if not movimientos:
+            return 0.0
+        capas = movimientos.mapped("stock_valuation_layer_ids")
+        return abs(sum(capas.mapped("value"))) if capas else 0.0
+
+    # ==================================================================
+    # FASE 2A - SALUD DEL ERP
+    # ==================================================================
+
+    @api.model
+    def _calc_ots_abiertas_vencidas(self, parametro, fecha=None):
+        hoy = fecha or fields.Date.context_today(self)
         _, ultimo = self._rango_mes(hoy)
         cantidad = self.env["mrp.production"].search_count([
             ("state", "not in", ["done", "cancel"]),
@@ -74,9 +105,8 @@ class AgsCalculador(models.AbstractModel):
         return self._registrar(parametro, cantidad, ultimo)
 
     @api.model
-    def _calc_asientos_borrador(self, parametro):
-        """Asientos contables en estado borrador."""
-        hoy = fields.Date.context_today(self)
+    def _calc_asientos_borrador(self, parametro, fecha=None):
+        hoy = fecha or fields.Date.context_today(self)
         _, ultimo = self._rango_mes(hoy)
         cantidad = self.env["account.move"].search_count([
             ("state", "=", "draft"),
@@ -85,11 +115,10 @@ class AgsCalculador(models.AbstractModel):
         return self._registrar(parametro, cantidad, ultimo)
 
     @api.model
-    def _calc_oc_sin_confirmar(self, parametro):
-        """Ordenes de compra enviadas que llevan tiempo sin confirmarse."""
-        hoy = fields.Date.context_today(self)
+    def _calc_oc_sin_confirmar(self, parametro, fecha=None):
+        hoy = fecha or fields.Date.context_today(self)
         _, ultimo = self._rango_mes(hoy)
-        limite = fields.Date.subtract(hoy, days=15)
+        limite = hoy - relativedelta(days=15)
         cantidad = self.env["purchase.order"].search_count([
             ("state", "in", ["draft", "sent"]),
             ("date_order", "<=", limite),
@@ -97,9 +126,8 @@ class AgsCalculador(models.AbstractModel):
         return self._registrar(parametro, cantidad, ultimo)
 
     @api.model
-    def _calc_movimientos_sin_validar(self, parametro):
-        """Movimientos de inventario pendientes de validacion."""
-        hoy = fields.Date.context_today(self)
+    def _calc_movimientos_sin_validar(self, parametro, fecha=None):
+        hoy = fecha or fields.Date.context_today(self)
         _, ultimo = self._rango_mes(hoy)
         cantidad = self.env["stock.picking"].search_count([
             ("state", "not in", ["done", "cancel"]),
@@ -107,20 +135,278 @@ class AgsCalculador(models.AbstractModel):
         ])
         return self._registrar(parametro, cantidad, ultimo)
 
-    # ------------------------------------------------------------------
-    # Fase 2B - Costos y Margen
-    # Pendiente de implementar. Requiere definir la estructura de costos
-    # estandar por SKU y el mapeo de centros de trabajo.
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # FASE 2B - MARGENES AGREGADOS
+    # ==================================================================
 
-    # def _calc_margen_bruto(self, parametro): ...
-    # def _calc_merma_conversion(self, parametro): ...
-    # def _calc_costo_mp_pct_ventas(self, parametro): ...
+    @api.model
+    def _ventas_netas(self, desde, hasta):
+        """Ventas netas del periodo, ya descontadas las notas de credito.
 
-    # ------------------------------------------------------------------
-    # Fase 2C - Financiero y Caja
-    # ------------------------------------------------------------------
+        Las notas de credito debitan la cuenta de ingreso, por lo que al sumar
+        el balance de las cuentas de ingreso quedan restadas automaticamente.
+        No hay que restarlas aparte: seria contarlas dos veces.
+        """
+        cfg = self._config()
+        return self._saldo_cuentas(cfg.cuentas_ingreso(), desde, hasta, invertir=True)
 
-    # def _calc_dso(self, parametro): ...
-    # def _calc_dio(self, parametro): ...
-    # def _calc_pct_cartera_corriente(self, parametro): ...
+    @api.model
+    def _costo_ventas(self, desde, hasta):
+        cfg = self._config()
+        return self._saldo_cuentas(cfg.cuentas_costo_venta(), desde, hasta)
+
+    @api.model
+    def _calc_margen_bruto(self, parametro, fecha=None):
+        """(Ventas netas - Costo de ventas) / Ventas netas * 100"""
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        costo = self._costo_ventas(desde, hasta)
+        if not ventas:
+            _logger.info("MARGEN_BRUTO: sin ventas entre %s y %s", desde, hasta)
+            return False
+        margen = ((ventas - costo) / ventas) * 100.0
+        nota = "Ventas netas: %s | Costo de ventas: %s" % (
+            round(ventas, 2), round(costo, 2))
+        return self._registrar(parametro, margen, hasta, notas=nota)
+
+    @api.model
+    def _calc_margen_ebitda(self, parametro, fecha=None):
+        """(Ventas - Costo de ventas - Gasto operativo) / Ventas * 100
+
+        El gasto operativo excluye depreciacion, amortizacion, intereses e
+        ISR, que es justamente lo que distingue al EBITDA del resultado neto.
+        Esa exclusion depende de la configuracion de cuentas.
+        """
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        costo = self._costo_ventas(desde, hasta)
+        gasto = self._saldo_cuentas(cfg.cuentas_gasto_operativo(), desde, hasta)
+        if not ventas:
+            return False
+        ebitda = ((ventas - costo - gasto) / ventas) * 100.0
+        nota = "Ventas: %s | Costo: %s | Gasto operativo: %s" % (
+            round(ventas, 2), round(costo, 2), round(gasto, 2))
+        return self._registrar(parametro, ebitda, hasta, notas=nota)
+
+    @api.model
+    def _consumo_mp(self, desde, hasta):
+        """Movimientos de consumo de MP y empaque en produccion."""
+        cfg = self._config()
+        categorias = cfg.categoria_mp_ids | cfg.categoria_empaque_ids
+        if not categorias:
+            return self.env["stock.move"], 0.0
+        movimientos = self.env["stock.move"].search([
+            ("state", "=", "done"),
+            ("date", ">=", desde),
+            ("date", "<=", hasta),
+            ("raw_material_production_id", "!=", False),
+            ("product_id.categ_id", "child_of", categorias.ids),
+        ])
+        return movimientos, self._valor_movimientos(movimientos)
+
+    @api.model
+    def _calc_mp_pct_ventas(self, parametro, fecha=None):
+        """Costo de materia prima y empaque consumidos sobre ventas netas.
+
+        Se mide el CONSUMO real en produccion, no las compras: comprar no es
+        consumir, y confundirlos hace que el indicador salte con cada
+        importacion de bobina.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        movimientos, costo_mp = self._consumo_mp(desde, hasta)
+        if not costo_mp:
+            _logger.warning("MP_PCT_VENTAS: sin consumo de MP en el periodo")
+            return False
+        pct = (costo_mp / ventas) * 100.0
+        nota = "MP consumida: %s | Ventas: %s | Movimientos: %s" % (
+            round(costo_mp, 2), round(ventas, 2), len(movimientos))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_merma_conversion(self, parametro, fecha=None):
+        """Merma sobre materia prima consumida, en valor.
+
+        ADVERTENCIA DE INTERPRETACION: el metodo por scrap solo captura lo que
+        se registra explicitamente como desecho. Si en planta la merma no se
+        registra de forma sistematica, este indicador subestimara la realidad.
+        Conviene contrastarlo contra el consumo teorico de la LdM antes de
+        congelar el baseline.
+        """
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        categorias = cfg.categoria_mp_ids | cfg.categoria_empaque_ids
+        if not categorias:
+            return False
+
+        _movs, valor_consumo = self._consumo_mp(desde, hasta)
+        if not valor_consumo:
+            return False
+
+        desechos = self.env["stock.scrap"].search([
+            ("state", "=", "done"),
+            ("date_done", ">=", desde),
+            ("date_done", "<=", hasta),
+            ("product_id.categ_id", "child_of", categorias.ids),
+        ])
+        valor_merma = self._valor_movimientos(desechos.mapped("move_ids"))
+
+        pct = (valor_merma / valor_consumo) * 100.0
+        nota = "Merma: %s | Consumo MP: %s | Registros de desecho: %s" % (
+            round(valor_merma, 2), round(valor_consumo, 2), len(desechos))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_margen_economico(self, parametro, fecha=None):
+        """Margen bruto ajustado por el costo de financiar la cartera.
+
+        Una venta al 22% cobrada a 90 dias no vale lo mismo que una al 22%
+        cobrada a 30. La diferencia es lo que cuesta financiar esa cuenta por
+        cobrar, y ese costo no aparece en ningun estado de resultados.
+
+            costo_financiero_% = (DSO / dias_año) * tasa_anual
+            margen_economico   = margen_bruto - costo_financiero_%
+
+        La brecha entre este indicador y MARGEN_BRUTO es en si misma una
+        medida: cuanto margen se va en financiar a los clientes.
+        """
+        cfg = self._config()
+        _desde, hasta = self._rango_mes(fecha)
+        Param = self.env["ags.parametro"]
+        Medicion = self.env["ags.medicion"]
+
+        p_margen = Param.search([("codigo", "=", "MARGEN_BRUTO")], limit=1)
+        p_dso = Param.search([("codigo", "=", "DSO")], limit=1)
+        if not p_margen or not p_dso:
+            return False
+
+        m_margen = Medicion.search([
+            ("parametro_id", "=", p_margen.id),
+            ("fecha_periodo", "=", hasta),
+        ], limit=1)
+        m_dso = Medicion.search([
+            ("parametro_id", "=", p_dso.id),
+            ("fecha_periodo", "=", hasta),
+        ], limit=1)
+        if not m_margen or not m_dso:
+            _logger.info(
+                "MARGEN_ECONOMICO: faltan MARGEN_BRUTO o DSO del periodo %s", hasta)
+            return False
+
+        costo_fin = (m_dso.valor / (cfg.dias_base_anio or 365)) * cfg.tasa_costo_capital
+        economico = m_margen.valor - costo_fin
+        nota = ("Margen bruto: %s%% | DSO: %s dias | Tasa: %s%% | "
+                "Costo financiero: %s%%") % (
+            round(m_margen.valor, 2), round(m_dso.valor, 1),
+            cfg.tasa_costo_capital, round(costo_fin, 2))
+        return self._registrar(parametro, economico, hasta, notas=nota)
+
+    # ==================================================================
+    # FASE 2B - ENERGIA
+    # ==================================================================
+
+    @api.model
+    def _kwh_del_mes(self, desde, hasta):
+        """kWh facturados, imputados al mes de CONSUMO.
+
+        La distribuidora factura al mes siguiente. Sin este ajuste, el ratio
+        compararia energia de un mes contra produccion de otro: un desfase
+        sistematico que no se corrige promediando periodos.
+        """
+        cfg = self._config()
+        if not cfg.proveedor_energia_id:
+            return 0.0, 0.0
+        if cfg.energia_mes_anterior:
+            f_desde = desde + relativedelta(months=1)
+            f_hasta = f_desde + relativedelta(months=1, days=-1)
+        else:
+            f_desde, f_hasta = desde, hasta
+        facturas = self.env["account.move"].search([
+            ("move_type", "=", "in_invoice"),
+            ("state", "=", "posted"),
+            ("partner_id", "=", cfg.proveedor_energia_id.id),
+            ("invoice_date", ">=", f_desde),
+            ("invoice_date", "<=", f_hasta),
+        ])
+        kwh = sum(facturas.mapped("ags_kwh_consumidos"))
+        monto = sum(facturas.mapped("amount_untaxed"))
+        return kwh, monto
+
+    @api.model
+    def _toneladas_convertidas(self, desde, hasta):
+        """Toneladas de producto terminado producidas en el periodo.
+
+        Depende de que los productos tengan peso configurado. Si el peso esta
+        en cero, la tonelada no se puede derivar y el indicador queda sin dato.
+        """
+        cfg = self._config()
+        dominio = [
+            ("state", "=", "done"),
+            ("date_finished", ">=", desde),
+            ("date_finished", "<=", hasta),
+        ]
+        if cfg.categoria_pt_ids:
+            dominio.append(("product_id.categ_id", "child_of", cfg.categoria_pt_ids.ids))
+        ordenes = self.env["mrp.production"].search(dominio)
+        kg = sum((o.qty_produced or 0.0) * (o.product_id.weight or 0.0) for o in ordenes)
+        return kg / 1000.0
+
+    @api.model
+    def _calc_kwh_por_tonelada(self, parametro, fecha=None):
+        desde, hasta = self._rango_mes(fecha)
+        kwh, _monto = self._kwh_del_mes(desde, hasta)
+        toneladas = self._toneladas_convertidas(desde, hasta)
+        if not toneladas or not kwh:
+            return False
+        valor = kwh / toneladas
+        nota = "kWh: %s | Toneladas: %s" % (round(kwh, 2), round(toneladas, 3))
+        return self._registrar(parametro, valor, hasta, notas=nota)
+
+    @api.model
+    def _calc_costo_kwh(self, parametro, fecha=None):
+        desde, hasta = self._rango_mes(fecha)
+        kwh, monto = self._kwh_del_mes(desde, hasta)
+        if not kwh:
+            return False
+        valor = monto / kwh
+        nota = "Monto: %s | kWh: %s" % (round(monto, 2), round(kwh, 2))
+        return self._registrar(parametro, valor, hasta, notas=nota)
+
+    # ==================================================================
+    # ORQUESTACION
+    # ==================================================================
+
+    @api.model
+    def calcular_periodo(self, fecha=None, codigos=None):
+        """Ejecuta los calculadores disponibles para un periodo.
+
+        El orden importa: MARGEN_ECONOMICO depende de que MARGEN_BRUTO y DSO
+        ya esten calculados para el mismo periodo. Por eso se ordena por
+        secuencia y el margen economico lleva secuencia alta.
+
+        Devuelve un resumen para poder auditar la corrida.
+        """
+        dominio = [("captura", "=", "auto"), ("metodo_tecnico", "!=", False)]
+        if codigos:
+            dominio.append(("codigo", "in", codigos))
+        parametros = self.env["ags.parametro"].search(dominio, order="secuencia, id")
+
+        resultados = {"ok": [], "sin_datos": [], "error": []}
+        for param in parametros:
+            metodo = getattr(self, param.metodo_tecnico, None)
+            if not metodo:
+                resultados["error"].append((param.codigo, "metodo no implementado"))
+                continue
+            try:
+                res = metodo(param, fecha)
+                if res:
+                    resultados["ok"].append(param.codigo)
+                else:
+                    resultados["sin_datos"].append(param.codigo)
+            except Exception as e:
+                _logger.exception("Error calculando %s", param.codigo)
+                resultados["error"].append((param.codigo, str(e)))
+        return resultados

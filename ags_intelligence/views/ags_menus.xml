@@ -67,6 +67,12 @@
             parent="menu_ags_root"
             sequence="99"/>
 
+    <menuitem id="menu_ags_config_contable"
+            name="Configuracion contable"
+            parent="menu_ags_config"
+            action="action_ags_config"
+            sequence="5"/>
+
     <menuitem id="menu_ags_estacionalidad"
             name="Factores de estacionalidad"
             parent="menu_ags_config"

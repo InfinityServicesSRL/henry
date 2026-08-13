@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         FASE 2B - PARAMETROS NUEVOS
+         ================================================================ -->
+
+    <record id="param_margen_economico" model="ags.parametro">
+        <field name="codigo">MARGEN_ECONOMICO</field>
+        <field name="name">Margen economico</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">15</field>
+        <field name="descripcion">Margen bruto ajustado por el costo de financiar la cartera. Una venta al 22% cobrada a 90 dias no vale lo mismo que una al 22% cobrada a 30: la diferencia es lo que cuesta financiar esa cuenta por cobrar, y ese costo no aparece en ningun estado de resultados.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_calculo">margen_bruto - (DSO / dias_año) * tasa_costo_capital. La tasa por defecto es 12.3%, promedio del sector industrial dominicano en moneda nacional segun la Superintendencia de Bancos.</field>
+        <field name="metodo_tecnico">_calc_margen_economico</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">La BRECHA entre este indicador y MARGEN_BRUTO es en si misma una medida: cuanto margen se va en financiar a los clientes. Si la brecha crece sin que cambie el margen bruto, el problema no es el precio sino el plazo de cobro. Depende de que MARGEN_BRUTO y DSO esten calculados para el mismo periodo.</field>
+    </record>
+
+    <record id="param_costo_kwh" model="ags.parametro">
+        <field name="codigo">COSTO_KWH</field>
+        <field name="name">Costo por kWh</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">55</field>
+        <field name="descripcion">Costo real pagado por kilovatio hora, derivado de la factura de la distribuidora. Relevante porque la energia industrial dominicana esta entre las mas caras de la region.</field>
+        <field name="unidad">dop</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">a</field>
+        <field name="metodo_calculo">monto sin impuestos de la factura de energia / kWh facturados del periodo</field>
+        <field name="metodo_tecnico">_calc_costo_kwh</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <!-- ================================================================
+         ASIGNACION DE METODOS A PARAMETROS EXISTENTES
+
+         Los parametros ya estaban en el catalogo pero sin calculador.
+         Aqui se enlazan con los metodos implementados en esta fase.
+         ================================================================ -->
+
+    <record id="param_margen_bruto" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_margen_bruto</field>
+        <field name="metodo_calculo">(Ventas netas - Costo de ventas) / Ventas netas. Las ventas se toman del saldo de las cuentas de ingreso configuradas, con asientos publicados. Las notas de credito quedan descontadas automaticamente porque debitan la cuenta de ingreso.</field>
+    </record>
+
+    <record id="param_margen_ebitda" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_margen_ebitda</field>
+        <field name="metodo_calculo">(Ventas - Costo de ventas - Gasto operativo) / Ventas. El gasto operativo excluye depreciacion, amortizacion, intereses e ISR segun la configuracion de cuentas.</field>
+    </record>
+
+    <record id="param_mp_pct_ventas" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_mp_pct_ventas</field>
+        <field name="metodo_calculo">Valor de MP y empaque CONSUMIDOS en produccion / Ventas netas. Se mide consumo, no compras: comprar no es consumir, y confundirlos hace saltar el indicador con cada importacion de bobina.</field>
+    </record>
+
+    <record id="param_merma_conversion" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_merma_conversion</field>
+        <field name="metodo_calculo">Valor de desechos registrados (stock.scrap) / Valor de MP consumida en produccion.</field>
+        <field name="notas">Referencia TAPPI: trim loss 3%-5.5%, objetivo alcanzable 3%. La banda incluye todas las etapas, no solo corte. ADVERTENCIA: el metodo por scrap solo captura lo registrado explicitamente como desecho. Si en planta la merma no se registra sistematicamente, este indicador SUBESTIMARA la realidad. Contrastar contra el consumo teorico de la LdM antes de congelar el baseline.</field>
+    </record>
+
+    <record id="param_kwh_por_tonelada" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_kwh_por_tonelada</field>
+        <field name="captura">auto</field>
+        <field name="metodo_calculo">kWh facturados por la distribuidora / toneladas de producto terminado producidas. El kWh se registra en la factura de compra de energia, de modo que el dato viaja pegado a un proceso que no se interrumpe. La factura se imputa al mes de CONSUMO, no al de recepcion.</field>
+        <field name="notas">Requiere que los productos terminados tengan peso configurado. Si el peso esta en cero, la tonelada no se puede derivar.</field>
+    </record>
+
+</odoo>

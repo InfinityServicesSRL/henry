@@ -8,4 +8,7 @@ from . import ags_benchmark
 from . import ags_baseline
 from . import ags_medicion
 from . import ags_estacionalidad
+# Fase 2B - Configuracion y calculo
+from . import ags_config
+from . import account_move
 from . import ags_calculador

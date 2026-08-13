@@ -7,3 +7,4 @@ access_ags_baseline_manager,ags.baseline.manager,model_ags_baseline,ags_intellig
 access_ags_medicion_manager,ags.medicion.manager,model_ags_medicion,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_estacionalidad_manager,ags.estacionalidad.manager,model_ags_estacionalidad,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_proyeccion_manager,ags.proyeccion.manager,model_ags_proyeccion,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_config_manager,ags.config.manager,model_ags_config,ags_intelligence.group_ags_manager,1,1,1,1
