@@ -375,6 +375,216 @@ class AgsCalculador(models.AbstractModel):
         nota = "Monto: %s | kWh: %s" % (round(monto, 2), round(kwh, 2))
         return self._registrar(parametro, valor, hasta, notas=nota)
 
+
+    # ==================================================================
+    # FASE 2C - CARTERA, PLAZOS Y DISCIPLINA COMERCIAL
+    # ==================================================================
+
+    @api.model
+    def _fecha_cobro(self, factura):
+        """Fecha del ultimo cobro conciliado contra la factura."""
+        lineas = factura.line_ids.filtered(
+            lambda l: l.account_id.account_type == "asset_receivable")
+        fechas = []
+        for l in lineas:
+            for pr in l.matched_credit_ids:
+                if pr.credit_move_id.date:
+                    fechas.append(pr.credit_move_id.date)
+        return max(fechas) if fechas else None
+
+    @api.model
+    def _calc_dso(self, parametro, fecha=None):
+        """DSO estandar: (CxC / ventas del periodo) * dias del periodo.
+
+        Se usa la formula de balance y no el promedio de dias de cobro porque
+        esta ultima solo mira facturas ya cobradas: los clientes lentos, que
+        son justamente el problema, quedan fuera del promedio hasta que pagan.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        cxc = self.env["account.move.line"]._read_group(
+            [("account_id.account_type", "=", "asset_receivable"),
+             ("date", "<=", hasta), ("parent_state", "=", "posted"),
+             ("full_reconcile_id", "=", False)],
+            aggregates=["amount_residual:sum"],
+        )
+        saldo = (cxc[0][0] if cxc else 0.0) or 0.0
+        dias = (hasta - desde).days + 1
+        valor = (saldo / ventas) * dias
+        nota = "CxC pendiente: %s | Ventas: %s | Dias: %s" % (
+            round(saldo, 2), round(ventas, 2), dias)
+        return self._registrar(parametro, valor, hasta, notas=nota)
+
+    @api.model
+    def _calc_desviacion_plazo(self, parametro, fecha=None):
+        """Dias reales de cobro menos dias pactados, ponderado por monto.
+
+        Es mas util que el DSO absoluto: un DSO de 45 dias es excelente si el
+        canal pacta 60 y pesimo si pacta 30. Lo accionable es la desviacion
+        contra el compromiso, no el nivel.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        facturas = self.env["account.move"].search([
+            ("move_type", "=", "out_invoice"),
+            ("state", "=", "posted"),
+            ("invoice_date", ">=", desde),
+            ("invoice_date", "<=", hasta),
+        ])
+        peso = suma = 0.0
+        n = 0
+        for f in facturas:
+            cobro = self._fecha_cobro(f)
+            if not cobro or not f.invoice_date_due:
+                continue
+            pactado = (f.invoice_date_due - f.invoice_date).days
+            real = (cobro - f.invoice_date).days
+            monto = f.amount_untaxed or 0.0
+            suma += (real - pactado) * monto
+            peso += monto
+            n += 1
+        if not peso:
+            return False
+        valor = suma / peso
+        nota = "Facturas cobradas evaluadas: %s | Ponderado por monto" % n
+        return self._registrar(parametro, valor, hasta, notas=nota)
+
+    @api.model
+    def _nc_por_motivo(self, desde, hasta, motivos):
+        """Suma de notas de credito de los motivos indicados."""
+        ncs = self.env["account.move"].search([
+            ("move_type", "=", "out_refund"),
+            ("state", "=", "posted"),
+            ("invoice_date", ">=", desde),
+            ("invoice_date", "<=", hasta),
+            ("ags_motivo_nc", "in", motivos),
+        ])
+        return sum(ncs.mapped("amount_untaxed")), len(ncs)
+
+    @api.model
+    def _calc_pct_pronto_pago(self, parametro, fecha=None):
+        """Costo del programa de pronto pago sobre ventas.
+
+        Es un costo financiero deliberado, no una perdida operativa. Se separa
+        de las devoluciones justamente para poder juzgarlo como lo que es:
+        el precio de cobrar antes.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        monto, n = self._nc_por_motivo(desde, hasta, ["pronto_pago"])
+        pct = (monto / ventas) * 100.0
+        nota = "Descuentos: %s en %s notas | Ventas: %s" % (
+            round(monto, 2), n, round(ventas, 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_pct_devoluciones(self, parametro, fecha=None):
+        """Devoluciones reales sobre ventas.
+
+        EXCLUYE las anulaciones por refacturacion: en factura electronica una
+        factura emitida no se modifica, se anula con NC completa y se rehace.
+        Contar esas anulaciones como devolucion inflaria el indicador con
+        correcciones administrativas que no reflejan falla de producto.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        monto, n = self._nc_por_motivo(desde, hasta, ["devolucion"])
+        pct = (monto / ventas) * 100.0
+        nota = "Devoluciones: %s en %s notas | Ventas: %s" % (
+            round(monto, 2), n, round(ventas, 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_cumplimiento_pronto_pago(self, parametro, fecha=None):
+        """% de descuentos otorgados donde el pago SI llego dentro del plazo.
+
+        El descuento por pronto pago solo tiene sentido si compra dias. Si se
+        otorga sobre facturas cobradas fuera de plazo, se esta pagando por un
+        adelanto que no ocurrio.
+        """
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        ncs = self.env["account.move"].search([
+            ("move_type", "=", "out_refund"),
+            ("state", "=", "posted"),
+            ("invoice_date", ">=", desde),
+            ("invoice_date", "<=", hasta),
+            ("ags_motivo_nc", "=", "pronto_pago"),
+        ])
+        if not ncs:
+            return False
+        limite = cfg.dias_pronto_pago + cfg.dias_gracia_pronto_pago
+        cumplen = fuera = 0
+        m_cumplen = m_fuera = 0.0
+        for nc in ncs:
+            orig = nc.reversed_entry_id
+            if not orig:
+                continue
+            cobro = self._fecha_cobro(orig)
+            if not cobro or not orig.invoice_date:
+                continue
+            dias = (cobro - orig.invoice_date).days
+            if dias <= limite:
+                cumplen += 1
+                m_cumplen += nc.amount_untaxed
+            else:
+                fuera += 1
+                m_fuera += nc.amount_untaxed
+        total = cumplen + fuera
+        if not total:
+            return False
+        pct = (cumplen / total) * 100.0
+        nota = ("Dentro de plazo: %s (%s) | Fuera: %s (%s) | Limite: %s dias") % (
+            cumplen, round(m_cumplen, 2), fuera, round(m_fuera, 2), limite)
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_ventas_sin_termino(self, parametro, fecha=None):
+        """% de ventas facturadas sin termino de pago pactado.
+
+        Sin termino, la factura nace vencida el mismo dia. Para una venta de
+        contado eso es correcto; para un cliente a credito significa que se
+        esta facturando sin marco de credito definido.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        facturas = self.env["account.move"].search([
+            ("move_type", "=", "out_invoice"),
+            ("state", "=", "posted"),
+            ("invoice_date", ">=", desde),
+            ("invoice_date", "<=", hasta),
+            ("invoice_payment_term_id", "=", False),
+        ])
+        monto = sum(facturas.mapped("amount_untaxed"))
+        pct = (monto / ventas) * 100.0
+        nota = "Sin termino: %s facturas por %s" % (len(facturas), round(monto, 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_costo_conversion(self, parametro, fecha=None):
+        """Mano de obra directa sobre ventas netas.
+
+        Es la diferencia entre el margen sobre materiales y el margen bruto
+        contable: cuanto cuesta transformar bobina en producto terminado.
+        """
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        mod = self._saldo_cuentas(cfg.cuentas_mod(), desde, hasta)
+        pct = (mod / ventas) * 100.0
+        nota = "MOD: %s | Ventas: %s | Cuentas: %s" % (
+            round(mod, 2), round(ventas, 2), len(cfg.cuentas_mod()))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
     # ==================================================================
     # ORQUESTACION
     # ==================================================================

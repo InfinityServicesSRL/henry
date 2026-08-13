@@ -86,6 +86,23 @@
 
     <!-- ==================== FACTURA: CAMPO kWh ==================== -->
 
+    <record id="view_move_form_ags_nc" model="ir.ui.view">
+        <field name="name">account.move.form.ags.nc</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="invoice_date" position="after">
+                <field name="ags_motivo_nc"
+                       invisible="move_type != 'out_refund'"
+                       required="move_type == 'out_refund'"/>
+                <field name="ags_motivo_sugerido"
+                       invisible="move_type != 'out_refund' or not ags_motivo_sugerido"/>
+                <field name="ags_dias_hasta_nc"
+                       invisible="move_type != 'out_refund'"/>
+            </field>
+        </field>
+    </record>
+
     <record id="view_move_form_ags_energia" model="ir.ui.view">
         <field name="name">account.move.form.ags.energia</field>
         <field name="model">account.move</field>

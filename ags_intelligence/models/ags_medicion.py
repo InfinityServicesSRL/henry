@@ -97,6 +97,18 @@ class AgsMedicion(models.Model):
         compute="_compute_estacional",
         digits=(16, 2),
     )
+    periodo_atipico = fields.Boolean(
+        string="Periodo atipico",
+        default=False,
+        help="Marca periodos distorsionados por eventos no operativos: cierre "
+             "fiscal, ajuste de inventario, reclasificacion contable. Los "
+             "periodos marcados se excluyen de promedios y del calculo de "
+             "estacionalidad, pero se conservan visibles.",
+    )
+    motivo_atipico = fields.Char(
+        string="Motivo",
+        help="Por que este periodo no refleja la operacion normal",
+    )
     notas = fields.Text(string="Notas")
 
     _sql_constraints = [
@@ -161,6 +173,25 @@ class AgsMedicion(models.Model):
                 rec.valor_esperado_estacional = esperado
                 if esperado:
                     rec.desvio_estacional = ((rec.valor - esperado) / abs(esperado)) * 100.0
+
+    @api.model
+    def promedio_limpio(self, parametro, meses=6, hasta=None):
+        """Promedio del parametro excluyendo periodos atipicos.
+
+        Un cierre fiscal o un ajuste de inventario puede mover un indicador
+        20 puntos en un mes. Si esos periodos entran al promedio, la linea
+        base queda desviada y la estacionalidad que se derive de ella tambien.
+        """
+        hasta = hasta or fields.Date.context_today(self)
+        registros = self.search([
+            ("parametro_id", "=", parametro.id),
+            ("fecha_periodo", "<=", hasta),
+            ("periodo_atipico", "=", False),
+        ], order="fecha_periodo desc", limit=meses)
+        if not registros:
+            return 0.0, 0
+        valores = registros.mapped("valor")
+        return sum(valores) / len(valores), len(valores)
 
     @api.model
     def cron_calcular_mediciones(self):

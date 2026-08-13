@@ -51,6 +51,24 @@ class AgsConfig(models.Model):
         string="Cuentas de ingreso",
         domain="[('company_ids', 'in', company_id)]",
     )
+    cuenta_excluir_ingreso_ids = fields.Many2many(
+        "account.account",
+        "ags_config_excl_ing_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas de ingreso a excluir",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Diferencia cambiaria, intereses ganados, dividendos, venta de "
+             "activos y otros ingresos no operativos. Deben excluirse porque "
+             "el margen no debe moverse porque el dolar se movio.",
+    )
+    prefijo_ingreso_operativo = fields.Char(
+        string="Prefijo de ingreso operativo",
+        default="4101",
+        help="Prefijo de las cuentas de venta de mercancia. Las cuentas de "
+             "ingreso que no empiecen con este prefijo se excluyen del calculo "
+             "de ventas netas.",
+    )
     cuenta_costo_venta_ids = fields.Many2many(
         "account.account",
         "ags_config_costo_rel",
@@ -79,6 +97,42 @@ class AgsConfig(models.Model):
         help="Depreciacion, amortizacion, intereses e impuesto sobre la renta. "
              "Si estas cuentas ya estan tipificadas correctamente en Odoo, "
              "este campo puede quedar vacio.",
+    )
+
+    cuenta_mod_ids = fields.Many2many(
+        "account.account",
+        "ags_config_mod_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas de mano de obra directa",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Sueldos de planta, horas extras, incentivos, vacaciones y "
+             "salario de navidad del personal de produccion. Se usa para medir "
+             "el costo de conversion por separado del costo de materiales.",
+    )
+
+    # ------------------------------------------------------------------
+    # Politica de pronto pago
+    # ------------------------------------------------------------------
+
+    pct_pronto_pago = fields.Float(
+        string="Descuento por pronto pago (%)",
+        digits=(5, 2),
+        default=2.0,
+        help="Porcentaje ofrecido por pago anticipado.",
+    )
+    dias_pronto_pago = fields.Integer(
+        string="Plazo maximo para pronto pago (dias)",
+        default=15,
+        help="Dias dentro de los cuales el pago califica para el descuento. "
+             "Si el cobro llega despues, el descuento se otorgo sin comprar "
+             "el adelanto que justificaba su costo.",
+    )
+    dias_gracia_pronto_pago = fields.Integer(
+        string="Dias de gracia",
+        default=3,
+        help="Tolerancia sobre el plazo antes de marcar el descuento como "
+             "otorgado fuera de terminos.",
     )
 
     # ------------------------------------------------------------------
@@ -206,10 +260,39 @@ class AgsConfig(models.Model):
         ])
 
     def cuentas_ingreso(self):
+        """Cuentas de venta operativa, ya depuradas.
+
+        Se excluyen diferencia cambiaria, intereses, dividendos y venta de
+        activos. Sin esta depuracion el margen bruto sube o baja segun se
+        mueva el tipo de cambio, que no tiene nada que ver con la operacion.
+        """
         self.ensure_one()
         if self.metodo_cuentas == "explicito" and self.cuenta_ingreso_ids:
-            return self.cuenta_ingreso_ids
-        return self._cuentas_por_tipo(["income"])
+            cuentas = self.cuenta_ingreso_ids
+        else:
+            cuentas = self._cuentas_por_tipo(["income"])
+            if self.prefijo_ingreso_operativo:
+                cuentas = cuentas.filtered(
+                    lambda c: (c.code or "").startswith(self.prefijo_ingreso_operativo)
+                )
+        return cuentas - self.cuenta_excluir_ingreso_ids
+
+    def cuentas_ingreso_no_operativo(self):
+        """Las que quedaron fuera: sirven para reportar aparte, no para margen."""
+        self.ensure_one()
+        todas = self._cuentas_por_tipo(["income", "income_other"])
+        return todas - self.cuentas_ingreso()
+
+    def cuentas_mod(self):
+        """Mano de obra directa dentro del costo de ventas."""
+        self.ensure_one()
+        if self.cuenta_mod_ids:
+            return self.cuenta_mod_ids
+        claves = ["SUELDO", "SALARIO", "INCENTIVO", "HORAS EXTRA",
+                  "VACACIONES", "ATENCIONES", "NAVIDAD", "BONIFICA"]
+        return self.cuentas_costo_venta().filtered(
+            lambda c: any(k in (c.name or "").upper() for k in claves)
+        )
 
     def cuentas_costo_venta(self):
         self.ensure_one()

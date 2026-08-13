@@ -169,6 +169,7 @@
                 <field name="brecha_objetivo" optional="show"/>
                 <field name="desvio_estacional" optional="hide"/>
                 <field name="origen" optional="hide"/>
+                <field name="periodo_atipico" widget="boolean_toggle" optional="show"/>
             </list>
         </field>
     </record>
@@ -196,6 +197,11 @@
                             <field name="valor_esperado_estacional"/>
                             <field name="desvio_estacional"/>
                         </group>
+                    </group>
+                    <group string="Periodo atipico">
+                        <field name="periodo_atipico"/>
+                        <field name="motivo_atipico" invisible="not periodo_atipico"
+                               placeholder="Cierre fiscal, ajuste de inventario, reclasificacion"/>
                     </group>
                     <group>
                         <field name="notas" nolabel="1" placeholder="Notas de la medicion"/>
