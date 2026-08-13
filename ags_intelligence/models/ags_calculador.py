@@ -501,6 +501,32 @@ class AgsCalculador(models.AbstractModel):
         return self._registrar(parametro, pct, hasta, notas=nota)
 
 
+
+    @api.model
+    def _calc_pct_garantia_comercial(self, parametro, fecha=None):
+        """Costo de la politica de recompra sobre ventas.
+
+        AG Supply recibe de vuelta la mercancia que el cliente no logro
+        vender, haya pagado o no. Eso es una garantia comercial deliberada:
+        un argumento de venta que baja la barrera de entrada al distribuidor.
+
+        Se mide aparte de las devoluciones por falla porque son cosas
+        distintas: esta es el precio de una politica que se eligio, aquella
+        es un error que se pudo evitar. Si el numero sube, la pregunta no es
+        "quien se equivoco" sino "que producto no esta rotando en el punto
+        de venta", que es informacion comercial valiosa.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        motivos = self.env["account.move"].MOTIVOS_COMERCIALES
+        monto, n = self._nc_por_motivo(desde, hasta, motivos)
+        pct = (monto / ventas) * 100.0
+        nota = "Garantia y descuentos: %s en %s notas | Ventas: %s" % (
+            round(monto, 2), n, round(ventas, 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
     @api.model
     def _calc_pct_errores_facturacion(self, parametro, fecha=None):
         """Notas de credito por correccion administrativa sobre ventas.

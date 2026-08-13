@@ -17,7 +17,7 @@ PATRONES = [
     # 25 casos en el semestre: uno de cada seis documentos sale mal
     # facturado de precio. Merece categoria propia, no es devolucion.
     ("error_precio", [
-        r"DIFERENCIA\s*(EN\s*)?PRE",
+        r"DIS?FERENCIA\s*(EN\s*)?PRE",
         r"DIFERENCIA\s*PRTECI",          # error de tipeo frecuente
         r"PRECIO\s*MAL",
         r"ARREGLAR\s*PRECIO",
@@ -39,7 +39,7 @@ PATRONES = [
         r"NCF\s*(MAL|INCORRECT)",
     ]),
     # --- Refacturacion administrativa (e-CF no admite modificar) ------
-    ("refacturado", [
+    ("refacturacion_ecf", [
         r"SE\s*HIZO\s*DE\s*NUEVO",
         r"SE\s*HAR[AÁ]\s*DE\s*NUEVO",
         r"SE\s*REALIZAR[AÁ]\s*DE\s*N",
@@ -62,22 +62,35 @@ PATRONES = [
         r"DEV\.?\s*NO\s*RECIBIO",
     ]),
     # --- Producto equivocado o defectuoso -----------------------------
-    ("producto_incorrecto", [
-        r"MERCANCIA\s*DEFECTU",
-        r"DEFECTU",
+    ("producto_equivocado", [
         r"PRODUCTO\s*EQUIVOCA",
         r"NO\s*ERA\s*(ESTE|EL)",
         r"NO\s*ERA\b",
         r"NOERA",
         r"NO\s*VAN\b",
-        r"FALTO\s*UN",
         r"DEVOLUCION\s*POR\s*CO",
     ]),
-    # --- Devolucion generica (ultimo recurso) -------------------------
-    ("devolucion", [
+    # --- Producto defectuoso o vencido --------------------------------
+    ("producto_defectuoso", [
+        r"DEFECTU",
+        r"VENCID",
+        r"DA[NÑ]AD",
+        r"ROT[OA]S?\b",
+    ]),
+    # --- Faltante en despacho -----------------------------------------
+    ("faltante_despacho", [
+        r"FALT[OÓ]\s",
+        r"FALTANTE",
+        r"NO\s*SE\s*DESPACH",
+    ]),
+    # --- Garantia comercial (ultimo recurso para devoluciones) --------
+    # Politica de AG Supply: se recibe de vuelta la mercancia que el
+    # cliente no logro vender, haya pagado o no.
+    ("garantia_no_vendido", [
         r"DEVOLUC",
         r"\bDEVL?\.",
         r"\bDEV\b",
+        r"NO\s*(SE\s*)?VEND",
     ]),
 ]
 
@@ -102,21 +115,27 @@ class AccountMove(models.Model):
 
     ags_motivo_nc = fields.Selection(
         [
+            # --- COMERCIAL: costo de politica deliberada -----------------
+            ("garantia_no_vendido", "Garantia comercial - mercancia no vendida"),
+            ("descuento_comercial", "Descuento comercial acordado"),
+            # --- FINANCIERO ----------------------------------------------
             ("pronto_pago", "Descuento por pronto pago"),
-            ("rechazo_entrega", "Rechazo en entrega (cliente no recibio)"),
-            ("producto_incorrecto", "Producto equivocado o defectuoso"),
-            ("error_precio", "Error de precio o facturacion"),
-            ("refacturado", "Refacturacion por e-CF"),
-            ("consumo_interno", "Consumo interno facturado por error"),
+            # --- OPERATIVO: falla evitable, cuesta dinero ----------------
+            ("rechazo_entrega", "Rechazo en entrega - cliente no recibio"),
+            ("producto_defectuoso", "Producto defectuoso o vencido"),
+            ("producto_equivocado", "Producto equivocado en despacho"),
+            ("faltante_despacho", "Faltante - se facturo mas de lo despachado"),
+            # --- ADMINISTRATIVO: correccion, no cuesta producto ----------
+            ("error_precio", "Error de precio o ITBIS"),
+            ("refacturacion_ecf", "Anulacion por refacturacion e-CF"),
+            ("consumo_interno", "Facturado siendo consumo interno"),
             ("datos_fiscales", "Datos fiscales incorrectos (RNC/NCF)"),
-            ("devolucion", "Devolucion sin causa especificada"),
-            ("acuerdo", "Acuerdo comercial"),
-            ("otro", "Otro"),
+            ("migracion_b01", "Ajuste de sistema anterior (B01)"),
         ],
         string="Motivo de la NC",
         tracking=True,
-        help="Clasificar el motivo permite separar el costo financiero del "
-             "pronto pago de la falla operativa de una devolucion.",
+        help="Lista cerrada. No se admite texto libre: cada variante de "
+             "escritura rompe la agrupacion y obliga a reclasificar.",
     )
     ags_motivo_sugerido = fields.Char(
         string="Motivo sugerido",
@@ -133,14 +152,31 @@ class AccountMove(models.Model):
              "bajo sugiere correccion administrativa; uno alto, devolucion real.",
     )
 
-    # Motivos que representan falla operativa: cuestan dinero y son evitables
+    # ------------------------------------------------------------------
+    # AGRUPACIONES PARA INDICADORES
+    #
+    # La distincion clave es entre lo que se decidio y lo que fallo:
+    # una devolucion por garantia comercial es el precio de una politica
+    # que AG Supply eligio ofrecer; una devolucion por rechazo en entrega
+    # es un error que se pudo evitar. Mezclarlas hace el numero inutil.
+    # ------------------------------------------------------------------
+
+    # Falla operativa: evitable, cuesta producto y flete de ida y vuelta
     MOTIVOS_DEVOLUCION = [
-        "rechazo_entrega", "producto_incorrecto", "devolucion",
+        "rechazo_entrega", "producto_defectuoso",
+        "producto_equivocado", "faltante_despacho",
     ]
-    # Motivos que son correccion administrativa: no reflejan falla de producto
+    # Politica comercial: costo deliberado, presupuestable
+    MOTIVOS_COMERCIALES = [
+        "garantia_no_vendido", "descuento_comercial",
+    ]
+    # Correccion administrativa: no cuesta producto, cuesta tiempo
     MOTIVOS_ADMINISTRATIVOS = [
-        "refacturado", "error_precio", "consumo_interno", "datos_fiscales",
+        "error_precio", "refacturacion_ecf", "consumo_interno",
+        "datos_fiscales", "migracion_b01",
     ]
+    # Costo financiero
+    MOTIVOS_FINANCIEROS = ["pronto_pago"]
 
     @api.depends("ref", "narration")
     def _compute_motivo_sugerido(self):

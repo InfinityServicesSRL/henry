@@ -138,4 +138,24 @@
         <field name="frecuencia">mensual</field>
     </record>
 
+    <record id="param_pct_garantia_comercial" model="ags.parametro">
+        <field name="codigo">PCT_GARANTIA_COMERCIAL</field>
+        <field name="name">Costo de la garantia comercial</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">18</field>
+        <field name="descripcion">Devoluciones por garantia de recompra y descuentos comerciales acordados, sobre ventas netas. AG Supply recibe de vuelta la mercancia que el cliente no logro vender, haya pagado o no: es un argumento de venta que baja la barrera de entrada al distribuidor.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_garantia_comercial</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Direccion neutra: es el precio de una politica elegida, no una falla a minimizar. Si el indicador sube, la pregunta no es quien se equivoco sino que producto no esta rotando en el punto de venta. Esa lectura lo convierte en informacion comercial, no en un reproche operativo. Se separa deliberadamente de PCT_DEVOLUCIONES, que si mide error evitable.</field>
+    </record>
+
+    <record id="param_pct_devoluciones" model="ags.parametro">
+        <field name="descripcion">Devoluciones por FALLA OPERATIVA sobre ventas netas: rechazo en entrega, producto defectuoso, producto equivocado y faltante en despacho. Excluye la garantia comercial de recompra, que es politica deliberada, y las correcciones administrativas de facturacion.</field>
+        <field name="notas">Es el indicador de error evitable. Cada devolucion de este tipo cuesta el flete de ida, el de vuelta, el reproceso y credibilidad con el cliente. Requiere que las notas de credito esten clasificadas por motivo.</field>
+    </record>
+
 </odoo>
