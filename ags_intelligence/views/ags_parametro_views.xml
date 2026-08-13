@@ -138,7 +138,6 @@
             <search string="Buscar parametros">
                 <field name="codigo"/>
                 <field name="name"/>
-                <filter name="f_rojo" string="En rojo" domain="[('semaforo','=','rojo')]"/>
                 <filter name="f_sin_benchmark" string="Sin benchmark externo"
                         domain="[('tipo_benchmark','=','c')]"/>
                 <separator/>
