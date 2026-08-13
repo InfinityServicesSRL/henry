@@ -109,4 +109,33 @@
         <field name="notas">SALVEDAD DE COMPARABILIDAD: en AG Supply los costos indirectos de fabricacion (energia de planta, mantenimiento, depreciacion de maquinaria) se registran como gasto operativo, no como costo de ventas. Los benchmarks externos provienen de estados auditados donde el costo de ventas SI los incluye. Por eso el margen bruto de AG Supply resulta estructuralmente mas alto y NO es directamente comparable. El indicador comparable es MARGEN_EBITDA, donde todo el costo queda adentro sin importar su clasificacion. Validacion ene-jun 2026: modulo 34.24% vs P&amp;L 34.47%.</field>
     </record>
 
+    <record id="param_pct_errores_facturacion" model="ags.parametro">
+        <field name="codigo">PCT_ERRORES_FACTURACION</field>
+        <field name="name">Correcciones administrativas de facturacion</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">60</field>
+        <field name="descripcion">Notas de credito por error de precio, refacturacion e-CF, consumo interno mal facturado y datos fiscales incorrectos, sobre ventas netas. No son devoluciones ni cuestan producto, pero cada una consume tiempo de facturacion, contabilidad y relacion con el cliente.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_errores_facturacion</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Hallazgo feb-jul 2026: al menos 25 de 155 notas de credito decian "DIFERENCIA EN PRECIO" o "PRECIO MAL FACTURADO". Uno de cada seis documentos salia mal facturado de precio. Son montos individualmente pequenos pero constantes, y cada uno obliga a anular y rehacer.</field>
+    </record>
+
+    <record id="param_nc_sin_clasificar" model="ags.parametro">
+        <field name="codigo">NC_SIN_CLASIFICAR</field>
+        <field name="name">Notas de credito sin motivo asignado</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">70</field>
+        <field name="descripcion">Porcentaje de notas de credito sin motivo. Es un indicador de calidad del propio sistema de medicion: mientras sea alto, los indicadores de devoluciones y de errores estan incompletos y no deben leerse como definitivos.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_nc_sin_clasificar</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
 </odoo>

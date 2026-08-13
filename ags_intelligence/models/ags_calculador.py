@@ -493,10 +493,58 @@ class AgsCalculador(models.AbstractModel):
         ventas = self._ventas_netas(desde, hasta)
         if not ventas:
             return False
-        monto, n = self._nc_por_motivo(desde, hasta, ["devolucion"])
+        motivos = self.env["account.move"].MOTIVOS_DEVOLUCION
+        monto, n = self._nc_por_motivo(desde, hasta, motivos)
         pct = (monto / ventas) * 100.0
         nota = "Devoluciones: %s en %s notas | Ventas: %s" % (
             round(monto, 2), n, round(ventas, 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+
+    @api.model
+    def _calc_pct_errores_facturacion(self, parametro, fecha=None):
+        """Notas de credito por correccion administrativa sobre ventas.
+
+        Agrupa error de precio, refacturacion por e-CF, consumo interno mal
+        facturado y datos fiscales incorrectos. No son devoluciones ni cuestan
+        producto, pero cada una consume tiempo de facturacion, de contabilidad
+        y de relacion con el cliente.
+
+        En el semestre feb-jul 2026 el error de precio solo aparecio en 25 de
+        155 notas: uno de cada seis documentos salia mal facturado de precio.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        motivos = self.env["account.move"].MOTIVOS_ADMINISTRATIVOS
+        monto, n = self._nc_por_motivo(desde, hasta, motivos)
+        pct = (monto / ventas) * 100.0
+        nota = "Correcciones: %s en %s notas | Ventas: %s" % (
+            round(monto, 2), n, round(ventas, 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_nc_sin_clasificar(self, parametro, fecha=None):
+        """% de notas de credito sin motivo asignado.
+
+        Es un indicador de calidad del propio sistema de medicion: mientras
+        esta cifra sea alta, los indicadores de devoluciones y de errores
+        estan incompletos y no deben leerse como definitivos.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        todas = self.env["account.move"].search([
+            ("move_type", "=", "out_refund"),
+            ("state", "=", "posted"),
+            ("invoice_date", ">=", desde),
+            ("invoice_date", "<=", hasta),
+        ])
+        if not todas:
+            return False
+        sin = todas.filtered(lambda n: not n.ags_motivo_nc)
+        pct = (len(sin) / len(todas)) * 100.0
+        nota = "Sin motivo: %s de %s notas | Monto: %s" % (
+            len(sin), len(todas), round(sum(sin.mapped("amount_untaxed")), 2))
         return self._registrar(parametro, pct, hasta, notas=nota)
 
     @api.model
