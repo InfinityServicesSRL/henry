@@ -149,8 +149,6 @@
                 <field name="name"/>
                 <filter name="f_sin_benchmark" string="Sin benchmark externo"
                         domain="[('tipo_benchmark','=','c')]"/>
-                <filter name="f_no_confiable" string="Dato no confiable aun"
-                        domain="[('madurez','!=','confiable')]"/>
                 <filter name="f_falta_config" string="Falta configurar"
                         domain="[('requiere_config','=',True)]"/>
                 <separator/>
