@@ -31,6 +31,7 @@ class ResPartner(models.Model):
         [
             ("comercial", "Proveedor comercial"),
             ("financiero", "Acreedor financiero"),
+            ("acuerdo_pago", "Acuerdo de pago negociado"),
             ("relacionado", "Parte relacionada"),
             ("gubernamental", "Gubernamental"),
             ("laboral", "Personal / laboral"),
@@ -38,7 +39,25 @@ class ResPartner(models.Model):
         string="Tipo de acreedor",
         help="Determina si el saldo entra al aging comercial. Los acreedores "
              "financieros se analizan aparte porque su vencimiento responde a "
-             "un calendario de amortizacion, no a terminos de pago.",
+             "un calendario de amortizacion, no a terminos de pago. Un acuerdo "
+             "de pago negociado tampoco es cartera comercial: su calendario "
+             "sustituye los terminos originales de la factura.",
+    )
+    ags_motivo_acuerdo = fields.Text(
+        string="Motivo del acuerdo de pago",
+        help="Que origino el acuerdo y en que condiciones se pacto. "
+             "Documentarlo permite saber, si vuelve a ocurrir con otro "
+             "proveedor, que no fue un caso aislado.",
+    )
+    ags_costo_incidente = fields.Monetary(
+        string="Costo estimado del incidente",
+        currency_field="ags_currency_id",
+        help="Perdida estimada por el incumplimiento del proveedor: "
+             "reproceso, atencion de reclamos, mercancia comprometida.",
+    )
+    ags_currency_id = fields.Many2one(
+        "res.currency", string="Moneda",
+        default=lambda self: self.env.company.currency_id,
     )
     ags_tipo_sugerido = fields.Char(
         string="Tipo sugerido",

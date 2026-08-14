@@ -113,6 +113,8 @@
                         domain="[('pct_mas_90','&gt;',10)]"/>
                 <filter name="f_comercial" string="Solo comerciales"
                         domain="[('tipo_acreedor','in',['comercial',False])]"/>
+                <filter name="f_acuerdo" string="Acuerdos de pago"
+                        domain="[('tipo_acreedor','=','acuerdo_pago')]"/>
                 <filter name="f_financiero" string="Solo financieros"
                         domain="[('tipo_acreedor','=','financiero')]"/>
                 <separator/>
@@ -166,6 +168,12 @@
         <field name="arch" type="xml">
             <field name="category_id" position="after">
                 <field name="ags_tipo_acreedor"/>
+                <field name="ags_currency_id" invisible="1"/>
+                <field name="ags_costo_incidente"
+                       invisible="ags_tipo_acreedor != 'acuerdo_pago'"/>
+                <field name="ags_motivo_acuerdo"
+                       invisible="ags_tipo_acreedor != 'acuerdo_pago'"
+                       placeholder="Que origino el acuerdo y en que condiciones se pacto"/>
             </field>
         </field>
     </record>

@@ -923,6 +923,9 @@ class AgsCalculador(models.AbstractModel):
             ("tipo", "=", "cxp"), ("fecha_corte", "=", hasta),
             ("tipo_acreedor", "in", ["comercial", False]),
         ])
+        # Los acuerdos de pago negociados y las partes relacionadas ya quedan
+        # fuera por el dominio anterior: su calendario no responde a terminos
+        # de factura y mezclarlos distorsiona la lectura de disciplina de pago.
         if not registros:
             return False
         total = sum(registros.mapped("saldo_total"))
