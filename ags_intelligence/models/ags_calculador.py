@@ -937,6 +937,115 @@ class AgsCalculador(models.AbstractModel):
             round(total, 0), round(venc, 0), len(registros))
         return self._registrar(parametro, pct, hasta, notas=nota)
 
+
+    # ==================================================================
+    # EXPOSICION CAMBIARIA
+    # ==================================================================
+
+    @api.model
+    def _saldos_por_moneda(self, tipo_cuenta, hasta):
+        """Saldos abiertos agrupados por moneda, en su moneda original y en DOP.
+
+        Una factura en USD registrada hace dos anios vale hoy algo distinto en
+        pesos aunque nadie haya pagado ni comprado nada. Verla solo convertida
+        esconde de donde viene el movimiento.
+        """
+        lineas = self.env["account.move.line"].search([
+            ("account_id.account_type", "=", tipo_cuenta),
+            ("parent_state", "=", "posted"),
+            ("date", "<=", hasta),
+            ("full_reconcile_id", "=", False),
+        ])
+        base = self.env.company.currency_id
+        por_moneda = {}
+        for l in lineas:
+            saldo_dop = l.amount_residual
+            if not saldo_dop:
+                continue
+            mon = l.currency_id or base
+            x = por_moneda.setdefault(mon.id, {
+                "moneda": mon.name, "es_base": mon == base,
+                "saldo_dop": 0.0, "saldo_original": 0.0,
+            })
+            x["saldo_dop"] += saldo_dop
+            x["saldo_original"] += (
+                l.amount_residual_currency if l.currency_id and l.currency_id != base
+                else saldo_dop
+            )
+        return por_moneda
+
+    @api.model
+    def _calc_exposicion_usd(self, parametro, fecha=None):
+        """Exposicion cambiaria neta: pasivos en USD menos activos en USD.
+
+        AG Supply compra bobina en dolares y vende en pesos. Cada movimiento
+        del tipo de cambio le mueve el valor de la deuda sin que nadie haya
+        comprado ni pagado nada.
+
+        Un valor POSITIVO significa que se debe mas de lo que se tiene por
+        cobrar en USD: si el peso se deprecia, la deuda crece en pesos.
+        """
+        _desde, hasta = self._rango_mes(fecha)
+        base = self.env.company.currency_id
+        usd = self.env["res.currency"].search([("name", "=", "USD")], limit=1)
+        if not usd:
+            return False
+
+        cxp = self._saldos_por_moneda("liability_payable", hasta)
+        cxc = self._saldos_por_moneda("asset_receivable", hasta)
+        deuda = -cxp.get(usd.id, {}).get("saldo_original", 0.0)
+        cobrar = cxc.get(usd.id, {}).get("saldo_original", 0.0)
+        neta = deuda - cobrar
+
+        tasa = usd._get_conversion_rate(usd, base, self.env.company, hasta)
+        nota = ("CxP USD: %s | CxC USD: %s | Neta: %s USD | "
+                "Equivale a %s DOP a tasa %s") % (
+            round(deuda, 2), round(cobrar, 2), round(neta, 2),
+            round(neta * tasa, 2), round(tasa, 2))
+        return self._registrar(parametro, neta, hasta, notas=nota)
+
+    @api.model
+    def _calc_sensibilidad_cambiaria(self, parametro, fecha=None):
+        """Cuanto cambia el resultado por cada peso de movimiento en el dolar.
+
+        Mas util que la exposicion en bruto: traduce el riesgo a lo que
+        realmente importa, que es el impacto en pesos sobre el resultado.
+
+        Se expresa como el efecto de una depreciacion de RD$ 1.00 por dolar
+        sobre la posicion neta. Positivo significa perdida ante depreciacion.
+        """
+        _desde, hasta = self._rango_mes(fecha)
+        usd = self.env["res.currency"].search([("name", "=", "USD")], limit=1)
+        if not usd:
+            return False
+        cxp = self._saldos_por_moneda("liability_payable", hasta)
+        cxc = self._saldos_por_moneda("asset_receivable", hasta)
+        deuda = -cxp.get(usd.id, {}).get("saldo_original", 0.0)
+        cobrar = cxc.get(usd.id, {}).get("saldo_original", 0.0)
+        neta = deuda - cobrar
+        nota = ("Posicion neta: %s USD. Cada RD$1.00 de depreciacion "
+                "impacta el resultado en %s DOP") % (round(neta, 2), round(neta, 2))
+        return self._registrar(parametro, neta, hasta, notas=nota)
+
+    @api.model
+    def _calc_pct_cxp_usd(self, parametro, fecha=None):
+        """Porcentaje de la CxP denominada en moneda extranjera."""
+        _desde, hasta = self._rango_mes(fecha)
+        base = self.env.company.currency_id
+        cxp = self._saldos_por_moneda("liability_payable", hasta)
+        total = sum(abs(v["saldo_dop"]) for v in cxp.values())
+        if not total:
+            return False
+        extranjera = sum(
+            abs(v["saldo_dop"]) for v in cxp.values() if not v["es_base"])
+        pct = (extranjera / total) * 100.0
+        detalle = " | ".join(
+            "%s: %s" % (v["moneda"], round(abs(v["saldo_original"]), 0))
+            for v in cxp.values() if not v["es_base"])
+        nota = "CxP total: %s | En moneda extranjera: %s | %s" % (
+            round(total, 0), round(extranjera, 0), detalle or "ninguna")
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
     # ==================================================================
     # ORQUESTACION
     # ==================================================================
