@@ -155,6 +155,17 @@ class AgsConfig(models.Model):
         "categ_id",
         string="Categorias de material de empaque",
     )
+    categoria_reproceso_ids = fields.Many2many(
+        "product.category",
+        "ags_config_cat_rep_rel",
+        "config_id",
+        "categ_id",
+        string="Categorias de reproceso",
+        help="Combos y productos que consumen articulos YA TERMINADOS de "
+             "otras ordenes. Se excluyen del consumo de materia prima porque "
+             "duplican el costo: la bobina se cuenta al hacer el jumbo y otra "
+             "vez al armar el combo.",
+    )
     categoria_pt_ids = fields.Many2many(
         "product.category",
         "ags_config_cat_pt_rel",

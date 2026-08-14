@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         FASE 2D - CALIDAD DEL REGISTRO
+
+         Estos parametros no miden el negocio: miden si los datos con que
+         se mide el negocio son confiables. Van primero porque cualquier
+         indicador construido sobre registro sucio hereda esa suciedad sin
+         avisar.
+         ================================================================ -->
+
+    <record id="param_ingresos_sin_factura" model="ags.parametro">
+        <field name="codigo">INGRESOS_SIN_FACTURA</field>
+        <field name="name">Ingresos sin documento de venta</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">15</field>
+        <field name="descripcion">Ingresos registrados por asiento manual, sin factura detras, sobre ventas netas. No siempre es error, pero siempre merece explicacion.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_ingresos_sin_factura</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Detectado al comparar tres fuentes de ventas de julio 2026: el saldo de las cuentas de ingreso daba 15,312,143 mientras account.invoice.report reportaba 15,264,005. La diferencia de 48,138 son ingresos sin factura.</field>
+    </record>
+
+    <record id="param_ajustes_inventario" model="ags.parametro">
+        <field name="codigo">AJUSTES_INVENTARIO</field>
+        <field name="name">Ajustes de inventario del mes</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">80</field>
+        <field name="descripcion">Cantidad de ajustes de inventario registrados. Una frecuencia alta y sostenida indica que el stock del sistema no se esta confiando.</field>
+        <field name="unidad">cantidad</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_ajustes_inventario</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Medicion ene-2025 a jul-2026 sobre bobinas: 579 ajustes, concentrados en episodios (220 en abril 2026, 131 en junio, 71 en noviembre 2025) en lugar de un flujo regular. Los de abril corresponden a la implementacion del modulo de fabricacion. Mientras esta cifra sea alta, ninguna medicion de merma ni de costo de materiales es confiable, porque la base de valoracion se corrige a mano.</field>
+    </record>
+
+    <record id="param_ajustes_reversados" model="ags.parametro">
+        <field name="codigo">AJUSTES_REVERSADOS</field>
+        <field name="name">Ajustes que se anulan entre si</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">85</field>
+        <field name="descripcion">Porcentaje de ajustes de inventario que forman pares exactos: mismo producto, misma cantidad, signos opuestos, dentro de siete dias. Ese patron no es ajuste sino correccion de un error de registro.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_ajustes_reversados</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Patron detectado revisando a mano los ajustes de bobina: aparecen pares exactos con dias de diferencia, por ejemplo BOBINA PAPEL ENCERADO +24,633.5 y -24,633.5 el mismo dia. Automatizar la deteccion evita tener que buscarlos de a uno.</field>
+    </record>
+
+    <!-- ================================================================
+         PARAMETROS QUE REQUIEREN CONFIGURACION
+         Se marcan para distinguir "no hay dato" de "falta configurar".
+         ================================================================ -->
+
+    <record id="param_mp_pct_ventas" model="ags.parametro">
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Declarar categorias de materia prima, empaque y reproceso en Configuracion contable</field>
+    </record>
+
+    <record id="param_merma_conversion" model="ags.parametro">
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Declarar categorias de materia prima y empaque en Configuracion contable</field>
+    </record>
+
+    <record id="param_kwh_por_tonelada" model="ags.parametro">
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Declarar EDE Norte como proveedor de energia y peso en los productos terminados</field>
+    </record>
+
+    <record id="param_costo_kwh" model="ags.parametro">
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Declarar EDE Norte como proveedor de energia en Configuracion contable</field>
+    </record>
+
+    <record id="param_pct_devoluciones" model="ags.parametro">
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Clasificar las notas de credito por motivo</field>
+    </record>
+
+</odoo>

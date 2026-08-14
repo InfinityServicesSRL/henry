@@ -191,18 +191,33 @@ class AgsCalculador(models.AbstractModel):
 
     @api.model
     def _consumo_mp(self, desde, hasta):
-        """Movimientos de consumo de MP y empaque en produccion."""
+        """Movimientos de consumo de MP y empaque en produccion.
+
+        FILTRO CRITICO: se excluyen las categorias de reproceso. En AG Supply
+        los combos consumen producto YA TERMINADO que salio de otras ordenes,
+        de modo que el costo de la bobina se cuenta una vez al hacer el jumbo
+        y otra al armar el combo.
+
+        Medicion de julio 2026 sin el filtro: RD$ 14,422,598 de consumo contra
+        ventas de 15,312,143 -- un 94% imposible. Con el filtro: 7,661,559,
+        equivalente al 50% de las ventas, que es la cifra real.
+        """
         cfg = self._config()
         categorias = cfg.categoria_mp_ids | cfg.categoria_empaque_ids
         if not categorias:
             return self.env["stock.move"], 0.0
-        movimientos = self.env["stock.move"].search([
+        dominio = [
             ("state", "=", "done"),
             ("date", ">=", desde),
             ("date", "<=", hasta),
             ("raw_material_production_id", "!=", False),
             ("product_id.categ_id", "child_of", categorias.ids),
-        ])
+        ]
+        if cfg.categoria_reproceso_ids:
+            dominio.append(
+                ("raw_material_production_id.product_id.categ_id",
+                 "not child_of", cfg.categoria_reproceso_ids.ids))
+        movimientos = self.env["stock.move"].search(dominio)
         return movimientos, self._valor_movimientos(movimientos)
 
     @api.model
@@ -657,6 +672,94 @@ class AgsCalculador(models.AbstractModel):
         pct = (mod / ventas) * 100.0
         nota = "MOD: %s | Ventas: %s | Cuentas: %s" % (
             round(mod, 2), round(ventas, 2), len(cfg.cuentas_mod()))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+
+    # ==================================================================
+    # FASE 2D - CALIDAD DEL REGISTRO
+    # ==================================================================
+
+    @api.model
+    def _calc_ingresos_sin_factura(self, parametro, fecha=None):
+        """Ingresos registrados por asiento manual, sin documento de venta.
+
+        Detectado en julio 2026: RD$ 48,138 de diferencia entre el saldo de
+        las cuentas de ingreso y lo facturado. Dinero entrando a cuentas de
+        venta sin factura detras.
+
+        No siempre es error, pero siempre merece explicacion.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        cfg = self._config()
+        ventas = self._saldo_cuentas(cfg.cuentas_ingreso(), desde, hasta, invertir=True)
+        if not ventas:
+            return False
+        lineas = self.env["account.move.line"].search([
+            ("account_id", "in", cfg.cuentas_ingreso().ids),
+            ("date", ">=", desde), ("date", "<=", hasta),
+            ("parent_state", "=", "posted"),
+            ("move_id.move_type", "=", "entry"),
+        ])
+        monto = abs(sum(lineas.mapped("balance")))
+        pct = (monto / ventas) * 100.0
+        nota = "Sin factura: %s en %s lineas | Ventas: %s" % (
+            round(monto, 2), len(lineas), round(ventas, 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_ajustes_inventario(self, parametro, fecha=None):
+        """Cantidad de ajustes de inventario del mes.
+
+        Una frecuencia alta y sostenida indica que el stock del sistema no se
+        esta confiando. Mientras eso ocurra, ninguna medicion de merma ni de
+        costo de materiales es confiable, porque la base de valoracion se
+        esta corrigiendo a mano.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        cantidad = self.env["stock.move"].search_count([
+            ("is_inventory", "=", True), ("state", "=", "done"),
+            ("date", ">=", desde), ("date", "<=", hasta),
+        ])
+        return self._registrar(parametro, cantidad, hasta)
+
+    @api.model
+    def _calc_ajustes_reversados(self, parametro, fecha=None):
+        """Ajustes que se anulan entre si: mismo producto, misma cantidad,
+        signos opuestos, dentro de una ventana corta.
+
+        Ese patron no es ajuste de inventario sino correccion de un error de
+        registro. Se detecto revisando a mano los ajustes de bobina: aparecen
+        pares exactos con dias de diferencia.
+
+        Es un indicador de calidad del proceso de registro, no del inventario.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        movs = self.env["stock.move"].search([
+            ("is_inventory", "=", True), ("state", "=", "done"),
+            ("date", ">=", desde), ("date", "<=", hasta),
+        ])
+        if not movs:
+            return False
+        por_prod = {}
+        for m in movs:
+            signo = 1 if m.location_id.usage == "inventory" else -1
+            q = round(m.product_uom_qty * signo, 2)
+            por_prod.setdefault(m.product_id.id, []).append((q, m.date))
+        pares = 0
+        for _pid, lista in por_prod.items():
+            usados = set()
+            for i, (q1, d1) in enumerate(lista):
+                if i in usados or not q1:
+                    continue
+                for j, (q2, d2) in enumerate(lista):
+                    if j <= i or j in usados:
+                        continue
+                    if abs(q1 + q2) < 0.01 and abs((d2 - d1).days) <= 7:
+                        pares += 1
+                        usados.add(i); usados.add(j)
+                        break
+        pct = (pares * 2 / len(movs)) * 100.0
+        nota = "Pares que se anulan: %s | Total ajustes: %s" % (pares, len(movs))
         return self._registrar(parametro, pct, hasta, notas=nota)
 
     # ==================================================================

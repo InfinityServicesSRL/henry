@@ -79,6 +79,12 @@
             action="action_ags_estacionalidad"
             sequence="10"/>
 
+    <menuitem id="menu_ags_regimen"
+            name="Regimenes de datos"
+            parent="menu_ags_config"
+            action="action_ags_regimen"
+            sequence="15"/>
+
     <menuitem id="menu_ags_fuente"
             name="Fuentes de investigacion"
             parent="menu_ags_config"

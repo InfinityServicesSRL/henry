@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ================================================================
+         REGIMENES DE DATOS CONOCIDOS
+
+         Se cargan los cortes historicos identificados al analizar la
+         estabilidad de las mediciones. Cada uno parte el historico en dos
+         mundos que no son comparables entre si.
+         ================================================================ -->
+
+    <record id="regimen_fabricacion_2026" model="ags.regimen">
+        <field name="name">Implementacion del modulo de Fabricacion</field>
+        <field name="tipo">implementacion</field>
+        <field name="fecha_inicio">2026-05-01</field>
+        <field name="descripcion">A partir de abril 2026 se implemento en serio el modulo de fabricacion de Odoo. Los meses previos registran ordenes de produccion de forma incompleta o inconsistente, por lo que las mediciones de consumo, merma y eficiencia anteriores a mayo no son comparables con las posteriores.
+
+Se fija el inicio en mayo y no en abril porque abril concentro 220 ajustes de inventario sobre bobinas -- contra un promedio de 30 mensuales -- que corresponden a la limpieza de la implementacion, no a operacion normal.</field>
+        <field name="datos_previos_validos" eval="False"/>
+        <field name="meses_maduracion">6</field>
+        <field name="notas">EVIDENCIA QUE ORIGINO ESTE REGISTRO (analisis del 14 de agosto de 2026):
+
+La variacion de consumo real contra el estandar de la lista de materiales mostraba oscilaciones de 30 y 40 puntos entre meses consecutivos. Ejemplos: Rebobinado Jumbo - Marca paso de +30.7% en marzo a -4.3% en junio; Rebobinado Higienico - Marca de +15.5% en marzo a -24.4% en junio.
+
+Esa magnitud de variacion no corresponde a un proceso de conversion de tissue, donde la merma se mueve en rangos de 3 a 8 por ciento. Correspondia a la curva de aprendizaje del registro.
+
+CONSECUENCIA PRACTICA: no se deben ajustar las listas de materiales hasta acumular seis meses de operacion estable, es decir hasta octubre 2026 aproximadamente. Ajustar un estandar de costos con datos que oscilan mas de 20 puntos seria reemplazar un colchon conocido por un numero inventado.
+
+EXCEPCION: la categoria Dinner Impresa muestra desviacion positiva sostenida (+29.7, +29.7, +28.1, +13.6 entre abril y julio, ya dentro del regimen nuevo). Esa si es senal y merece revision con Operaciones, independientemente del resto.</field>
+    </record>
+
+</odoo>

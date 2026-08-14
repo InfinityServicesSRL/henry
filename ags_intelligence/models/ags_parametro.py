@@ -168,6 +168,40 @@ class AgsParametro(models.Model):
         compute="_compute_vigentes",
         store=False,
     )
+    madurez = fields.Selection(
+        [
+            ("no_medible", "No medible"),
+            ("con_reservas", "Medible con reservas"),
+            ("confiable", "Confiable"),
+        ],
+        string="Madurez del dato",
+        compute="_compute_madurez",
+        store=False,
+        help="Distingue entre no tener dato y tener un dato que todavia no "
+             "significa nada. Un indicador con pocos periodos de operacion "
+             "estable puede mostrar un numero y ser puro ruido.",
+    )
+    madurez_detalle = fields.Char(
+        string="Por que",
+        compute="_compute_madurez",
+        store=False,
+    )
+    periodos_validos = fields.Integer(
+        string="Periodos utiles",
+        compute="_compute_madurez",
+        store=False,
+        help="Mediciones dentro del regimen vigente y no marcadas como atipicas",
+    )
+    requiere_config = fields.Boolean(
+        string="Requiere configuracion",
+        default=False,
+        help="Marcar en parametros que no calculan hasta que se declaren "
+             "cuentas, categorias o proveedores en la configuracion contable.",
+    )
+    config_faltante = fields.Char(
+        string="Configuracion pendiente",
+        help="Que falta declarar para que este parametro pueda calcularse",
+    )
     active = fields.Boolean(default=True)
 
     _sql_constraints = [
@@ -198,6 +232,50 @@ class AgsParametro(models.Model):
             rec.ultima_medicion_id = medicion.id if medicion else False
             rec.valor_actual = medicion.valor if medicion else 0.0
             rec.semaforo = medicion.semaforo if medicion else "sin_dato"
+
+    @api.depends("medicion_ids", "medicion_ids.periodo_atipico", "requiere_config")
+    def _compute_madurez(self):
+        """Clasifica la confiabilidad del indicador, no su valor.
+
+        Un parametro puede mostrar un numero y aun asi no ser interpretable:
+        si el proceso que lo alimenta cambio hace tres meses, la serie mezcla
+        dos realidades distintas. Distinguirlo evita que alguien tome una
+        decision sobre ruido creyendo que son datos.
+        """
+        Regimen = self.env["ags.regimen"]
+        for rec in self:
+            mediciones = rec.medicion_ids
+            if not mediciones:
+                rec.madurez = "no_medible"
+                rec.periodos_validos = 0
+                rec.madurez_detalle = (
+                    rec.config_faltante or "Sin mediciones registradas"
+                ) if rec.requiere_config else "Sin mediciones registradas"
+                continue
+
+            reg = Regimen.regimen_vigente(parametro=rec)
+            utiles = mediciones.filtered(lambda m: not m.periodo_atipico)
+            if reg and not reg.datos_previos_validos:
+                utiles = utiles.filtered(
+                    lambda m: m.fecha_periodo >= reg.fecha_inicio)
+            n = len(utiles)
+            rec.periodos_validos = n
+
+            if not n:
+                rec.madurez = "no_medible"
+                rec.madurez_detalle = "Sin periodos utiles en el regimen vigente"
+            elif reg and n < reg.meses_maduracion:
+                rec.madurez = "con_reservas"
+                rec.madurez_detalle = (
+                    "%s de %s periodos desde: %s"
+                    % (n, reg.meses_maduracion, reg.name)
+                )
+            elif n < 3:
+                rec.madurez = "con_reservas"
+                rec.madurez_detalle = "Solo %s periodo(s) medido(s)" % n
+            else:
+                rec.madurez = "confiable"
+                rec.madurez_detalle = "%s periodos utiles" % n
 
     def name_get(self):
         return [(rec.id, "[%s] %s" % (rec.codigo, rec.name)) for rec in self]

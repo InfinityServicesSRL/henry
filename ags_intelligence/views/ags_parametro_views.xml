@@ -18,6 +18,10 @@
                 <field name="direccion" optional="hide"/>
                 <field name="tipo_benchmark"/>
                 <field name="valor_actual"/>
+                <field name="madurez" widget="badge"
+                       decoration-success="madurez == 'confiable'"
+                       decoration-warning="madurez == 'con_reservas'"
+                       decoration-danger="madurez == 'no_medible'"/>
                 <field name="semaforo" widget="badge"
                        decoration-success="semaforo == 'verde'"
                        decoration-warning="semaforo == 'amarillo'"
@@ -52,6 +56,8 @@
                             <field name="frecuencia"/>
                             <field name="responsable_id"/>
                             <field name="aplica_estacionalidad"/>
+                            <field name="requiere_config"/>
+                            <field name="config_faltante" invisible="not requiere_config"/>
                             <field name="active"/>
                         </group>
                     </group>
@@ -59,6 +65,9 @@
                         <group>
                             <field name="valor_actual"/>
                             <field name="semaforo" widget="badge"/>
+                            <field name="madurez" widget="badge"/>
+                            <field name="madurez_detalle"/>
+                            <field name="periodos_validos"/>
                         </group>
                         <group>
                             <field name="baseline_vigente_id"/>
@@ -140,6 +149,10 @@
                 <field name="name"/>
                 <filter name="f_sin_benchmark" string="Sin benchmark externo"
                         domain="[('tipo_benchmark','=','c')]"/>
+                <filter name="f_no_confiable" string="Dato no confiable aun"
+                        domain="[('madurez','!=','confiable')]"/>
+                <filter name="f_falta_config" string="Falta configurar"
+                        domain="[('requiere_config','=',True)]"/>
                 <separator/>
                 <filter name="f_salud" string="Salud del ERP" domain="[('seccion','=','salud_erp')]"/>
                 <filter name="f_costos" string="Costos" domain="[('seccion','=','costos')]"/>
@@ -229,6 +242,72 @@
     <record id="action_ags_fuente" model="ir.actions.act_window">
         <field name="name">Fuentes de investigacion</field>
         <field name="res_model">ags.fuente</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+
+    <!-- ==================== REGIMEN DE DATOS ==================== -->
+
+    <record id="view_ags_regimen_list" model="ir.ui.view">
+        <field name="name">ags.regimen.list</field>
+        <field name="model">ags.regimen</field>
+        <field name="arch" type="xml">
+            <list string="Regimenes">
+                <field name="name"/>
+                <field name="tipo"/>
+                <field name="fecha_inicio"/>
+                <field name="fecha_fin"/>
+                <field name="meses_maduracion"/>
+                <field name="afecta_todos" widget="boolean_toggle"/>
+                <field name="datos_previos_validos" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_regimen_form" model="ir.ui.view">
+        <field name="name">ags.regimen.form</field>
+        <field name="model">ags.regimen</field>
+        <field name="arch" type="xml">
+            <form string="Regimen de datos">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Un mes atipico se marca en la medicion. Un REGIMEN es distinto:
+                        parte el historico en dos mundos que no son comparables. Antes
+                        del corte, el dato existe pero no significa lo mismo.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Que cambio"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="tipo"/>
+                            <field name="fecha_inicio"/>
+                            <field name="fecha_fin"/>
+                        </group>
+                        <group>
+                            <field name="meses_maduracion"/>
+                            <field name="datos_previos_validos"/>
+                            <field name="afecta_todos"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Que cambio">
+                        <field name="descripcion" nolabel="1"/>
+                    </group>
+                    <group string="Parametros afectados" invisible="afecta_todos">
+                        <field name="parametro_ids" widget="many2many_tags" nolabel="1"/>
+                    </group>
+                    <group string="Evidencia y notas">
+                        <field name="notas" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_regimen" model="ir.actions.act_window">
+        <field name="name">Regimenes de datos</field>
+        <field name="res_model">ags.regimen</field>
         <field name="view_mode">list,form</field>
     </record>
 
