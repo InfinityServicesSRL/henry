@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_ags_aging_list" model="ir.ui.view">
+        <field name="name">ags.aging.list</field>
+        <field name="model">ags.aging</field>
+        <field name="arch" type="xml">
+            <list string="Antiguedad de saldos"
+                  decoration-danger="pct_mas_90 &gt; 10"
+                  decoration-warning="pct_corriente &lt; 70"
+                  decoration-success="pct_corriente &gt;= 85">
+                <field name="fecha_corte"/>
+                <field name="partner_id"/>
+                <field name="vendedor_id" optional="show"/>
+                <field name="saldo_total" sum="Total"/>
+                <field name="corriente" sum="Por vencer"/>
+                <field name="t_0_30" sum="1-30"/>
+                <field name="t_31_60" sum="31-60"/>
+                <field name="t_61_90" sum="61-90"/>
+                <field name="t_91_180" sum="91-180"/>
+                <field name="t_180" sum="+180"/>
+                <field name="pct_corriente" widget="percentage" optional="show"/>
+                <field name="dias_promedio" optional="show"/>
+                <field name="n_documentos" optional="hide"/>
+                <field name="excede_limite" widget="boolean_toggle" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_aging_form" model="ir.ui.view">
+        <field name="name">ags.aging.form</field>
+        <field name="model">ags.aging</field>
+        <field name="arch" type="xml">
+            <form string="Antiguedad">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="partner_id" readonly="1"/></h1>
+                        <h3>Corte al <field name="fecha_corte" class="oe_inline" readonly="1"/></h3>
+                    </div>
+                    <group>
+                        <group string="Resumen">
+                            <field name="tipo"/>
+                            <field name="saldo_total"/>
+                            <field name="vencido"/>
+                            <field name="pct_corriente"/>
+                            <field name="pct_mas_90"/>
+                            <field name="dias_promedio"/>
+                        </group>
+                        <group string="Contexto">
+                            <field name="vendedor_id"/>
+                            <field name="n_documentos"/>
+                            <field name="limite_credito"/>
+                            <field name="excede_limite"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Distribucion por tramo">
+                        <group>
+                            <field name="corriente"/>
+                            <field name="t_0_30"/>
+                            <field name="t_31_60"/>
+                        </group>
+                        <group>
+                            <field name="t_61_90"/>
+                            <field name="t_91_180"/>
+                            <field name="t_180"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_aging_pivot" model="ir.ui.view">
+        <field name="name">ags.aging.pivot</field>
+        <field name="model">ags.aging</field>
+        <field name="arch" type="xml">
+            <pivot string="Antiguedad">
+                <field name="fecha_corte" type="col"/>
+                <field name="partner_id" type="row"/>
+                <field name="saldo_total" type="measure"/>
+                <field name="vencido" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_ags_aging_graph" model="ir.ui.view">
+        <field name="name">ags.aging.graph</field>
+        <field name="model">ags.aging</field>
+        <field name="arch" type="xml">
+            <graph string="Evolucion de la antiguedad" type="line" stacked="0">
+                <field name="fecha_corte" interval="month"/>
+                <field name="vencido" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_ags_aging_search" model="ir.ui.view">
+        <field name="name">ags.aging.search</field>
+        <field name="model">ags.aging</field>
+        <field name="arch" type="xml">
+            <search string="Buscar">
+                <field name="partner_id"/>
+                <field name="fecha_corte"/>
+                <field name="vendedor_id"/>
+                <filter name="f_cxc" string="Por cobrar" domain="[('tipo','=','cxc')]"/>
+                <filter name="f_cxp" string="Por pagar" domain="[('tipo','=','cxp')]"/>
+                <separator/>
+                <filter name="f_vencido" string="Con saldo vencido" domain="[('vencido','&gt;',0)]"/>
+                <filter name="f_riesgo" string="Mas de 10% sobre 90 dias"
+                        domain="[('pct_mas_90','&gt;',10)]"/>
+                <filter name="f_limite" string="Excede limite de credito"
+                        domain="[('excede_limite','=',True)]"/>
+                <group expand="1" string="Agrupar por">
+                    <filter name="g_corte" string="Fecha de corte"
+                            context="{'group_by':'fecha_corte'}"/>
+                    <filter name="g_partner" string="Tercero"
+                            context="{'group_by':'partner_id'}"/>
+                    <filter name="g_vendedor" string="Responsable"
+                            context="{'group_by':'vendedor_id'}"/>
+                    <filter name="g_tipo" string="Tipo" context="{'group_by':'tipo'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_aging_cxc" model="ir.actions.act_window">
+        <field name="name">Antiguedad por cobrar</field>
+        <field name="res_model">ags.aging</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="domain">[('tipo','=','cxc')]</field>
+        <field name="context">{'search_default_g_corte': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Sin cortes generados aun</p>
+            <p>Este modelo congela la foto de la antiguedad al cierre de cada periodo,
+               algo que el reporte nativo de Odoo no hace: aquel muestra el estado de
+               hoy, este permite ver si la cartera mejora o se deteriora.</p>
+            <p>Para la foto puntual con soporte documental, use el reporte
+               <b>Aged Receivable</b> de Contabilidad.</p>
+        </field>
+    </record>
+
+    <record id="action_ags_aging_cxp" model="ir.actions.act_window">
+        <field name="name">Antiguedad por pagar</field>
+        <field name="res_model">ags.aging</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="domain">[('tipo','=','cxp')]</field>
+        <field name="context">{'search_default_g_corte': 1}</field>
+    </record>
+
+</odoo>

@@ -62,6 +62,24 @@
          CONFIGURACION
          ============================================================ -->
 
+    <!-- Antiguedad de saldos -->
+    <menuitem id="menu_ags_cartera"
+            name="Cartera"
+            parent="menu_ags_root"
+            sequence="20"/>
+
+    <menuitem id="menu_ags_aging_cxc"
+            name="Antiguedad por cobrar"
+            parent="menu_ags_cartera"
+            action="action_ags_aging_cxc"
+            sequence="10"/>
+
+    <menuitem id="menu_ags_aging_cxp"
+            name="Antiguedad por pagar"
+            parent="menu_ags_cartera"
+            action="action_ags_aging_cxp"
+            sequence="20"/>
+
     <menuitem id="menu_ags_config"
             name="Configuracion"
             parent="menu_ags_root"

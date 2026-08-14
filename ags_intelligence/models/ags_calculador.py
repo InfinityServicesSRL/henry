@@ -449,13 +449,32 @@ class AgsCalculador(models.AbstractModel):
 
     @api.model
     def _calc_desviacion_plazo(self, parametro, fecha=None):
-        """Dias reales de cobro menos dias pactados, ponderado por monto.
+        """Dias reales de cobro menos pactados, sobre COHORTE MADURA.
 
-        Es mas util que el DSO absoluto: un DSO de 45 dias es excelente si el
-        canal pacta 60 y pesimo si pacta 30. Lo accionable es la desviacion
-        contra el compromiso, no el nivel.
+        POR QUE ESPERA 90 DIAS: si se evalua el mes recien cerrado, solo
+        entran las facturas ya cobradas -- que son justamente las de los
+        clientes rapidos. Medicion de julio 2026 con ese sesgo: 89 facturas
+        cobradas contra 219 aun pendientes. El indicador daba -18.5 dias,
+        sugiriendo que se cobra antes de lo pactado, cuando en realidad se
+        estaba midiendo solo a los buenos pagadores.
+
+        La cohorte de un mes se considera madura cuando han pasado 90 dias
+        desde su cierre. Antes de eso el parametro no registra medicion: es
+        preferible no mostrar numero a mostrar uno sesgado.
+
+        Este indicador mira hacia atras y evalua disciplina de cobro. Para
+        gestion del dia a dia esta ATRASO_CARTERA_VIVA.
         """
         desde, hasta = self._rango_mes(fecha)
+        hoy = fields.Date.context_today(self)
+        dias_madurez = 90
+        if (hoy - hasta).days < dias_madurez:
+            faltan = dias_madurez - (hoy - hasta).days
+            _logger.info(
+                "DESVIACION_PLAZO: cohorte de %s inmadura, faltan %s dias",
+                hasta, faltan)
+            return False
+
         facturas = self.env["account.move"].search([
             ("move_type", "=", "out_invoice"),
             ("state", "=", "posted"),
@@ -463,19 +482,13 @@ class AgsCalculador(models.AbstractModel):
             ("invoice_date", "<=", hasta),
         ])
         peso = suma = 0.0
-        n = 0
-        pendientes = 0
+        n = sin_cobrar = 0
         for f in facturas:
-            cobro = self._fecha_cobro(f)
             if not f.invoice_date_due:
                 continue
-            # Si al cierre del periodo la factura seguia sin cobrar, no se
-            # puede saber cuanto tardara: contarla como "cobrada" el dia que
-            # se cobro despues sesga el promedio hacia abajo, y descartarla
-            # sin mas esconde justamente a los clientes lentos. Se cuenta
-            # aparte y se refleja en la nota.
-            if not cobro or cobro > hasta:
-                pendientes += 1
+            cobro = self._fecha_cobro(f)
+            if not cobro:
+                sin_cobrar += 1
                 continue
             pactado = (f.invoice_date_due - f.invoice_date).days
             real = (cobro - f.invoice_date).days
@@ -486,9 +499,91 @@ class AgsCalculador(models.AbstractModel):
         if not peso:
             return False
         valor = suma / peso
-        nota = ("Cobradas al cierre: %s | Aun pendientes: %s | "
-                "Ponderado por monto") % (n, pendientes)
+        nota = ("Cohorte madura | Evaluadas: %s | Nunca cobradas: %s | "
+                "Ponderado por monto") % (n, sin_cobrar)
         return self._registrar(parametro, valor, hasta, notas=nota)
+
+    @api.model
+    def _calc_atraso_cartera_viva(self, parametro, fecha=None):
+        """Dias promedio de vencimiento de lo que HOY esta pendiente.
+
+        A diferencia de DESVIACION_PLAZO, este mira el presente y es
+        accionable: de la cartera abierta en este momento, cuantos dias
+        promedio lleva vencida, ponderado por monto.
+
+        Es el indicador de gestion diaria de cobranza. Un valor negativo
+        significa que la cartera esta mayormente por vencer; uno positivo,
+        que en promedio ya vencio.
+        """
+        _desde, hasta = self._rango_mes(fecha)
+        lineas = self.env["account.move.line"].search([
+            ("account_id.account_type", "=", "asset_receivable"),
+            ("parent_state", "=", "posted"),
+            ("full_reconcile_id", "=", False),
+            ("date_maturity", "!=", False),
+            ("date", "<=", hasta),
+        ])
+        peso = suma = 0.0
+        vencido = por_vencer = 0.0
+        for l in lineas:
+            saldo = l.amount_residual
+            if not saldo:
+                continue
+            dias = (hasta - l.date_maturity).days
+            suma += dias * saldo
+            peso += saldo
+            if dias > 0:
+                vencido += saldo
+            else:
+                por_vencer += saldo
+        if not peso:
+            return False
+        valor = suma / peso
+        nota = "Cartera viva: %s | Vencido: %s | Por vencer: %s" % (
+            round(peso, 2), round(vencido, 2), round(por_vencer, 2))
+        return self._registrar(parametro, valor, hasta, notas=nota)
+
+    @api.model
+    def _calc_pct_cartera_corriente(self, parametro, fecha=None):
+        """Proporcion de la cartera abierta que aun no ha vencido.
+
+        Es mas robusto que el DSO para leer salud de cartera, porque no se
+        distorsiona con dos o tres saldos grandes.
+        """
+        _desde, hasta = self._rango_mes(fecha)
+        lineas = self.env["account.move.line"].search([
+            ("account_id.account_type", "=", "asset_receivable"),
+            ("parent_state", "=", "posted"),
+            ("full_reconcile_id", "=", False),
+            ("date", "<=", hasta),
+        ])
+        total = corriente = 0.0
+        tramos = {"0-30": 0.0, "31-60": 0.0, "61-90": 0.0, "90+": 0.0}
+        for l in lineas:
+            saldo = l.amount_residual
+            if not saldo:
+                continue
+            total += saldo
+            venc = l.date_maturity or l.date
+            dias = (hasta - venc).days
+            if dias <= 0:
+                corriente += saldo
+                tramos["0-30"] += saldo
+            elif dias <= 30:
+                tramos["0-30"] += saldo
+            elif dias <= 60:
+                tramos["31-60"] += saldo
+            elif dias <= 90:
+                tramos["61-90"] += saldo
+            else:
+                tramos["90+"] += saldo
+        if not total:
+            return False
+        pct = (corriente / total) * 100.0
+        nota = "Total: %s | 0-30: %s | 31-60: %s | 61-90: %s | 90+: %s" % (
+            round(total, 0), round(tramos["0-30"], 0), round(tramos["31-60"], 0),
+            round(tramos["61-90"], 0), round(tramos["90+"], 0))
+        return self._registrar(parametro, pct, hasta, notas=nota)
 
     @api.model
     def _nc_por_motivo(self, desde, hasta, motivos):

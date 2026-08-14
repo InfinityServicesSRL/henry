@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         ESTRUCTURA DE TRES INDICADORES DE CARTERA
+
+         Un solo numero no puede responder tres preguntas distintas:
+           - Cuanto capital tengo atado          -> DSO
+           - Que tan atrasado esta lo pendiente  -> ATRASO_CARTERA_VIVA
+           - Que tan bien cobramos lo vencido    -> DESVIACION_PLAZO
+
+         Cada uno tiene su ritmo y su destinatario.
+         ================================================================ -->
+
+    <record id="param_atraso_cartera_viva" model="ags.parametro">
+        <field name="codigo">ATRASO_CARTERA_VIVA</field>
+        <field name="name">Atraso promedio de la cartera abierta</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">12</field>
+        <field name="descripcion">Dias promedio de vencimiento de lo que esta pendiente de cobro en este momento, ponderado por monto. Negativo significa que la cartera esta mayormente por vencer; positivo, que en promedio ya vencio.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_atraso_cartera_viva</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">semanal</field>
+        <field name="notas">INDICADOR DE GESTION DIARIA. A diferencia de DESVIACION_PLAZO, que mira hacia atras, este mira el presente y es accionable: dice de la cartera abierta ahora mismo cuanto lleva vencida. Es el numero que Cuentas por Cobrar revisa el lunes para decidir a quien llamar.</field>
+    </record>
+
+    <record id="param_desviacion_plazo" model="ags.parametro">
+        <field name="name">Disciplina de cobro (cohorte cerrada)</field>
+        <field name="descripcion">Dias reales de cobro menos dias pactados, sobre facturas de un mes ya maduro. Evalua disciplina de cobro con perspectiva, no gestion del dia a dia.</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">ESPERA 90 DIAS A PROPOSITO. Si se evalua el mes recien cerrado solo entran las facturas ya cobradas, que son las de los clientes rapidos. Medicion de julio 2026 con ese sesgo: 89 cobradas contra 219 pendientes, y el indicador daba -18.5 dias sugiriendo que se cobra antes de lo pactado. Era falso: se estaba midiendo solo a los buenos pagadores.
+
+Hasta que la cohorte madura, el parametro NO registra medicion. Es preferible no mostrar numero a mostrar uno sesgado.
+
+NOTA SOBRE SU USO PARA EVALUAR DESEMPENO: antes de atribuir la desviacion a la gestion de cobranza conviene medirla tambien por canal y por vendedor. Si un canal entero se desvia, el problema no es el cobrador sino la politica de credito con que se vendio.</field>
+    </record>
+
+    <record id="param_cartera_corriente" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_pct_cartera_corriente</field>
+        <field name="metodo_calculo">Saldo de facturas aun no vencidas sobre el total de cartera abierta al cierre del periodo. La nota de cada medicion incluye el desglose por tramo de aging: 0-30, 31-60, 61-90 y mas de 90 dias.</field>
+        <field name="notas">Es mas robusto que el DSO para leer salud de cartera porque no se distorsiona con dos o tres saldos grandes. Benchmark de industria: 80% o mas en corriente, menos de 12% en 31-60, menos de 5% en 61-90, menos de 3% en mas de 90.</field>
+    </record>
+
+    <record id="param_dso" model="ags.parametro">
+        <field name="notas">Mide CAPITAL ATADO, no disciplina de cobro. Se reconstruye el saldo a la fecha de cierre del periodo, restando solo los cobros conciliados hasta esa fecha: usar el residual actual haria que el DSO de un mes se midiera con la cobranza de los meses siguientes ya aplicada, y la cartera pareceria mas sana de lo que estuvo. Medicion feb-jul 2026 tras la correccion: promedio 27.4 dias.</field>
+    </record>
+
+</odoo>
