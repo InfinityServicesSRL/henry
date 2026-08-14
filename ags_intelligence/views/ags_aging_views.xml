@@ -12,6 +12,7 @@
                 <field name="fecha_corte"/>
                 <field name="partner_id"/>
                 <field name="vendedor_id" optional="show"/>
+                <field name="tipo_acreedor" optional="show"/>
                 <field name="saldo_total" sum="Total"/>
                 <field name="corriente" sum="Por vencer"/>
                 <field name="t_0_30" sum="1-30"/>
@@ -110,6 +111,11 @@
                 <filter name="f_vencido" string="Con saldo vencido" domain="[('vencido','&gt;',0)]"/>
                 <filter name="f_riesgo" string="Mas de 10% sobre 90 dias"
                         domain="[('pct_mas_90','&gt;',10)]"/>
+                <filter name="f_comercial" string="Solo comerciales"
+                        domain="[('tipo_acreedor','in',['comercial',False])]"/>
+                <filter name="f_financiero" string="Solo financieros"
+                        domain="[('tipo_acreedor','=','financiero')]"/>
+                <separator/>
                 <filter name="f_limite" string="Excede limite de credito"
                         domain="[('excede_limite','=',True)]"/>
                 <group expand="1" string="Agrupar por">
@@ -120,6 +126,8 @@
                     <filter name="g_vendedor" string="Responsable"
                             context="{'group_by':'vendedor_id'}"/>
                     <filter name="g_tipo" string="Tipo" context="{'group_by':'tipo'}"/>
+                    <filter name="g_acreedor" string="Tipo de acreedor"
+                            context="{'group_by':'tipo_acreedor'}"/>
                 </group>
             </search>
         </field>
@@ -147,6 +155,19 @@
         <field name="view_mode">list,pivot,graph,form</field>
         <field name="domain">[('tipo','=','cxp')]</field>
         <field name="context">{'search_default_g_corte': 1}</field>
+    </record>
+
+
+    <!-- Campo de clasificacion en el contacto -->
+    <record id="view_partner_form_ags_acreedor" model="ir.ui.view">
+        <field name="name">res.partner.form.ags.acreedor</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="category_id" position="after">
+                <field name="ags_tipo_acreedor"/>
+            </field>
+        </field>
     </record>
 
 </odoo>

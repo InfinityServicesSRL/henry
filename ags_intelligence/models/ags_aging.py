@@ -49,6 +49,10 @@ class AgsAging(models.Model):
     vendedor_id = fields.Many2one(
         related="partner_id.user_id", string="Responsable comercial", store=True
     )
+    tipo_acreedor = fields.Selection(
+        related="partner_id.ags_tipo_acreedor", string="Tipo de acreedor",
+        store=True,
+    )
 
     saldo_total = fields.Monetary(string="Saldo total", currency_field="currency_id")
     corriente = fields.Monetary(string="Por vencer", currency_field="currency_id")
@@ -108,6 +112,18 @@ class AgsAging(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
+    def _cuentas_excluidas(self, tipo):
+        """Cuentas que no son cartera comercial.
+
+        Vacation Payable y similares son provisiones laborales, no credito de
+        proveedores. Incluirlas infla el saldo y distorsiona el aging.
+        """
+        cfg = self.env["ags.config"].get_config()
+        if tipo == "cxp" and cfg.cuenta_excluir_cxp_ids:
+            return cfg.cuenta_excluir_cxp_ids
+        return self.env["account.account"]
+
+    @api.model
     def generar_corte(self, fecha=None, tipo="cxc", recrear=False):
         """Congela la antiguedad de saldos a una fecha.
 
@@ -129,12 +145,16 @@ class AgsAging(models.Model):
                 )
             existentes.unlink()
 
-        lineas = self.env["account.move.line"].search([
+        dominio = [
             ("account_id.account_type", "=", tipo_cuenta),
             ("parent_state", "=", "posted"),
             ("date", "<=", fecha),
             ("partner_id", "!=", False),
-        ])
+        ]
+        excluidas = self._cuentas_excluidas(tipo)
+        if excluidas:
+            dominio.append(("account_id", "not in", excluidas.ids))
+        lineas = self.env["account.move.line"].search(dominio)
 
         acum = {}
         for l in lineas:
@@ -199,6 +219,28 @@ class AgsAging(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
+    def resumen_por_tipo(self, fecha, tipo="cxp"):
+        """Separa el aging por tipo de acreedor.
+
+        Sin esta separacion el aging de CxP de AG Supply mostraba 78% vencido,
+        cifra que sugeria una crisis de pagos. Al separar resulto que dos
+        tercios del saldo eran prestamos, cooperativas y bancos -- todos al
+        100% vencido por definicion -- y que los proveedores de bobina estaban
+        al dia.
+        """
+        registros = self.search([("tipo", "=", tipo), ("fecha_corte", "=", fecha)])
+        salida = {}
+        for r in registros:
+            k = r.tipo_acreedor or "sin_clasificar"
+            x = salida.setdefault(k, {"saldo": 0.0, "vencido": 0.0, "n": 0})
+            x["saldo"] += r.saldo_total
+            x["vencido"] += r.vencido
+            x["n"] += 1
+        for k, v in salida.items():
+            v["pct_vencido"] = (v["vencido"] / v["saldo"] * 100.0) if v["saldo"] else 0.0
+        return salida
+
+    @api.model
     def deterioro(self, tipo="cxc", cortes=3, umbral=10.0):
         """Terceros cuyo porcentaje vencido crece de forma sostenida.
 
@@ -219,7 +261,9 @@ class AgsAging(models.Model):
         salida = []
         for r in actual:
             p = prev_map.get(r.partner_id.id)
-            if not p:
+            # Un saldo que ya se cobro no puede "deteriorarse": si el corte
+            # actual esta en cero, el tercero salio de la cartera.
+            if not p or r.saldo_total <= 0:
                 continue
             pct_ant = 100.0 - p.pct_corriente
             pct_act = 100.0 - r.pct_corriente

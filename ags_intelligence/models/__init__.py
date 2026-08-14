@@ -12,6 +12,7 @@ from . import ags_regimen
 from . import ags_aging
 # Fase 2B - Configuracion y calculo
 from . import ags_config
+from . import res_partner
 from . import account_move
 from . import account_move_nc
 from . import ags_calculador

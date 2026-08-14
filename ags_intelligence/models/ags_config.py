@@ -99,6 +99,17 @@ class AgsConfig(models.Model):
              "este campo puede quedar vacio.",
     )
 
+    cuenta_excluir_cxp_ids = fields.Many2many(
+        "account.account",
+        "ags_config_excl_cxp_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas a excluir de la CxP comercial",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Provisiones laborales, depositos por identificar y otras "
+             "cuentas por pagar que no son credito de proveedores. "
+             "Ejemplo: Vacation Payable.",
+    )
     cuenta_mod_ids = fields.Many2many(
         "account.account",
         "ags_config_mod_rel",

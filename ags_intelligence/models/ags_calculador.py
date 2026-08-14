@@ -882,6 +882,58 @@ class AgsCalculador(models.AbstractModel):
         nota = "Pares que se anulan: %s | Total ajustes: %s" % (pares, len(movs))
         return self._registrar(parametro, pct, hasta, notas=nota)
 
+
+    @api.model
+    def _calc_compras_sin_termino(self, parametro, fecha=None):
+        """% de facturas de compra sin termino de pago pactado.
+
+        Sin termino la factura nace vencida el mismo dia, y el aging la
+        clasifica como tal desde el primer momento. Parte del "vencido" de
+        cuentas por pagar es artefacto de esto, no atraso real.
+
+        Medicion feb-jul 2026: 880 de 1,417 facturas de compra sin termino
+        (62%), por RD$ 25.8 millones.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        facturas = self.env["account.move"].search([
+            ("move_type", "=", "in_invoice"),
+            ("state", "=", "posted"),
+            ("invoice_date", ">=", desde),
+            ("invoice_date", "<=", hasta),
+        ])
+        if not facturas:
+            return False
+        sin = facturas.filtered(lambda f: not f.invoice_payment_term_id)
+        pct = (len(sin) / len(facturas)) * 100.0
+        nota = "Sin termino: %s de %s facturas | Monto: %s" % (
+            len(sin), len(facturas), round(sum(sin.mapped("amount_untaxed")), 2))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_cxp_comercial_vencida(self, parametro, fecha=None):
+        """% vencido de la cartera de proveedores COMERCIALES.
+
+        Excluye acreedores financieros: prestamos, cooperativas y bancos
+        figuran siempre al 100% vencido porque su amortizacion no responde a
+        terminos de pago de factura. Incluirlos producia un 78% que sugeria
+        crisis de pagos cuando los proveedores de bobina estaban al dia.
+        """
+        _desde, hasta = self._rango_mes(fecha)
+        registros = self.env["ags.aging"].search([
+            ("tipo", "=", "cxp"), ("fecha_corte", "=", hasta),
+            ("tipo_acreedor", "in", ["comercial", False]),
+        ])
+        if not registros:
+            return False
+        total = sum(registros.mapped("saldo_total"))
+        venc = sum(registros.mapped("vencido"))
+        if not total:
+            return False
+        pct = (venc / total) * 100.0
+        nota = "CxP comercial: %s | Vencido: %s | Proveedores: %s" % (
+            round(total, 0), round(venc, 0), len(registros))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
     # ==================================================================
     # ORQUESTACION
     # ==================================================================
