@@ -176,7 +176,7 @@ class AgsParametro(models.Model):
         ],
         string="Madurez del dato",
         compute="_compute_madurez",
-        store=False,
+        store=True,
         help="Distingue entre no tener dato y tener un dato que todavia no "
              "significa nada. Un indicador con pocos periodos de operacion "
              "estable puede mostrar un numero y ser puro ruido.",
@@ -184,12 +184,12 @@ class AgsParametro(models.Model):
     madurez_detalle = fields.Char(
         string="Por que",
         compute="_compute_madurez",
-        store=False,
+        store=True,
     )
     periodos_validos = fields.Integer(
         string="Periodos utiles",
         compute="_compute_madurez",
-        store=False,
+        store=True,
         help="Mediciones dentro del regimen vigente y no marcadas como atipicas",
     )
     requiere_config = fields.Boolean(
@@ -276,6 +276,18 @@ class AgsParametro(models.Model):
             else:
                 rec.madurez = "confiable"
                 rec.madurez_detalle = "%s periodos utiles" % n
+
+    @api.model
+    def recalcular_madurez(self):
+        """Fuerza el recalculo de la madurez en todos los parametros.
+
+        Necesario tras crear o modificar un regimen de datos, porque el
+        cambio no dispara la dependencia automaticamente.
+        """
+        todos = self.search([])
+        todos._compute_madurez()
+        return {e: len(todos.filtered(lambda p: p.madurez == e))
+                for e in ("confiable", "con_reservas", "no_medible")}
 
     def name_get(self):
         return [(rec.id, "[%s] %s" % (rec.codigo, rec.name)) for rec in self]

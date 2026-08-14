@@ -409,27 +409,42 @@ class AgsCalculador(models.AbstractModel):
 
     @api.model
     def _calc_dso(self, parametro, fecha=None):
-        """DSO estandar: (CxC / ventas del periodo) * dias del periodo.
+        """DSO estandar: (CxC al cierre / ventas del periodo) * dias del periodo.
 
-        Se usa la formula de balance y no el promedio de dias de cobro porque
-        esta ultima solo mira facturas ya cobradas: los clientes lentos, que
-        son justamente el problema, quedan fuera del promedio hasta que pagan.
+        CORRECCION IMPORTANTE: el saldo se reconstruye A LA FECHA DE CIERRE del
+        periodo, no al momento de ejecutar el calculo. Usar el residual actual
+        haria que el DSO de julio se midiera con la cobranza de agosto ya
+        aplicada, y la cartera pareceria mucho mas sana de lo que estuvo.
+
+        Para reconstruirlo se toma el saldo de las lineas por cobrar emitidas
+        hasta la fecha de cierre, menos los cobros conciliados que ocurrieron
+        hasta esa misma fecha.
         """
         desde, hasta = self._rango_mes(fecha)
         ventas = self._ventas_netas(desde, hasta)
         if not ventas:
             return False
-        cxc = self.env["account.move.line"]._read_group(
-            [("account_id.account_type", "=", "asset_receivable"),
-             ("date", "<=", hasta), ("parent_state", "=", "posted"),
-             ("full_reconcile_id", "=", False)],
-            aggregates=["amount_residual:sum"],
-        )
-        saldo = (cxc[0][0] if cxc else 0.0) or 0.0
+
+        lineas = self.env["account.move.line"].search([
+            ("account_id.account_type", "=", "asset_receivable"),
+            ("date", "<=", hasta),
+            ("parent_state", "=", "posted"),
+        ])
+        saldo = 0.0
+        for l in lineas:
+            saldo += l.debit - l.credit
+            # Restar solo lo conciliado HASTA la fecha de cierre
+            for pr in l.matched_credit_ids:
+                if pr.credit_move_id.date and pr.credit_move_id.date <= hasta:
+                    saldo -= pr.amount
+            for pr in l.matched_debit_ids:
+                if pr.debit_move_id.date and pr.debit_move_id.date <= hasta:
+                    saldo += pr.amount
+
         dias = (hasta - desde).days + 1
         valor = (saldo / ventas) * dias
-        nota = "CxC pendiente: %s | Ventas: %s | Dias: %s" % (
-            round(saldo, 2), round(ventas, 2), dias)
+        nota = "CxC al %s: %s | Ventas: %s | Dias: %s" % (
+            hasta, round(saldo, 2), round(ventas, 2), dias)
         return self._registrar(parametro, valor, hasta, notas=nota)
 
     @api.model
@@ -449,9 +464,18 @@ class AgsCalculador(models.AbstractModel):
         ])
         peso = suma = 0.0
         n = 0
+        pendientes = 0
         for f in facturas:
             cobro = self._fecha_cobro(f)
-            if not cobro or not f.invoice_date_due:
+            if not f.invoice_date_due:
+                continue
+            # Si al cierre del periodo la factura seguia sin cobrar, no se
+            # puede saber cuanto tardara: contarla como "cobrada" el dia que
+            # se cobro despues sesga el promedio hacia abajo, y descartarla
+            # sin mas esconde justamente a los clientes lentos. Se cuenta
+            # aparte y se refleja en la nota.
+            if not cobro or cobro > hasta:
+                pendientes += 1
                 continue
             pactado = (f.invoice_date_due - f.invoice_date).days
             real = (cobro - f.invoice_date).days
@@ -462,7 +486,8 @@ class AgsCalculador(models.AbstractModel):
         if not peso:
             return False
         valor = suma / peso
-        nota = "Facturas cobradas evaluadas: %s | Ponderado por monto" % n
+        nota = ("Cobradas al cierre: %s | Aun pendientes: %s | "
+                "Ponderado por monto") % (n, pendientes)
         return self._registrar(parametro, valor, hasta, notas=nota)
 
     @api.model

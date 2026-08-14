@@ -149,6 +149,8 @@
                 <field name="name"/>
                 <filter name="f_sin_benchmark" string="Sin benchmark externo"
                         domain="[('tipo_benchmark','=','c')]"/>
+                <filter name="f_no_confiable" string="Dato no confiable aun"
+                        domain="[('madurez','!=','confiable')]"/>
                 <filter name="f_falta_config" string="Falta configurar"
                         domain="[('requiere_config','=',True)]"/>
                 <separator/>
@@ -158,6 +160,7 @@
                 <group expand="1" string="Agrupar por">
                     <filter name="g_seccion" string="Seccion" context="{'group_by':'seccion'}"/>
                     <filter name="g_tipo" string="Tipo de benchmark" context="{'group_by':'tipo_benchmark'}"/>
+                    <filter name="g_madurez" string="Madurez del dato" context="{'group_by':'madurez'}"/>
                     <filter name="g_responsable" string="Responsable" context="{'group_by':'responsable_id'}"/>
                 </group>
             </search>

@@ -99,6 +99,17 @@ class AgsRegimen(models.Model):
                 return r
         return self.browse()
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        regs = super().create(vals_list)
+        self.env["ags.parametro"].recalcular_madurez()
+        return regs
+
+    def write(self, vals):
+        res = super().write(vals)
+        self.env["ags.parametro"].recalcular_madurez()
+        return res
+
     def name_get(self):
         return [
             (r.id, "%s (desde %s)" % (r.name, r.fecha_inicio or ""))
