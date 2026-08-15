@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_ags_rentabilidad_list" model="ir.ui.view">
+        <field name="name">ags.rentabilidad.list</field>
+        <field name="model">ags.rentabilidad</field>
+        <field name="arch" type="xml">
+            <list string="Rentabilidad" decoration-danger="destruye_valor"
+                  decoration-warning="margen_economico_pct &lt; 10 and not destruye_valor"
+                  decoration-success="margen_economico_pct &gt;= 25">
+                <field name="fecha_periodo"/>
+                <field name="partner_id"/>
+                <field name="vendedor_id" optional="show"/>
+                <field name="mercado_id" optional="show"/>
+                <field name="ventas" sum="Ventas"/>
+                <field name="margen" sum="Margen" optional="hide"/>
+                <field name="margen_pct"/>
+                <field name="dias_cobro"/>
+                <field name="dias_pactados" optional="hide"/>
+                <field name="desviacion_dias"/>
+                <field name="costo_financiero" sum="Costo fin." optional="hide"/>
+                <field name="costo_financiero_pct" optional="hide"/>
+                <field name="notas_credito" optional="hide"/>
+                <field name="margen_economico" sum="Margen economico"/>
+                <field name="margen_economico_pct"/>
+                <field name="destruye_valor" widget="boolean_toggle" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_rentabilidad_form" model="ir.ui.view">
+        <field name="name">ags.rentabilidad.form</field>
+        <field name="model">ags.rentabilidad</field>
+        <field name="arch" type="xml">
+            <form string="Rentabilidad">
+                <sheet>
+                    <widget name="web_ribbon" title="Destruye valor" bg_color="text-bg-danger"
+                            invisible="not destruye_valor"/>
+                    <div class="oe_title">
+                        <h1><field name="partner_id" readonly="1"/></h1>
+                        <h3>Periodo <field name="fecha_periodo" class="oe_inline" readonly="1"/></h3>
+                    </div>
+                    <group>
+                        <group string="Venta">
+                            <field name="ventas"/>
+                            <field name="costo"/>
+                            <field name="margen"/>
+                            <field name="margen_pct"/>
+                            <field name="n_facturas"/>
+                            <field name="ticket_promedio"/>
+                        </group>
+                        <group string="Cobro">
+                            <field name="dias_pactados"/>
+                            <field name="dias_cobro"/>
+                            <field name="desviacion_dias"/>
+                            <field name="facturas_cobradas"/>
+                            <field name="facturas_pendientes"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Ajustes">
+                            <field name="notas_credito"/>
+                            <field name="nc_pct"/>
+                        </group>
+                        <group string="Costo de capital">
+                            <field name="costo_financiero"/>
+                            <field name="costo_financiero_pct"/>
+                        </group>
+                    </group>
+                    <group string="Resultado economico">
+                        <group>
+                            <field name="margen_economico" class="oe_subtotal_footer_separator"/>
+                            <field name="margen_economico_pct"/>
+                        </group>
+                        <group>
+                            <field name="vendedor_id"/>
+                            <field name="mercado_id"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <div class="text-muted">
+                        El margen economico descuenta del margen bruto el costo de
+                        financiar la cuenta por cobrar durante los dias reales de cobro,
+                        mas las notas de credito del periodo.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_rentabilidad_pivot" model="ir.ui.view">
+        <field name="name">ags.rentabilidad.pivot</field>
+        <field name="model">ags.rentabilidad</field>
+        <field name="arch" type="xml">
+            <pivot string="Rentabilidad">
+                <field name="fecha_periodo" interval="month" type="col"/>
+                <field name="vendedor_id" type="row"/>
+                <field name="ventas" type="measure"/>
+                <field name="margen_economico" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_ags_rentabilidad_graph" model="ir.ui.view">
+        <field name="name">ags.rentabilidad.graph</field>
+        <field name="model">ags.rentabilidad</field>
+        <field name="arch" type="xml">
+            <graph string="Margen economico" type="bar">
+                <field name="mercado_id"/>
+                <field name="margen_economico" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_ags_rentabilidad_search" model="ir.ui.view">
+        <field name="name">ags.rentabilidad.search</field>
+        <field name="model">ags.rentabilidad</field>
+        <field name="arch" type="xml">
+            <search string="Buscar">
+                <field name="partner_id"/>
+                <field name="vendedor_id"/>
+                <field name="mercado_id"/>
+                <filter name="f_destruye" string="Destruyen valor"
+                        domain="[('destruye_valor','=',True)]"/>
+                <filter name="f_bajo" string="Margen economico bajo 10%"
+                        domain="[('margen_economico_pct','&lt;',10)]"/>
+                <filter name="f_lentos" string="Cobro sobre lo pactado"
+                        domain="[('desviacion_dias','&gt;',0)]"/>
+                <separator/>
+                <filter name="f_sin_mercado" string="Sin mercado asignado"
+                        domain="[('mercado_id','=',False)]"/>
+                <group expand="1" string="Agrupar por">
+                    <filter name="g_periodo" string="Periodo"
+                            context="{'group_by':'fecha_periodo:month'}"/>
+                    <filter name="g_vendedor" string="Vendedor"
+                            context="{'group_by':'vendedor_id'}"/>
+                    <filter name="g_mercado" string="Mercado"
+                            context="{'group_by':'mercado_id'}"/>
+                    <filter name="g_cliente" string="Cliente"
+                            context="{'group_by':'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_rentabilidad" model="ir.actions.act_window">
+        <field name="name">Rentabilidad por cliente</field>
+        <field name="res_model">ags.rentabilidad</field>
+        <field name="view_mode">list,pivot,graph,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Sin calculos de rentabilidad</p>
+            <p>Una venta al 22% de margen cobrada a 90 dias no vale lo mismo que una
+               al 22% cobrada a 30. Este analisis descuenta el costo de financiar la
+               cartera y revela que clientes destruyen valor aunque su margen bruto
+               parezca aceptable.</p>
+        </field>
+    </record>
+
+</odoo>

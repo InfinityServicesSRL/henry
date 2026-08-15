@@ -12,6 +12,7 @@ from . import ags_regimen
 from . import ags_aging
 from . import ags_mercado
 from . import ags_meta
+from . import ags_rentabilidad
 # Fase 2B - Configuracion y calculo
 from . import ags_config
 from . import res_partner

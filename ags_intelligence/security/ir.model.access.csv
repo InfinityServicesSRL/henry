@@ -12,3 +12,4 @@ access_ags_regimen_manager,ags.regimen.manager,model_ags_regimen,ags_intelligenc
 access_ags_aging_manager,ags.aging.manager,model_ags_aging,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_mercado_manager,ags.mercado.manager,model_ags_mercado,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_meta_manager,ags.meta.manager,model_ags_meta,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_rentabilidad_manager,ags.rentabilidad.manager,model_ags_rentabilidad,ags_intelligence.group_ags_manager,1,1,1,1
