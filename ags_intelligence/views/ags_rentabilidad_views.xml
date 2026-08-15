@@ -23,6 +23,7 @@
                 <field name="notas_credito" optional="hide"/>
                 <field name="margen_economico" sum="Margen economico"/>
                 <field name="margen_economico_pct"/>
+                <field name="facturas_sin_costo" optional="hide"/>
                 <field name="destruye_valor" widget="boolean_toggle" optional="show"/>
                 <field name="currency_id" column_invisible="1"/>
             </list>
@@ -56,6 +57,7 @@
                             <field name="desviacion_dias"/>
                             <field name="facturas_cobradas"/>
                             <field name="facturas_pendientes"/>
+                            <field name="facturas_sin_costo"/>
                         </group>
                     </group>
                     <group>

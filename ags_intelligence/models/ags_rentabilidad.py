@@ -86,6 +86,11 @@ class AgsRentabilidad(models.Model):
     )
     facturas_cobradas = fields.Integer(string="Facturas cobradas")
     facturas_pendientes = fields.Integer(string="Facturas pendientes")
+    facturas_sin_costo = fields.Integer(
+        string="Facturas sin costo",
+        help="Facturas para las que no se pudo determinar el costo. Con un "
+             "valor alto, el margen de este cliente esta sobreestimado.",
+    )
 
     # ---------- Costo de capital ----------
     costo_financiero = fields.Monetary(
@@ -205,21 +210,37 @@ class AgsRentabilidad(models.Model):
             d = acum.setdefault(pid, {
                 "ventas": 0.0, "costo": 0.0, "nc": 0.0, "n": 0,
                 "pond_dias": 0.0, "peso": 0.0, "pactados": 0.0, "peso_p": 0.0,
-                "cobradas": 0, "pendientes": 0,
+                "cobradas": 0, "pendientes": 0, "sin_costo": 0,
                 "vendedor": f.invoice_user_id.id or False,
             })
             monto = f.amount_untaxed
             d["ventas"] += monto
             d["n"] += 1
 
-            # Costo desde las capas de valoracion de la entrega
-            costo = 0.0
-            for l in f.invoice_line_ids:
-                capas = l.sale_line_ids.mapped(
-                    "move_ids.stock_valuation_layer_ids")
-                if capas:
-                    costo += abs(sum(capas.mapped("value")))
-            d["costo"] += costo
+            # Costo del periodo.
+            #
+            # Se usa el margen que AG Supply ya calcula en la factura
+            # (x_total_margin_amount), y no las capas de valoracion de la
+            # entrega. Razon: con la valoracion de inventario en modo manual,
+            # los movimientos de salida no generan capa contable, de modo que
+            # esa ruta devuelve cero y el margen sale inflado al 96-99%.
+            #
+            # El campo personalizado calcula contra el costo estandar del
+            # producto y es el mismo que muestran las vistas de Odoo, con lo
+            # cual el modulo y los tableros nativos no pueden contradecirse.
+            margen_f = 0.0
+            if "x_total_margin_amount" in f._fields:
+                margen_f = f.x_total_margin_amount or 0.0
+            if margen_f:
+                d["costo"] += monto - margen_f
+            else:
+                # Respaldo: costo estandar por linea
+                for l in f.invoice_line_ids:
+                    if l.product_id:
+                        d["costo"] += (l.quantity or 0.0) * (
+                            l.product_id.standard_price or 0.0)
+                    else:
+                        d["sin_costo"] = d.get("sin_costo", 0) + 1
 
             # Plazo pactado
             if f.invoice_date_due and f.invoice_date:
@@ -260,6 +281,7 @@ class AgsRentabilidad(models.Model):
                 "dias_pactados": (d["pactados"] / d["peso_p"]) if d["peso_p"] else 0.0,
                 "facturas_cobradas": d["cobradas"],
                 "facturas_pendientes": d["pendientes"],
+                "facturas_sin_costo": d.get("sin_costo", 0),
             })
         creados = self.create(registros) if registros else self.browse()
         _logger.info("Rentabilidad %s: %s clientes calculados", hasta, len(creados))
