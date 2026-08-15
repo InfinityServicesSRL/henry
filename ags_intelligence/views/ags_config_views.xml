@@ -9,8 +9,10 @@
         <field name="arch" type="xml">
             <form string="Configuracion">
                 <header>
+                    <button name="action_autoconfigurar" type="object"
+                            string="Autoconfigurar cuentas" class="btn-primary"/>
                     <button name="action_validar" type="object"
-                            string="Validar configuracion" class="btn-primary"/>
+                            string="Validar configuracion"/>
                 </header>
                 <sheet>
                     <div class="oe_title">

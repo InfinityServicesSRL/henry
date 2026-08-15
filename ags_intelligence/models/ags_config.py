@@ -426,6 +426,111 @@ class AgsConfig(models.Model):
             return self.cuenta_depreciacion_ids
         return self._cuentas_por_tipo(["expense_depreciation"])
 
+    # ------------------------------------------------------------------
+    # Autoconfiguracion por codigo de cuenta
+    # ------------------------------------------------------------------
+
+    # Codigos del plan de cuentas de AG Supply. Se buscan por codigo y no se
+    # referencian por ID porque los identificadores internos cambian entre
+    # bases de datos: lo que es estable es el codigo contable.
+    #
+    # Si el plan de cuentas cambia, basta actualizar estas listas y volver a
+    # ejecutar la autoconfiguracion desde el boton de la vista.
+    CODIGOS_DEUDA_FINANCIERA = [
+        "21030100",  # CXP Sup. Financ. Personas Juridicas RD$
+        "21030101",  # CXP Sup. Financ. Personas Juridicas US$
+        "21030102",  # Prima CXP Sup. Financ. Personas Juridicas
+        "21030201",  # CXP Sup. Financ. Personas Fisicas RD$
+        "21030202",  # CXP Sup. Financ. Personas Fisicas US$
+        "21030203",  # Prima CXP Sup. Financ. Personas Fisicas
+        "21010205",  # Tarjeta de credito 0122
+        "21010206",  # Tarjeta de credito 1103
+        "21010207",  # Tarjeta de credito 5100
+        "21010208",  # Tarjeta de credito 3773
+    ]
+    CODIGOS_GASTO_FINANCIERO = [
+        "61010714",  # Otros intereses sobre prestamos
+        "61010715",  # Gastos interes Banco Santa Cruz
+        "61070300",  # Bank Interest
+        "61010803",  # Exchange Loss
+        "61070800",  # Foreign exchange losses
+    ]
+
+    def autoconfigurar_cuentas(self):
+        """Asigna las cuentas conocidas del plan de AG Supply.
+
+        Es idempotente: se puede ejecutar cuantas veces haga falta. Solo
+        asigna las cuentas que encuentra, y deja constancia de las que no
+        existen en lugar de fallar en silencio.
+
+        Las cuentas de efectivo, inventario y depreciacion se detectan por
+        tipo y no por codigo, porque esa clasificacion si es estandar.
+        """
+        Account = self.env["account.account"]
+        resultado = {"asignadas": {}, "no_encontradas": []}
+
+        def buscar(codigos):
+            enc, falt = Account.browse(), []
+            for c in codigos:
+                a = Account.search([
+                    ("code", "=", c),
+                    ("company_ids", "in", self.company_id.id),
+                ], limit=1)
+                if a:
+                    enc |= a
+                else:
+                    falt.append(c)
+            return enc, falt
+
+        for campo, codigos, etiqueta in [
+            ("cuenta_deuda_financiera_ids", self.CODIGOS_DEUDA_FINANCIERA, "Deuda financiera"),
+            ("cuenta_gasto_financiero_ids", self.CODIGOS_GASTO_FINANCIERO, "Gastos financieros"),
+        ]:
+            enc, falt = buscar(codigos)
+            if enc:
+                self[campo] = [(6, 0, enc.ids)]
+                resultado["asignadas"][etiqueta] = len(enc)
+            resultado["no_encontradas"].extend(falt)
+
+        # Inventario: cuentas de valoracion declaradas en las categorias de
+        # producto. Es mas confiable que adivinar por nombre o por codigo.
+        categorias = (self.categoria_mp_ids | self.categoria_empaque_ids
+                      | self.categoria_pt_ids)
+        if not categorias:
+            categorias = self.env["product.category"].search([])
+        cuentas_inv = categorias.mapped(
+            "property_stock_valuation_account_id").filtered(lambda a: a)
+        if cuentas_inv:
+            self.cuenta_inventario_ids = [(6, 0, cuentas_inv.ids)]
+            resultado["asignadas"]["Inventario"] = len(cuentas_inv)
+
+        return resultado
+
+    @api.model
+    def _autoconfigurar_al_instalar(self):
+        """Punto de entrada desde los datos del modulo.
+
+        Crea la configuracion si no existe y asigna las cuentas conocidas.
+        Si el plan de cuentas es distinto simplemente no encuentra nada y
+        deja los campos vacios, que es el comportamiento correcto: es
+        preferible una configuracion vacia y visible a una mal adivinada.
+        """
+        cfg = self.get_config()
+        cfg.autoconfigurar_cuentas()
+        return True
+
+    def action_autoconfigurar(self):
+        """Boton de la vista: ejecuta la autoconfiguracion y muestra el resumen."""
+        self.ensure_one()
+        r = self.autoconfigurar_cuentas()
+        lineas = ["%s: %s cuentas" % (k, v) for k, v in r["asignadas"].items()]
+        if r["no_encontradas"]:
+            lineas.append("")
+            lineas.append("No encontradas en el plan: %s"
+                          % ", ".join(r["no_encontradas"]))
+        raise UserError(
+            _("Autoconfiguracion completada\n\n%s") % "\n".join(lineas))
+
     def action_validar(self):
         """Comprueba que la configuracion permita calcular, y avisa si no."""
         self.ensure_one()
