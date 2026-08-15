@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_purchase_order_form_ags" model="ir.ui.view">
+        <field name="name">purchase.order.form.ags.sustituta</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form"/>
+        <field name="arch" type="xml">
+            <field name="payment_term_id" position="after">
+                <field name="ags_es_sustituta"/>
+                <field name="ags_oc_sustituida_id"
+                       invisible="not ags_es_sustituta"
+                       required="ags_es_sustituta"
+                       options="{'no_create': True}"/>
+                <field name="ags_motivo_sustitucion"
+                       invisible="not ags_es_sustituta"
+                       required="ags_es_sustituta"/>
+            </field>
+            <notebook position="inside">
+                <page string="Sustitucion de importacion"
+                      invisible="not ags_es_sustituta">
+                    <div class="alert alert-info" role="alert">
+                        Los costos se calculan comparando esta compra con la importacion
+                        afectada. El precio se compara por kilo, de modo que sirve aunque
+                        el producto local no sea identico.
+                    </div>
+                    <group>
+                        <group string="Costo calculado">
+                            <field name="ags_sobrecosto_material"/>
+                            <field name="ags_dias_credito_perdidos"/>
+                            <field name="ags_costo_financiero"/>
+                        </group>
+                        <group string="Impacto en produccion">
+                            <field name="ags_impacto_produccion"/>
+                            <field name="ags_costo_disrupcion"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="ags_costo_total_evento" class="oe_subtotal_footer_separator"/>
+                    </group>
+                    <div class="text-muted">
+                        El impacto en produccion lo completa Gerencia, no Compras.
+                        Un quiebre rompe la cadena completa y suele ser el costo mas alto.
+                    </div>
+                </page>
+            </notebook>
+        </field>
+    </record>
+
+    <record id="view_purchase_order_list_ags" model="ir.ui.view">
+        <field name="name">purchase.order.list.ags</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_view_tree"/>
+        <field name="arch" type="xml">
+            <field name="amount_total" position="after">
+                <field name="ags_es_sustituta" optional="hide"/>
+                <field name="ags_dias_retraso" optional="hide"/>
+                <field name="ags_costo_total_evento" optional="hide" sum="Costo eventos"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="action_ags_importaciones_pendientes" model="ir.actions.act_window">
+        <field name="name">Importaciones con entrega pendiente</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('ags_tiene_pendiente','=',True)]</field>
+        <field name="context">{'search_default_group_partner': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Sin entregas pendientes</p>
+            <p>Ordenes confirmadas con mercancia que aun no ha llegado. Los proveedores
+               internacionales retienen despachos cuando el flete supera lo cotizado,
+               y esa demora obliga a comprar local mas caro y con menos credito.</p>
+        </field>
+    </record>
+
+    <record id="action_ags_compras_sustitutas" model="ir.actions.act_window">
+        <field name="name">Compras sustitutas</field>
+        <field name="res_model">purchase.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('ags_es_sustituta','=',True)]</field>
+    </record>
+
+</odoo>

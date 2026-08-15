@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="param_costo_sustitucion" model="ags.parametro">
+        <field name="codigo">COSTO_SUSTITUCION</field>
+        <field name="name">Costo de sustituir importaciones retenidas</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">70</field>
+        <field name="descripcion">Costo total de comprar local cuando un proveedor internacional retiene el despacho: sobrecosto de material por kilo, costo financiero del credito perdido, y disrupcion de produccion cuando la hubo.</field>
+        <field name="unidad">dop</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_costo_sustitucion</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Marcar las ordenes de compra locales que sustituyen importaciones retenidas</field>
+        <field name="notas">AG Supply compra bajo condicion costo y flete. Cuando el flete oriental supera lo que el proveedor cotizo, este retiene el despacho. El patron se repite con casi todos los proveedores internacionales: Vipa, SOIC, Convermat, Central National.
+
+Si no se puede esperar, hay que comprar bobina local: mas cara y al contado o con pocos dias de credito, frente a los 90 o 120 dias del proveedor internacional.
+
+Este indicador convierte ese problema en una cifra. Sin el, el costo existe pero nadie sabe cuanto es, y no se puede negociar con numeros ni con el proveedor ni con la naviera.</field>
+    </record>
+
+    <record id="param_lead_time_real" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_lead_time_real</field>
+        <field name="metodo_calculo">Dias entre la fecha de orden y la recepcion efectiva, ponderado por monto de la orden.</field>
+        <field name="notas">Alimenta el punto de reorden dinamico. Si un proveedor tarda 120 dias en lugar de los 60 pactados, el stock de seguridad tiene que ser el doble. Medir el lead time REAL y no el prometido es lo que evita quiebres.
+
+Tambien da poder de negociacion: un proveedor cuyo lead time real duplica el pactado de forma sostenida esta trasladando su ineficiencia al inventario de AG Supply.</field>
+    </record>
+
+    <record id="param_pct_entrega_completa" model="ags.parametro">
+        <field name="codigo">PCT_ENTREGA_COMPLETA</field>
+        <field name="name">Cumplimiento de cantidad en compras</field>
+        <field name="seccion">inventario</field>
+        <field name="secuencia">30</field>
+        <field name="descripcion">Porcentaje de la cantidad pedida que efectivamente se recibe. Planificar con cantidades que no se materializan produce quiebres.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_entrega_completa</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Casos observados en julio 2026: Vipa Greece entrego 43,498 de 66,000 unidades pedidas (66%) y Bridge View Paper 6,022 de 10,000 de Napkin Kraft (60%). Ambas entregas parciales, ambas por el mismo motivo de flete.</field>
+    </record>
+
+    <record id="param_usd_sin_recibir" model="ags.parametro">
+        <field name="codigo">USD_SIN_RECIBIR</field>
+        <field name="name">Exposicion USD sobre mercancia no recibida</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">73</field>
+        <field name="descripcion">Saldo en dolares de facturas cuya mercancia aun no ha llegado. Es exposicion cambiaria sobre bobina que todavia no esta en planta: si el peso se deprecia, se paga mas por producto que no se tiene.</field>
+        <field name="unidad">usd</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_usd_sin_recibir</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Al 31 de julio de 2026 habia al menos 66,622 dolares en esta condicion: Vipa (37,591) con recepcion programada para abril y aun pendiente, y SOIC (29,031) programada para junio. Es la parte de la exposicion cambiaria que ademas implica riesgo de abastecimiento.</field>
+    </record>
+
+</odoo>

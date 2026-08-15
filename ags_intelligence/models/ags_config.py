@@ -186,6 +186,63 @@ class AgsConfig(models.Model):
     )
 
     # ------------------------------------------------------------------
+    # Cuentas de balance - alimentan los ratios financieros
+    #
+    # Los ratios de balance son foto a una fecha y acumulan desde el inicio
+    # de operaciones, a diferencia de los del estado de resultados que son
+    # de periodo. Mezclarlos exige cuidado con que fecha se toma cada cosa.
+    # ------------------------------------------------------------------
+
+    cuenta_inventario_ids = fields.Many2many(
+        "account.account",
+        "ags_config_inv_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas de inventario",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Necesarias para la prueba acida, que excluye el inventario del "
+             "activo circulante por ser el activo menos liquido.",
+    )
+    cuenta_efectivo_ids = fields.Many2many(
+        "account.account",
+        "ags_config_efe_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas de efectivo y equivalentes",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Si se deja vacio se usan las cuentas de tipo Banco y Efectivo.",
+    )
+    cuenta_deuda_financiera_ids = fields.Many2many(
+        "account.account",
+        "ags_config_deuda_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas de deuda financiera",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Prestamos bancarios, cooperativas y lineas de credito, corto y "
+             "largo plazo. Si se deja vacio, la deuda financiera se deriva de "
+             "los terceros marcados como acreedor financiero.",
+    )
+    cuenta_gasto_financiero_ids = fields.Many2many(
+        "account.account",
+        "ags_config_gfin_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas de gastos financieros",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Intereses pagados. Alimentan la cobertura de intereses.",
+    )
+    cuenta_depreciacion_ids = fields.Many2many(
+        "account.account",
+        "ags_config_dep_rel",
+        "config_id",
+        "account_id",
+        string="Cuentas de depreciacion y amortizacion",
+        domain="[('company_ids', 'in', company_id)]",
+        help="Si se deja vacio se usan las de tipo Depreciacion.",
+    )
+
+    # ------------------------------------------------------------------
     # Costo de capital - alimenta el margen economico
     # ------------------------------------------------------------------
 
@@ -328,6 +385,46 @@ class AgsConfig(models.Model):
             return self.cuenta_gasto_operativo_ids
         cuentas = self._cuentas_por_tipo(["expense"])
         return cuentas - self.cuenta_excluir_ebitda_ids
+
+    # ------------------------------------------------------------------
+    # Resolucion de cuentas de balance
+    # ------------------------------------------------------------------
+
+    def cuentas_activo_circulante(self):
+        self.ensure_one()
+        return self._cuentas_por_tipo([
+            "asset_receivable", "asset_cash", "asset_current", "asset_prepayments"])
+
+    def cuentas_activo_total(self):
+        self.ensure_one()
+        return self._cuentas_por_tipo([
+            "asset_receivable", "asset_cash", "asset_current", "asset_prepayments",
+            "asset_non_current", "asset_fixed"])
+
+    def cuentas_pasivo_corriente(self):
+        self.ensure_one()
+        return self._cuentas_por_tipo(["liability_payable", "liability_current"])
+
+    def cuentas_pasivo_total(self):
+        self.ensure_one()
+        return self._cuentas_por_tipo([
+            "liability_payable", "liability_current", "liability_non_current"])
+
+    def cuentas_patrimonio(self):
+        self.ensure_one()
+        return self._cuentas_por_tipo(["equity", "equity_unaffected"])
+
+    def cuentas_efectivo(self):
+        self.ensure_one()
+        if self.cuenta_efectivo_ids:
+            return self.cuenta_efectivo_ids
+        return self._cuentas_por_tipo(["asset_cash"])
+
+    def cuentas_depreciacion(self):
+        self.ensure_one()
+        if self.cuenta_depreciacion_ids:
+            return self.cuenta_depreciacion_ids
+        return self._cuentas_por_tipo(["expense_depreciation"])
 
     def action_validar(self):
         """Comprueba que la configuracion permita calcular, y avisa si no."""

@@ -1046,6 +1046,488 @@ class AgsCalculador(models.AbstractModel):
             round(total, 0), round(extranjera, 0), detalle or "ninguna")
         return self._registrar(parametro, pct, hasta, notas=nota)
 
+
+    # ==================================================================
+    # ABASTECIMIENTO INTERNACIONAL
+    # ==================================================================
+
+    @api.model
+    def _calc_costo_sustitucion(self, parametro, fecha=None):
+        """Costo total de comprar local por retrasos de importacion.
+
+        Suma sobrecosto de material, costo financiero por credito perdido y
+        disrupcion estimada. Es el numero que permite negociar con proveedores
+        y navieras usando cifras en vez de anecdotas.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ocs = self.env["purchase.order"].search([
+            ("ags_es_sustituta", "=", True),
+            ("state", "in", ["purchase", "done"]),
+            ("date_order", ">=", desde),
+            ("date_order", "<=", hasta),
+        ])
+        if not ocs:
+            return False
+        total = sum(ocs.mapped("ags_costo_total_evento"))
+        mat = sum(ocs.mapped("ags_sobrecosto_material"))
+        fin = sum(ocs.mapped("ags_costo_financiero"))
+        dis = sum(ocs.mapped("ags_costo_disrupcion"))
+        nota = "Eventos: %s | Material: %s | Financiero: %s | Disrupcion: %s" % (
+            len(ocs), round(mat, 2), round(fin, 2), round(dis, 2))
+        return self._registrar(parametro, total, hasta, notas=nota)
+
+    @api.model
+    def _calc_lead_time_real(self, parametro, fecha=None):
+        """Dias entre la orden y la recepcion efectiva, ponderado por monto.
+
+        Alimenta el punto de reorden: si un proveedor tarda 120 dias en lugar
+        de los 60 pactados, el stock de seguridad tiene que ser el doble.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        pickings = self.env["stock.picking"].search([
+            ("picking_type_id.code", "=", "incoming"),
+            ("state", "=", "done"),
+            ("date_done", ">=", desde),
+            ("date_done", "<=", hasta),
+            ("purchase_id", "!=", False),
+        ])
+        peso = suma = 0.0
+        n = 0
+        for p in pickings:
+            oc = p.purchase_id
+            if not oc.date_order or not p.date_done:
+                continue
+            dias = (p.date_done.date() - oc.date_order.date()).days
+            monto = oc.amount_untaxed or 0.0
+            if monto <= 0 or dias < 0:
+                continue
+            suma += dias * monto
+            peso += monto
+            n += 1
+        if not peso:
+            return False
+        valor = suma / peso
+        nota = "Recepciones evaluadas: %s | Ponderado por monto" % n
+        return self._registrar(parametro, valor, hasta, notas=nota)
+
+    @api.model
+    def _calc_pct_entrega_completa(self, parametro, fecha=None):
+        """Porcentaje de lo pedido que efectivamente se recibe.
+
+        Medicion de julio 2026: Vipa entrego 43,498 de 66,000 unidades (66%)
+        y Bridge View 6,022 de 10,000 (60%). Planificar con cantidades que no
+        se materializan produce quiebres.
+        """
+        desde, hasta = self._rango_mes(fecha)
+        ocs = self.env["purchase.order"].search([
+            ("state", "in", ["purchase", "done"]),
+            ("date_order", ">=", desde),
+            ("date_order", "<=", hasta),
+        ])
+        ped = rec = 0.0
+        for o in ocs:
+            for l in o.order_line:
+                ped += l.product_qty or 0.0
+                rec += min(l.qty_received or 0.0, l.product_qty or 0.0)
+        if not ped:
+            return False
+        pct = (rec / ped) * 100.0
+        nota = "Pedido: %s | Recibido: %s | Ordenes: %s" % (
+            round(ped, 0), round(rec, 0), len(ocs))
+        return self._registrar(parametro, pct, hasta, notas=nota)
+
+    @api.model
+    def _calc_usd_sin_recibir(self, parametro, fecha=None):
+        """Facturas en USD de mercancia aun no recibida.
+
+        Es exposicion cambiaria sobre bobina que todavia no esta en Santiago:
+        si el peso se deprecia, se paga mas por producto que no se tiene.
+        """
+        _desde, hasta = self._rango_mes(fecha)
+        usd = self.env["res.currency"].search([("name", "=", "USD")], limit=1)
+        if not usd:
+            return False
+        facturas = self.env["account.move"].search([
+            ("move_type", "=", "in_invoice"),
+            ("state", "=", "posted"),
+            ("currency_id", "=", usd.id),
+            ("invoice_date", "<=", hasta),
+            ("payment_state", "!=", "paid"),
+        ])
+        total = 0.0
+        n = 0
+        for f in facturas:
+            ocs = f.invoice_line_ids.mapped("purchase_line_id.order_id")
+            if any(o.ags_tiene_pendiente for o in ocs):
+                total += abs(f.amount_residual_currency or 0.0)
+                n += 1
+        nota = "Facturas con mercancia pendiente: %s" % n
+        return self._registrar(parametro, total, hasta, notas=nota)
+
+
+    # ==================================================================
+    # ANALISIS FINANCIERO - RATIOS DE BALANCE
+    #
+    # DIFERENCIA CLAVE CON EL RESTO DEL MODULO: los ratios de balance son
+    # foto a una fecha y acumulan desde el inicio de operaciones. Los del
+    # estado de resultados son de periodo. Mezclarlos sin cuidado produce
+    # numeros que parecen validos y no lo son.
+    #
+    # Marco propuesto por la auditoria externa en agosto 2026.
+    # ==================================================================
+
+    @api.model
+    def _saldo_balance(self, cuentas, hasta, invertir=False):
+        """Saldo ACUMULADO de cuentas de balance hasta una fecha.
+
+        A diferencia de _saldo_cuentas, que suma un periodo, aqui se acumula
+        desde el inicio: el saldo de una cuenta de activo o pasivo es su
+        historia completa, no el movimiento del mes.
+        """
+        if not cuentas:
+            return 0.0
+        grupos = self.env["account.move.line"]._read_group(
+            [("account_id", "in", cuentas.ids),
+             ("date", "<=", hasta),
+             ("parent_state", "=", "posted")],
+            aggregates=["balance:sum"],
+        )
+        total = (grupos[0][0] if grupos else 0.0) or 0.0
+        return -total if invertir else total
+
+    @api.model
+    def _resultado_acumulado(self, hasta):
+        """Resultado del ejercicio en curso, aun no cerrado a patrimonio.
+
+        Odoo no traslada el resultado a patrimonio hasta el cierre anual, de
+        modo que el patrimonio contable subestima el real durante el año.
+        Para que los ratios de solvencia no queden distorsionados hay que
+        sumarlo explicitamente.
+        """
+        cfg = self._config()
+        inicio = hasta.replace(month=1, day=1)
+        ingresos = self._saldo_cuentas(
+            cfg._cuentas_por_tipo(["income", "income_other"]), inicio, hasta, invertir=True)
+        gastos = self._saldo_cuentas(
+            cfg._cuentas_por_tipo(["expense", "expense_direct_cost", "expense_depreciation"]),
+            inicio, hasta)
+        return ingresos - gastos
+
+    @api.model
+    def _patrimonio(self, hasta):
+        cfg = self._config()
+        base = self._saldo_balance(cfg.cuentas_patrimonio(), hasta, invertir=True)
+        return base + self._resultado_acumulado(hasta)
+
+    @api.model
+    def _deuda_financiera(self, hasta):
+        """Deuda con bancos, cooperativas y prestamistas.
+
+        Si no hay cuentas declaradas se deriva de los terceros clasificados
+        como acreedor financiero, que es el trabajo hecho al separar la CxP
+        comercial de la financiera.
+        """
+        cfg = self._config()
+        if cfg.cuenta_deuda_financiera_ids:
+            return self._saldo_balance(cfg.cuenta_deuda_financiera_ids, hasta, invertir=True)
+        lineas = self.env["account.move.line"].search([
+            ("account_id.account_type", "in", ["liability_payable", "liability_current",
+                                                "liability_non_current"]),
+            ("partner_id.ags_tipo_acreedor", "=", "financiero"),
+            ("date", "<=", hasta),
+            ("parent_state", "=", "posted"),
+        ])
+        return -sum(lineas.mapped("balance"))
+
+    # ---------- LIQUIDEZ ----------
+
+    @api.model
+    def _calc_razon_corriente(self, parametro, fecha=None):
+        """Activo circulante / pasivo corriente."""
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        act = self._saldo_balance(cfg.cuentas_activo_circulante(), hasta)
+        pas = self._saldo_balance(cfg.cuentas_pasivo_corriente(), hasta, invertir=True)
+        if not pas:
+            return False
+        nota = "Activo circulante: %s | Pasivo corriente: %s" % (
+            round(act, 2), round(pas, 2))
+        return self._registrar(parametro, act / pas, hasta, notas=nota)
+
+    @api.model
+    def _calc_prueba_acida(self, parametro, fecha=None):
+        """(Activo circulante - inventario) / pasivo corriente."""
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        act = self._saldo_balance(cfg.cuentas_activo_circulante(), hasta)
+        inv = self._saldo_balance(cfg.cuenta_inventario_ids, hasta)
+        pas = self._saldo_balance(cfg.cuentas_pasivo_corriente(), hasta, invertir=True)
+        if not pas:
+            return False
+        nota = "Circulante: %s | Inventario: %s | Pasivo corriente: %s" % (
+            round(act, 2), round(inv, 2), round(pas, 2))
+        return self._registrar(parametro, (act - inv) / pas, hasta, notas=nota)
+
+    @api.model
+    def _calc_razon_efectivo(self, parametro, fecha=None):
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        efe = self._saldo_balance(cfg.cuentas_efectivo(), hasta)
+        pas = self._saldo_balance(cfg.cuentas_pasivo_corriente(), hasta, invertir=True)
+        if not pas:
+            return False
+        nota = "Efectivo: %s | Pasivo corriente: %s" % (round(efe, 2), round(pas, 2))
+        return self._registrar(parametro, efe / pas, hasta, notas=nota)
+
+    @api.model
+    def _calc_capital_trabajo(self, parametro, fecha=None):
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        act = self._saldo_balance(cfg.cuentas_activo_circulante(), hasta)
+        pas = self._saldo_balance(cfg.cuentas_pasivo_corriente(), hasta, invertir=True)
+        nota = "Circulante: %s | Pasivo corriente: %s" % (round(act, 2), round(pas, 2))
+        return self._registrar(parametro, act - pas, hasta, notas=nota)
+
+    # ---------- ENDEUDAMIENTO Y SOLVENCIA ----------
+
+    @api.model
+    def _calc_endeudamiento_total(self, parametro, fecha=None):
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        pas = self._saldo_balance(cfg.cuentas_pasivo_total(), hasta, invertir=True)
+        act = self._saldo_balance(cfg.cuentas_activo_total(), hasta)
+        if not act:
+            return False
+        nota = "Pasivo total: %s | Activo total: %s" % (round(pas, 2), round(act, 2))
+        return self._registrar(parametro, (pas / act) * 100.0, hasta, notas=nota)
+
+    @api.model
+    def _calc_pasivo_patrimonio(self, parametro, fecha=None):
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        pas = self._saldo_balance(cfg.cuentas_pasivo_total(), hasta, invertir=True)
+        pat = self._patrimonio(hasta)
+        if not pat:
+            return False
+        nota = "Pasivo: %s | Patrimonio: %s" % (round(pas, 2), round(pat, 2))
+        return self._registrar(parametro, pas / pat, hasta, notas=nota)
+
+    @api.model
+    def _calc_patrimonio_activo(self, parametro, fecha=None):
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        pat = self._patrimonio(hasta)
+        act = self._saldo_balance(cfg.cuentas_activo_total(), hasta)
+        if not act:
+            return False
+        nota = "Patrimonio: %s | Activo: %s" % (round(pat, 2), round(act, 2))
+        return self._registrar(parametro, (pat / act) * 100.0, hasta, notas=nota)
+
+    @api.model
+    def _calc_deuda_financiera(self, parametro, fecha=None):
+        _d, hasta = self._rango_mes(fecha)
+        deuda = self._deuda_financiera(hasta)
+        cfg = self._config()
+        origen = "cuentas declaradas" if cfg.cuenta_deuda_financiera_ids \
+            else "terceros clasificados como financieros"
+        return self._registrar(parametro, deuda, hasta, notas="Origen: %s" % origen)
+
+    @api.model
+    def _calc_deuda_patrimonio(self, parametro, fecha=None):
+        _d, hasta = self._rango_mes(fecha)
+        deuda = self._deuda_financiera(hasta)
+        pat = self._patrimonio(hasta)
+        if not pat:
+            return False
+        nota = "Deuda financiera: %s | Patrimonio: %s" % (round(deuda, 2), round(pat, 2))
+        return self._registrar(parametro, deuda / pat, hasta, notas=nota)
+
+    @api.model
+    def _calc_cobertura_intereses(self, parametro, fecha=None):
+        """Resultado operacional / gastos financieros del periodo.
+
+        Mide cuantas veces la operacion cubre el costo de la deuda. Es el
+        ratio que un banco revisa primero antes de otorgar o renovar linea.
+        """
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        costo = self._costo_ventas(desde, hasta)
+        gasto = self._saldo_cuentas(cfg.cuentas_gasto_operativo(), desde, hasta)
+        operacional = ventas - costo - gasto
+        financieros = self._saldo_cuentas(cfg.cuenta_gasto_financiero_ids, desde, hasta)
+        if not financieros:
+            return False
+        nota = "Resultado operacional: %s | Gastos financieros: %s" % (
+            round(operacional, 2), round(financieros, 2))
+        return self._registrar(parametro, operacional / financieros, hasta, notas=nota)
+
+    @api.model
+    def _calc_deuda_ebitda(self, parametro, fecha=None):
+        """Deuda financiera / EBITDA anualizado.
+
+        El EBITDA se anualiza desde el acumulado del año en curso, no
+        multiplicando el mes por doce: un mes puntual puede estar
+        distorsionado por estacionalidad o cierres.
+        """
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        inicio = hasta.replace(month=1, day=1)
+        meses = hasta.month
+        ventas = self._ventas_netas(inicio, hasta)
+        costo = self._costo_ventas(inicio, hasta)
+        gasto = self._saldo_cuentas(cfg.cuentas_gasto_operativo(), inicio, hasta)
+        depre = self._saldo_cuentas(cfg.cuentas_depreciacion(), inicio, hasta)
+        ebitda_ytd = ventas - costo - gasto
+        ebitda_anual = (ebitda_ytd / meses) * 12 if meses else 0.0
+        if not ebitda_anual:
+            return False
+        deuda = self._deuda_financiera(hasta)
+        nota = ("Deuda: %s | EBITDA YTD (%s meses): %s | Anualizado: %s | "
+                "Depreciacion YTD: %s") % (
+            round(deuda, 2), meses, round(ebitda_ytd, 2),
+            round(ebitda_anual, 2), round(depre, 2))
+        return self._registrar(parametro, deuda / ebitda_anual, hasta, notas=nota)
+
+    # ---------- RENTABILIDAD ----------
+
+    @api.model
+    def _calc_margen_operacional(self, parametro, fecha=None):
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        costo = self._costo_ventas(desde, hasta)
+        gasto = self._saldo_cuentas(cfg.cuentas_gasto_operativo(), desde, hasta)
+        depre = self._saldo_cuentas(cfg.cuentas_depreciacion(), desde, hasta)
+        operacional = ventas - costo - gasto - depre
+        nota = "Ventas: %s | Operacional: %s (incluye depreciacion %s)" % (
+            round(ventas, 2), round(operacional, 2), round(depre, 2))
+        return self._registrar(parametro, (operacional / ventas) * 100.0, hasta, notas=nota)
+
+    @api.model
+    def _calc_margen_neto(self, parametro, fecha=None):
+        desde, hasta = self._rango_mes(fecha)
+        ventas = self._ventas_netas(desde, hasta)
+        if not ventas:
+            return False
+        cfg = self._config()
+        ingresos = self._saldo_cuentas(
+            cfg._cuentas_por_tipo(["income", "income_other"]), desde, hasta, invertir=True)
+        gastos = self._saldo_cuentas(
+            cfg._cuentas_por_tipo(["expense", "expense_direct_cost", "expense_depreciation"]),
+            desde, hasta)
+        neto = ingresos - gastos
+        nota = "Ingresos totales: %s | Gastos totales: %s | Neto: %s" % (
+            round(ingresos, 2), round(gastos, 2), round(neto, 2))
+        return self._registrar(parametro, (neto / ventas) * 100.0, hasta, notas=nota)
+
+    @api.model
+    def _calc_roa(self, parametro, fecha=None):
+        """Resultado neto anualizado / activo total."""
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        meses = hasta.month
+        neto_ytd = self._resultado_acumulado(hasta)
+        neto_anual = (neto_ytd / meses) * 12 if meses else 0.0
+        act = self._saldo_balance(cfg.cuentas_activo_total(), hasta)
+        if not act:
+            return False
+        nota = "Neto YTD: %s | Anualizado: %s | Activo: %s" % (
+            round(neto_ytd, 2), round(neto_anual, 2), round(act, 2))
+        return self._registrar(parametro, (neto_anual / act) * 100.0, hasta, notas=nota)
+
+    @api.model
+    def _calc_roe(self, parametro, fecha=None):
+        """Resultado neto anualizado / patrimonio."""
+        _d, hasta = self._rango_mes(fecha)
+        meses = hasta.month
+        neto_ytd = self._resultado_acumulado(hasta)
+        neto_anual = (neto_ytd / meses) * 12 if meses else 0.0
+        pat = self._patrimonio(hasta)
+        if not pat:
+            return False
+        nota = "Neto anualizado: %s | Patrimonio: %s" % (
+            round(neto_anual, 2), round(pat, 2))
+        return self._registrar(parametro, (neto_anual / pat) * 100.0, hasta, notas=nota)
+
+    # ---------- ACTIVIDAD ----------
+
+    @api.model
+    def _calc_dio(self, parametro, fecha=None):
+        """Dias de inventario: (inventario / costo de ventas) x dias."""
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        inv = self._saldo_balance(cfg.cuenta_inventario_ids, hasta)
+        costo = self._costo_ventas(desde, hasta)
+        if not costo:
+            return False
+        dias = (hasta - desde).days + 1
+        nota = "Inventario: %s | Costo de ventas: %s | Dias: %s" % (
+            round(inv, 2), round(costo, 2), dias)
+        return self._registrar(parametro, (inv / costo) * dias, hasta, notas=nota)
+
+    @api.model
+    def _calc_dpo(self, parametro, fecha=None):
+        """Dias de pago: (CxP comercial / compras del periodo) x dias.
+
+        Se usa solo la CxP comercial: incluir deuda financiera daria un DPO
+        inflado que no refleja el credito de proveedores.
+        """
+        cfg = self._config()
+        desde, hasta = self._rango_mes(fecha)
+        lineas = self.env["account.move.line"].search([
+            ("account_id.account_type", "=", "liability_payable"),
+            ("date", "<=", hasta),
+            ("parent_state", "=", "posted"),
+            ("full_reconcile_id", "=", False),
+            ("partner_id.ags_tipo_acreedor", "in", [False, "comercial"]),
+        ])
+        saldo = -sum(lineas.mapped("amount_residual"))
+        costo = self._costo_ventas(desde, hasta)
+        if not costo:
+            return False
+        dias = (hasta - desde).days + 1
+        nota = "CxP comercial: %s | Costo de ventas: %s" % (
+            round(saldo, 2), round(costo, 2))
+        return self._registrar(parametro, (saldo / costo) * dias, hasta, notas=nota)
+
+    @api.model
+    def _calc_ccc(self, parametro, fecha=None):
+        """Ciclo de conversion de efectivo: DIO + DSO - DPO."""
+        _d, hasta = self._rango_mes(fecha)
+        Param = self.env["ags.parametro"]
+        Med = self.env["ags.medicion"]
+        vals = {}
+        for cod in ("DIO", "DSO", "DPO"):
+            p = Param.search([("codigo", "=", cod)], limit=1)
+            m = Med.search([("parametro_id", "=", p.id),
+                            ("fecha_periodo", "=", hasta)], limit=1) if p else None
+            if not m:
+                return False
+            vals[cod] = m.valor
+        ccc = vals["DIO"] + vals["DSO"] - vals["DPO"]
+        nota = "DIO %s + DSO %s - DPO %s" % (
+            round(vals["DIO"], 1), round(vals["DSO"], 1), round(vals["DPO"], 1))
+        return self._registrar(parametro, ccc, hasta, notas=nota)
+
+    @api.model
+    def _calc_rotacion_activos(self, parametro, fecha=None):
+        """Ventas anualizadas / activo total."""
+        cfg = self._config()
+        _d, hasta = self._rango_mes(fecha)
+        inicio = hasta.replace(month=1, day=1)
+        meses = hasta.month
+        ventas_ytd = self._ventas_netas(inicio, hasta)
+        ventas_anual = (ventas_ytd / meses) * 12 if meses else 0.0
+        act = self._saldo_balance(cfg.cuentas_activo_total(), hasta)
+        if not act:
+            return False
+        nota = "Ventas anualizadas: %s | Activo: %s" % (
+            round(ventas_anual, 2), round(act, 2))
+        return self._registrar(parametro, ventas_anual / act, hasta, notas=nota)
+
     # ==================================================================
     # ORQUESTACION
     # ==================================================================

@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         ANALISIS DE SITUACION FINANCIERA
+         Marco propuesto por la auditoria externa, agosto 2026.
+
+         Estos ratios llenan el hueco estructural del modulo: todo lo
+         construido hasta ahora era estado de resultados y capital de
+         trabajo. Esto es BALANCE.
+
+         Ventaja adicional: a diferencia de la merma o la erosion de
+         precio, estos indicadores SI tienen referencias externas
+         publicadas, por lo que la mayoria pasa de tipo C a tipo B.
+         ================================================================ -->
+
+    <!-- ===== 1. LIQUIDEZ ===== -->
+
+    <record id="param_razon_corriente" model="ags.parametro">
+        <field name="codigo">RAZON_CORRIENTE</field>
+        <field name="name">Razon corriente</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">80</field>
+        <field name="descripcion">Activo circulante entre pasivo corriente. Mide cuantas veces los activos de corto plazo cubren las obligaciones de corto plazo.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_razon_corriente</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Un valor muy alto tampoco es senal de buena gestion: puede indicar exceso de inventario o cartera lenta, es decir capital ocioso. Leerlo junto con el ciclo de conversion de efectivo.</field>
+    </record>
+
+    <record id="param_prueba_acida" model="ags.parametro">
+        <field name="codigo">PRUEBA_ACIDA</field>
+        <field name="name">Prueba acida</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">81</field>
+        <field name="descripcion">Activo circulante menos inventario, entre pasivo corriente. Excluye el inventario por ser el activo circulante menos liquido.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_prueba_acida</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Declarar las cuentas de inventario en Configuracion contable</field>
+        <field name="notas">Especialmente relevante para un convertidor de tissue: el inventario es voluminoso, de bajo valor por metro cubico, y buena parte esta en bobina importada que tarda en convertirse en efectivo.</field>
+    </record>
+
+    <record id="param_razon_efectivo" model="ags.parametro">
+        <field name="codigo">RAZON_EFECTIVO</field>
+        <field name="name">Razon de efectivo</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">82</field>
+        <field name="descripcion">Disponibilidad en caja y bancos entre pasivo corriente. Es la prueba mas exigente de liquidez.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_razon_efectivo</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_capital_trabajo" model="ags.parametro">
+        <field name="codigo">CAPITAL_TRABAJO</field>
+        <field name="name">Capital de trabajo neto</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">83</field>
+        <field name="descripcion">Activo circulante menos pasivo corriente, en pesos. Es el colchon operativo disponible.</field>
+        <field name="unidad">dop</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_capital_trabajo</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <!-- ===== 2. ENDEUDAMIENTO Y SOLVENCIA ===== -->
+
+    <record id="param_endeudamiento_total" model="ags.parametro">
+        <field name="codigo">ENDEUDAMIENTO_TOTAL</field>
+        <field name="name">Endeudamiento total</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">85</field>
+        <field name="descripcion">Pasivo total sobre activo total. Que proporcion de los activos esta financiada con deuda.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_endeudamiento_total</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_pasivo_patrimonio" model="ags.parametro">
+        <field name="codigo">PASIVO_PATRIMONIO</field>
+        <field name="name">Pasivo sobre patrimonio</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">86</field>
+        <field name="descripcion">Pasivo total entre patrimonio. Cuantos pesos de deuda hay por cada peso de capital propio.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_pasivo_patrimonio</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">El patrimonio incluye el resultado del ejercicio en curso. Odoo no lo traslada a patrimonio hasta el cierre anual, asi que sin ese ajuste el ratio quedaria inflado durante todo el año.</field>
+    </record>
+
+    <record id="param_patrimonio_activo" model="ags.parametro">
+        <field name="codigo">PATRIMONIO_ACTIVO</field>
+        <field name="name">Patrimonio sobre activo</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">87</field>
+        <field name="descripcion">Proporcion del activo financiada con capital propio. Es el complemento del endeudamiento total.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_patrimonio_activo</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_deuda_financiera" model="ags.parametro">
+        <field name="codigo">DEUDA_FINANCIERA</field>
+        <field name="name">Deuda financiera total</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">88</field>
+        <field name="descripcion">Saldo con bancos, cooperativas y prestamistas, corto y largo plazo. Excluye credito de proveedores.</field>
+        <field name="unidad">dop</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_deuda_financiera</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Si no hay cuentas declaradas, se deriva de los terceros marcados como acreedor financiero. Esa clasificacion se hizo en agosto 2026 al separar la CxP comercial de la financiera, y arrojo RD$ 62.4 millones en once acreedores.</field>
+    </record>
+
+    <record id="param_deuda_patrimonio" model="ags.parametro">
+        <field name="codigo">DEUDA_PATRIMONIO</field>
+        <field name="name">Deuda financiera sobre patrimonio</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">89</field>
+        <field name="descripcion">Apalancamiento financiero puro: deuda con costo entre capital propio.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_deuda_patrimonio</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_cobertura_intereses" model="ags.parametro">
+        <field name="codigo">COBERTURA_INTERESES</field>
+        <field name="name">Cobertura de intereses</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">90</field>
+        <field name="descripcion">Resultado operacional entre gastos financieros. Cuantas veces la operacion cubre el costo de la deuda.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_cobertura_intereses</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Declarar las cuentas de gastos financieros en Configuracion contable</field>
+        <field name="notas">Es el ratio que un banco revisa primero antes de otorgar o renovar una linea de credito. Las cinco cuentas de gastos financieros de AG Supply se identificaron en agosto 2026 al corregir el calculo del EBITDA.</field>
+    </record>
+
+    <record id="param_deuda_ebitda" model="ags.parametro">
+        <field name="codigo">DEUDA_EBITDA</field>
+        <field name="name">Deuda financiera sobre EBITDA</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">91</field>
+        <field name="descripcion">Cuantos años de EBITDA harian falta para pagar la deuda financiera. El EBITDA se anualiza desde el acumulado del año, no multiplicando un mes por doce.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_deuda_ebitda</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Estimacion preliminar de agosto 2026: deuda financiera de RD$ 62.4 millones contra un EBITDA anualizado del orden de 22 millones da aproximadamente 2.8 veces. Por debajo de 3x se considera manejable, entre 3x y 4x exige atencion, por encima de 4x suele restringir el acceso a credito nuevo.</field>
+    </record>
+
+    <!-- ===== 3. RENTABILIDAD ===== -->
+
+    <record id="param_margen_operacional" model="ags.parametro">
+        <field name="codigo">MARGEN_OPERACIONAL</field>
+        <field name="name">Margen operacional</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">18</field>
+        <field name="descripcion">Resultado operacional sobre ventas, despues de costo de ventas, gastos operativos y depreciacion.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_margen_operacional</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Validado contra el estado de resultados de enero a junio 2026: resultado operativo de RD$ 11,311,058 sobre ingresos de 90,628,101, equivalente a 12.48%.</field>
+    </record>
+
+    <record id="param_margen_neto" model="ags.parametro">
+        <field name="codigo">MARGEN_NETO</field>
+        <field name="name">Margen neto</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">19</field>
+        <field name="descripcion">Resultado neto sobre ventas, despues de todos los gastos incluidos financieros e impuestos.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_margen_neto</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">La industria de papel y productos de papel reporto un margen neto de 1.31% en el primer trimestre de 2026. En este sector el margen neto de un digito bajo es lo normal, no un fracaso: por eso el control de merma y la disciplina de precio deciden entre ganar y perder.</field>
+    </record>
+
+    <record id="param_roa" model="ags.parametro">
+        <field name="codigo">ROA</field>
+        <field name="name">Retorno sobre activos (ROA)</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">92</field>
+        <field name="descripcion">Resultado neto anualizado sobre activo total. Que tan productivo es el capital invertido en activos.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_roa</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Referencias: Kimberly-Clark de Mexico 15.0% (FY2024, fabricante integrado lider), CMPC consolidado 2.88%. La banda de un convertidor deberia ubicarse entre ambos extremos.</field>
+    </record>
+
+    <record id="param_roe" model="ags.parametro">
+        <field name="codigo">ROE</field>
+        <field name="name">Retorno sobre patrimonio (ROE)</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">93</field>
+        <field name="descripcion">Resultado neto anualizado sobre patrimonio. El retorno que obtienen los socios sobre su capital.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">b</field>
+        <field name="metodo_tecnico">_calc_roe</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">La industria de papel reporto ROE de 2.97% en el primer trimestre 2026. Un ROE alto acompañado de endeudamiento alto no es merito operativo sino apalancamiento: leer ambos juntos.</field>
+    </record>
+
+    <!-- ===== 4. ACTIVIDAD ===== -->
+
+    <record id="param_dio" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_dio</field>
+        <field name="metodo_calculo">(Inventario al cierre / costo de ventas del periodo) x dias del periodo.</field>
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Declarar las cuentas de inventario en Configuracion contable</field>
+    </record>
+
+    <record id="param_dpo" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_dpo</field>
+        <field name="metodo_calculo">(CxP comercial al cierre / costo de ventas del periodo) x dias del periodo. Se excluye la deuda financiera: incluirla daria un DPO inflado que no refleja el credito real de proveedores.</field>
+        <field name="notas">Depende de que los acreedores financieros esten clasificados. Sin esa separacion, el DPO de AG Supply saldria distorsionado por RD$ 62.4 millones de prestamos que no son credito comercial.</field>
+    </record>
+
+    <record id="param_ccc" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_ccc</field>
+        <field name="metodo_calculo">DIO + DSO - DPO. Requiere que los tres esten calculados para el mismo periodo.</field>
+        <field name="notas">Referencia: Kimberly-Clark de Mexico opera con ciclo NEGATIVO de aproximadamente -8 dias, financiandose con sus proveedores. Un ciclo positivo alto significa capital propio inmovilizado en la operacion.</field>
+    </record>
+
+    <record id="param_rotacion_activos" model="ags.parametro">
+        <field name="codigo">ROTACION_ACTIVOS</field>
+        <field name="name">Rotacion de activos totales</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">94</field>
+        <field name="descripcion">Ventas anualizadas entre activo total. Cuantos pesos de venta genera cada peso de activo.</field>
+        <field name="unidad">ratio</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_rotacion_activos</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Un convertidor deberia tener rotacion mas alta que un fabricante integrado, porque no inmoviliza capital en maquina papelera. Esa es una ventaja estructural del modelo de negocio que este indicador hace visible.</field>
+    </record>
+
+</odoo>

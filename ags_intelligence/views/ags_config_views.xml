@@ -36,6 +36,24 @@
                                        nolabel="1"/>
                             </group>
                         </page>
+                        <page string="Balance">
+                            <div class="alert alert-info" role="alert">
+                                Estas cuentas alimentan los ratios de liquidez, solvencia y
+                                rentabilidad del marco de analisis financiero. Son saldos
+                                acumulados a una fecha, no movimientos del periodo.
+                            </div>
+                            <group>
+                                <field name="cuenta_inventario_ids" widget="many2many_tags"/>
+                                <field name="cuenta_efectivo_ids" widget="many2many_tags"/>
+                                <field name="cuenta_deuda_financiera_ids" widget="many2many_tags"/>
+                                <field name="cuenta_gasto_financiero_ids" widget="many2many_tags"/>
+                                <field name="cuenta_depreciacion_ids" widget="many2many_tags"/>
+                            </group>
+                            <div class="text-muted">
+                                Si la deuda financiera se deja vacia, se deriva de los terceros
+                                marcados como acreedor financiero en el contacto.
+                            </div>
+                        </page>
                         <page string="Categorias de producto">
                             <group>
                                 <field name="categoria_mp_ids" widget="many2many_tags"/>
