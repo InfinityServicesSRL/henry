@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ==================== MERCADO ==================== -->
+
+    <record id="view_ags_mercado_list" model="ir.ui.view">
+        <field name="name">ags.mercado.list</field>
+        <field name="model">ags.mercado</field>
+        <field name="arch" type="xml">
+            <list string="Mercados">
+                <field name="secuencia" widget="handle"/>
+                <field name="codigo"/>
+                <field name="name"/>
+                <field name="tipo"/>
+                <field name="plazo_esperado"/>
+                <field name="margen_objetivo"/>
+                <field name="partner_count"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_mercado_form" model="ir.ui.view">
+        <field name="name">ags.mercado.form</field>
+        <field name="model">ags.mercado</field>
+        <field name="arch" type="xml">
+            <form string="Mercado">
+                <header>
+                    <button name="action_asignar_por_etiqueta" type="object"
+                            string="Asignar clientes por etiqueta"
+                            invisible="not categoria_ids"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Un cliente pertenece a un solo mercado. Eso hace que los
+                        analisis por canal sean agregables, a diferencia de las
+                        etiquetas de Odoo, que mezclan geografia, importancia y canal.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Nombre del mercado"/></h1>
+                        <h3><field name="codigo" placeholder="CODIGO"/></h3>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="tipo"/>
+                            <field name="secuencia"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Referencias del canal">
+                            <field name="plazo_esperado"/>
+                            <field name="margen_objetivo"/>
+                            <field name="partner_count"/>
+                        </group>
+                    </group>
+                    <group string="Etiquetas equivalentes de Odoo">
+                        <field name="categoria_ids" widget="many2many_tags" nolabel="1"/>
+                    </group>
+                    <group>
+                        <field name="descripcion"/>
+                        <field name="notas"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_mercado" model="ir.actions.act_window">
+        <field name="name">Mercados</field>
+        <field name="res_model">ags.mercado</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ==================== META ==================== -->
+
+    <record id="view_ags_meta_list" model="ir.ui.view">
+        <field name="name">ags.meta.list</field>
+        <field name="model">ags.meta</field>
+        <field name="arch" type="xml">
+            <list string="Metas"
+                  decoration-success="semaforo == 'verde'"
+                  decoration-warning="semaforo == 'amarillo'"
+                  decoration-danger="semaforo == 'rojo'"
+                  decoration-muted="estado == 'borrador'">
+                <field name="anio"/>
+                <field name="mes"/>
+                <field name="parametro_id"/>
+                <field name="dimension"/>
+                <field name="vendedor_id" optional="show"/>
+                <field name="mercado_id" optional="show"/>
+                <field name="valor"/>
+                <field name="valor_minimo" optional="hide"/>
+                <field name="valor_real"/>
+                <field name="cumplimiento" widget="percentage"/>
+                <field name="semaforo" widget="badge"/>
+                <field name="estado" widget="badge"
+                       decoration-success="estado == 'cerrada'"
+                       decoration-info="estado == 'aprobada'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_meta_form" model="ir.ui.view">
+        <field name="name">ags.meta.form</field>
+        <field name="model">ags.meta</field>
+        <field name="arch" type="xml">
+            <form string="Meta">
+                <header>
+                    <button name="action_aprobar" type="object" string="Aprobar"
+                            class="btn-primary" invisible="estado != 'borrador'"/>
+                    <button name="action_volver_borrador" type="object"
+                            string="Volver a borrador" invisible="estado != 'aprobada'"/>
+                    <button name="action_cerrar" type="object" string="Cerrar periodo"
+                            invisible="estado != 'aprobada'"
+                            confirm="Cerrar la meta es irreversible: sus valores no se podran modificar. Confirma?"/>
+                    <button name="action_duplicar_anio" type="object"
+                            string="Duplicar al año siguiente"/>
+                    <field name="estado" widget="statusbar"
+                           statusbar_visible="borrador,aprobada,cerrada"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Cerrada" bg_color="text-bg-success"
+                            invisible="estado != 'cerrada'"/>
+                    <div class="oe_title">
+                        <h1><field name="display_name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Que se mide">
+                            <field name="parametro_id" options="{'no_create': True}"
+                                   readonly="estado == 'cerrada'"/>
+                            <field name="unidad"/>
+                            <field name="direccion" invisible="1"/>
+                            <field name="anio" readonly="estado == 'cerrada'"/>
+                            <field name="mes" readonly="estado == 'cerrada'"/>
+                            <field name="fecha_cierre"/>
+                        </group>
+                        <group string="A quien aplica">
+                            <field name="dimension" readonly="estado == 'cerrada'"/>
+                            <field name="vendedor_id" invisible="dimension != 'vendedor'"
+                                   required="dimension == 'vendedor'"
+                                   readonly="estado == 'cerrada'"/>
+                            <field name="mercado_id" invisible="dimension != 'mercado'"
+                                   required="dimension == 'mercado'"
+                                   readonly="estado == 'cerrada'"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Meta">
+                            <field name="valor" readonly="estado == 'cerrada'"/>
+                            <field name="valor_minimo" readonly="estado == 'cerrada'"/>
+                        </group>
+                        <group string="Resultado">
+                            <field name="valor_real"/>
+                            <field name="brecha"/>
+                            <field name="cumplimiento" widget="percentage"/>
+                            <field name="semaforo" widget="badge"/>
+                        </group>
+                    </group>
+                    <group string="Justificacion">
+                        <field name="justificacion" nolabel="1"
+                               placeholder="En que se basa esta meta: historico, capacidad instalada, plan comercial, presupuesto aprobado"
+                               readonly="estado == 'cerrada'"/>
+                    </group>
+                    <group string="Trazabilidad" invisible="estado == 'borrador'">
+                        <group>
+                            <field name="aprobada_por_id"/>
+                            <field name="fecha_aprobacion"/>
+                        </group>
+                        <group invisible="estado != 'cerrada'">
+                            <field name="cerrada_por_id"/>
+                            <field name="fecha_cierre_registro"/>
+                        </group>
+                    </group>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="dimension == 'global'">
+                        Las metas por vendedor y por mercado requieren el calculo
+                        dimensional, que se implementa en una fase posterior. Hasta
+                        entonces el resultado real debe registrarse manualmente.
+                    </div>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_meta_search" model="ir.ui.view">
+        <field name="name">ags.meta.search</field>
+        <field name="model">ags.meta</field>
+        <field name="arch" type="xml">
+            <search string="Buscar metas">
+                <field name="parametro_id"/>
+                <field name="vendedor_id"/>
+                <field name="mercado_id"/>
+                <field name="anio"/>
+                <filter name="f_incumplidas" string="Incumplidas"
+                        domain="[('semaforo','=','rojo')]"/>
+                <filter name="f_borrador" string="En borrador"
+                        domain="[('estado','=','borrador')]"/>
+                <filter name="f_aprobadas" string="Aprobadas"
+                        domain="[('estado','=','aprobada')]"/>
+                <separator/>
+                <filter name="f_vendedor" string="Por vendedor"
+                        domain="[('dimension','=','vendedor')]"/>
+                <filter name="f_mercado" string="Por mercado"
+                        domain="[('dimension','=','mercado')]"/>
+                <group expand="1" string="Agrupar por">
+                    <filter name="g_anio" string="Año" context="{'group_by':'anio'}"/>
+                    <filter name="g_param" string="Parametro"
+                            context="{'group_by':'parametro_id'}"/>
+                    <filter name="g_vendedor" string="Vendedor"
+                            context="{'group_by':'vendedor_id'}"/>
+                    <filter name="g_mercado" string="Mercado"
+                            context="{'group_by':'mercado_id'}"/>
+                    <filter name="g_estado" string="Estado"
+                            context="{'group_by':'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_ags_meta_pivot" model="ir.ui.view">
+        <field name="name">ags.meta.pivot</field>
+        <field name="model">ags.meta</field>
+        <field name="arch" type="xml">
+            <pivot string="Metas vs real">
+                <field name="mes" type="col"/>
+                <field name="parametro_id" type="row"/>
+                <field name="valor" type="measure"/>
+                <field name="valor_real" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_ags_meta" model="ir.actions.act_window">
+        <field name="name">Metas</field>
+        <field name="res_model">ags.meta</field>
+        <field name="view_mode">list,pivot,form</field>
+        <field name="context">{'search_default_g_anio': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Sin metas definidas</p>
+            <p>La meta es la tercera referencia del sistema, distinta de las otras dos:
+               el <b>baseline</b> dice donde se arranco, el <b>benchmark</b> que hace la
+               industria, y la <b>meta</b> que se decidio alcanzar.</p>
+        </field>
+    </record>
+
+    <!-- Campo de mercado en el contacto -->
+    <record id="view_partner_form_ags_mercado" model="ir.ui.view">
+        <field name="name">res.partner.form.ags.mercado</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="user_id" position="after">
+                <field name="ags_mercado_id"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

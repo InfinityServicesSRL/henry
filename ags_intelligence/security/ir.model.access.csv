@@ -10,3 +10,5 @@ access_ags_proyeccion_manager,ags.proyeccion.manager,model_ags_proyeccion,ags_in
 access_ags_config_manager,ags.config.manager,model_ags_config,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_regimen_manager,ags.regimen.manager,model_ags_regimen,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_aging_manager,ags.aging.manager,model_ags_aging,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_mercado_manager,ags.mercado.manager,model_ags_mercado,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_meta_manager,ags.meta.manager,model_ags_meta,ags_intelligence.group_ags_manager,1,1,1,1

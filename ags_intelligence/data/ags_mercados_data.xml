@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ================================================================
+         MERCADOS INICIALES
+
+         Derivados de las etiquetas de cliente que ya existen en Odoo,
+         separando el eje de CANAL de los de geografia e importancia.
+
+         Los plazos esperados provienen de la operacion real de AG Supply:
+         el sector hotelero trabaja con 45 a 60 dias de credito, mientras
+         los almacenes y supermercados operan a 30. Sin esa distincion un
+         DSO consolidado no permite evaluar nada.
+         ================================================================ -->
+
+    <record id="mercado_mayorista" model="ags.mercado">
+        <field name="codigo">MAY</field>
+        <field name="name">Mayorista / Distribuidor</field>
+        <field name="tipo">mayorista</field>
+        <field name="secuencia">10</field>
+        <field name="plazo_esperado">30</field>
+        <field name="descripcion">Distribuidores que revenden a detalle. Volumen alto, margen menor.</field>
+    </record>
+
+    <record id="mercado_almacenista" model="ags.mercado">
+        <field name="codigo">ALM</field>
+        <field name="name">Almacenista</field>
+        <field name="tipo">almacenista</field>
+        <field name="secuencia">20</field>
+        <field name="plazo_esperado">30</field>
+    </record>
+
+    <record id="mercado_supermercado" model="ags.mercado">
+        <field name="codigo">SUP</field>
+        <field name="name">Supermercado / Cadena</field>
+        <field name="tipo">supermercado</field>
+        <field name="secuencia">30</field>
+        <field name="plazo_esperado">30</field>
+        <field name="notas">Suelen exigir cumplimiento de entrega y penalizar incumplimientos. Conviene vigilar el OTIF de este canal por separado.</field>
+    </record>
+
+    <record id="mercado_horeca" model="ags.mercado">
+        <field name="codigo">HOR</field>
+        <field name="name">Hotelero y restaurantes</field>
+        <field name="tipo">horeca</field>
+        <field name="secuencia">40</field>
+        <field name="plazo_esperado">45</field>
+        <field name="notas">El sector hotelero dominicano opera con 45 a 60 dias de credito, no con 30. Evaluar su DSO contra el plazo de otros canales produce una lectura equivocada de morosidad.</field>
+    </record>
+
+    <record id="mercado_institucional" model="ags.mercado">
+        <field name="codigo">INS</field>
+        <field name="name">Institucional</field>
+        <field name="tipo">institucional</field>
+        <field name="secuencia">50</field>
+        <field name="plazo_esperado">45</field>
+    </record>
+
+    <record id="mercado_detalle" model="ags.mercado">
+        <field name="codigo">DET</field>
+        <field name="name">Detalle / Ruta</field>
+        <field name="tipo">detalle</field>
+        <field name="secuencia">60</field>
+        <field name="plazo_esperado">15</field>
+        <field name="notas">Canal de mayor margen y menor plazo, pero con costo de servir mas alto: mas visitas, entregas pequenas, mas flete por peso despachado.</field>
+    </record>
+
+    <record id="mercado_exportacion" model="ags.mercado">
+        <field name="codigo">EXP</field>
+        <field name="name">Exportacion</field>
+        <field name="tipo">exportacion</field>
+        <field name="secuencia">70</field>
+        <field name="plazo_esperado">30</field>
+    </record>
+
+</odoo>

@@ -63,6 +63,23 @@
          ============================================================ -->
 
     <!-- Antiguedad de saldos -->
+    <menuitem id="menu_ags_metas_root"
+            name="Metas"
+            parent="menu_ags_root"
+            sequence="15"/>
+
+    <menuitem id="menu_ags_meta"
+            name="Metas de gestion"
+            parent="menu_ags_metas_root"
+            action="action_ags_meta"
+            sequence="10"/>
+
+    <menuitem id="menu_ags_mercado"
+            name="Mercados"
+            parent="menu_ags_metas_root"
+            action="action_ags_mercado"
+            sequence="20"/>
+
     <menuitem id="menu_ags_cartera"
             name="Cartera"
             parent="menu_ags_root"

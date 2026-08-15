@@ -10,6 +10,8 @@ from . import ags_medicion
 from . import ags_estacionalidad
 from . import ags_regimen
 from . import ags_aging
+from . import ags_mercado
+from . import ags_meta
 # Fase 2B - Configuracion y calculo
 from . import ags_config
 from . import res_partner
