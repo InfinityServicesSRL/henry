@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_ags_alerta_list" model="ir.ui.view">
+        <field name="name">ags.alerta.list</field>
+        <field name="model">ags.alerta</field>
+        <field name="arch" type="xml">
+            <list string="Alertas"
+                  decoration-danger="prioridad == '1' and estado in ['nueva','enviada']"
+                  decoration-warning="prioridad == '2' and estado in ['nueva','enviada']"
+                  decoration-muted="estado in ['atendida','descartada']">
+                <field name="fecha_periodo"/>
+                <field name="prioridad" widget="badge"
+                       decoration-danger="prioridad == '1'"
+                       decoration-warning="prioridad == '2'"/>
+                <field name="tipo"/>
+                <field name="titulo"/>
+                <field name="responsable_id" optional="show"/>
+                <field name="periodos_seguidos" optional="hide"/>
+                <field name="estado" widget="badge"
+                       decoration-success="estado == 'atendida'"
+                       decoration-info="estado == 'enviada'"/>
+                <button name="action_atendida" type="object" icon="fa-check"
+                        title="Marcar atendida" invisible="estado in ['atendida','descartada']"/>
+                <button name="action_descartada" type="object" icon="fa-times"
+                        title="Descartar" invisible="estado in ['atendida','descartada']"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_alerta_form" model="ir.ui.view">
+        <field name="name">ags.alerta.form</field>
+        <field name="model">ags.alerta</field>
+        <field name="arch" type="xml">
+            <form string="Alerta">
+                <header>
+                    <button name="action_atendida" type="object" string="Marcar atendida"
+                            class="btn-primary" invisible="estado in ['atendida','descartada']"/>
+                    <button name="action_descartada" type="object" string="Descartar"
+                            invisible="estado in ['atendida','descartada']"/>
+                    <field name="estado" widget="statusbar"
+                           statusbar_visible="nueva,enviada,atendida"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="titulo" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="tipo"/>
+                            <field name="prioridad"/>
+                            <field name="fecha_periodo"/>
+                            <field name="periodos_seguidos"/>
+                        </group>
+                        <group>
+                            <field name="responsable_id"/>
+                            <field name="parametro_id"/>
+                            <field name="meta_id" invisible="not meta_id"/>
+                            <field name="partner_id" invisible="not partner_id"/>
+                            <field name="fecha_envio"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="valor"/>
+                            <field name="valor_referencia"/>
+                        </group>
+                    </group>
+                    <group string="Detalle">
+                        <field name="detalle" nolabel="1" readonly="1"/>
+                    </group>
+                    <group string="Que revisar" invisible="not recomendacion">
+                        <field name="recomendacion" nolabel="1" readonly="1"/>
+                    </group>
+                    <group string="Nota de cierre">
+                        <field name="nota_cierre" nolabel="1"
+                               placeholder="Que se hizo o por que se descarta"/>
+                    </group>
+                    <field name="clave" invisible="1"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_alerta_search" model="ir.ui.view">
+        <field name="name">ags.alerta.search</field>
+        <field name="model">ags.alerta</field>
+        <field name="arch" type="xml">
+            <search string="Buscar alertas">
+                <field name="titulo"/>
+                <field name="responsable_id"/>
+                <field name="parametro_id"/>
+                <filter name="f_pendientes" string="Pendientes"
+                        domain="[('estado','in',['nueva','enviada'])]"/>
+                <filter name="f_altas" string="Prioridad alta"
+                        domain="[('prioridad','=','1')]"/>
+                <filter name="f_persistentes" string="Persistentes"
+                        domain="[('periodos_seguidos','&gt;=',3)]"/>
+                <separator/>
+                <filter name="f_mias" string="Mis alertas"
+                        domain="[('responsable_id','=',uid)]"/>
+                <group expand="1" string="Agrupar por">
+                    <filter name="g_periodo" string="Periodo"
+                            context="{'group_by':'fecha_periodo'}"/>
+                    <filter name="g_tipo" string="Tipo" context="{'group_by':'tipo'}"/>
+                    <filter name="g_prioridad" string="Prioridad"
+                            context="{'group_by':'prioridad'}"/>
+                    <filter name="g_resp" string="Responsable"
+                            context="{'group_by':'responsable_id'}"/>
+                    <filter name="g_estado" string="Estado"
+                            context="{'group_by':'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_alerta" model="ir.actions.act_window">
+        <field name="name">Alertas</field>
+        <field name="res_model">ags.alerta</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_f_pendientes': 1, 'search_default_g_prioridad': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Sin alertas pendientes</p>
+            <p>Las alertas se generan a inicios de mes sobre el periodo cerrado.
+               Solo se emiten sobre indicadores con serie confiable: alertar sobre
+               un dato que aun no significa nada ensena a ignorar las alertas.</p>
+        </field>
+    </record>
+
+</odoo>

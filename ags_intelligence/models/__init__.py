@@ -14,6 +14,7 @@ from . import ags_mercado
 from . import ags_meta
 from . import ags_rentabilidad
 from . import ags_cockpit
+from . import ags_alerta
 # Fase 2B - Configuracion y calculo
 from . import ags_config
 from . import res_partner

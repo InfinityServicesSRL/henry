@@ -69,6 +69,12 @@
          ============================================================ -->
 
     <!-- Antiguedad de saldos -->
+    <menuitem id="menu_ags_alerta"
+            name="Alertas"
+            parent="menu_ags_root"
+            action="action_ags_alerta"
+            sequence="5"/>
+
     <menuitem id="menu_ags_metas_root"
             name="Metas"
             parent="menu_ags_root"
