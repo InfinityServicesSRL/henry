@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "AG Intelligence",
-    "version": "18.0.5.2.0",
+    "version": "18.0.6.0.0",
     "category": "Productivity",
     "summary": "Analisis financiero, proyeccion de demanda e inteligencia comercial para AG Supply",
     "description": """
@@ -68,6 +68,7 @@ como referencia en un sistema de gestion real.
         "views/purchase_order_views.xml",
         "views/ags_meta_views.xml",
         "views/ags_rentabilidad_views.xml",
+        "views/ags_cockpit_views.xml",
         "views/ags_menus.xml",
         # Datos semilla
         "data/ags_fuentes_data.xml",
@@ -88,6 +89,13 @@ como referencia en un sistema de gestion real.
         "data/ags_cron.xml",
         "data/ags_cron_aging.xml",
     ],
+    "assets": {
+        "web.assets_backend": [
+            "ags_intelligence/static/src/cockpit/cockpit.scss",
+            "ags_intelligence/static/src/cockpit/cockpit.js",
+            "ags_intelligence/static/src/cockpit/cockpit.xml",
+        ],
+    },
     "application": True,
     "installable": True,
 }

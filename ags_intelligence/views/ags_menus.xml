@@ -11,11 +11,17 @@
             groups="ags_intelligence.group_ags_manager"/>
 
     <!-- Pantalla de inicio -->
+    <menuitem id="menu_ags_cockpit"
+            name="Cockpit"
+            parent="menu_ags_root"
+            action="action_ags_cockpit"
+            sequence="1"/>
+
     <menuitem id="menu_ags_inicio"
             name="Inicio"
             parent="menu_ags_root"
             action="action_ags_welcome"
-            sequence="1"/>
+            sequence="2"/>
 
     <!-- ============================================================
          SISTEMA DE PARAMETROS (Fase 2A)

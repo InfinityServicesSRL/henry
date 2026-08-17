@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="ags_intelligence.Cockpit">
+    <div class="o_ags_cockpit h-100 overflow-auto">
+
+        <!-- Encabezado -->
+        <div class="o_ags_barra d-flex align-items-center justify-content-between px-4 py-3">
+            <div class="d-flex align-items-center gap-3">
+                <h4 class="mb-0 fw-bold">Cockpit de Gerencia</h4>
+                <span class="o_ags_periodo" t-if="state.datos">
+                    <t t-esc="state.datos.periodo"/>
+                </span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-light" t-on-click="() => this.mover(1)"
+                        title="Mes anterior">
+                    <i class="fa fa-chevron-left"/>
+                </button>
+                <button class="btn btn-sm btn-light" t-on-click="() => this.mover(-1)"
+                        t-att-disabled="state.mes === 0" title="Mes siguiente">
+                    <i class="fa fa-chevron-right"/>
+                </button>
+                <button class="btn btn-sm btn-primary" t-on-click="recalcular"
+                        t-att-disabled="state.recalculando">
+                    <i class="fa fa-refresh me-1" t-att-class="{ 'fa-spin': state.recalculando }"/>
+                    Recalcular
+                </button>
+            </div>
+        </div>
+
+        <!-- Cargando -->
+        <div t-if="state.cargando" class="d-flex justify-content-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando</span>
+            </div>
+        </div>
+
+        <div t-else="" class="p-4">
+
+            <!-- ZONA 1 · EXCEPCIONES -->
+            <div class="o_ags_excepciones mb-4">
+                <div t-if="!state.datos.excepciones.length"
+                     class="o_ags_todo_bien d-flex align-items-center gap-2 px-3 py-2">
+                    <i class="fa fa-check-circle"/>
+                    <span>Sin excepciones este periodo. Todos los indicadores dentro de rango.</span>
+                </div>
+
+                <div t-else="">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="o_ags_titulo_zona">Requiere atencion</span>
+                            <span class="badge text-bg-danger" t-esc="state.datos.n_excepciones"/>
+                        </div>
+                        <button class="btn btn-sm btn-link p-0"
+                                t-on-click="() => state.mostrarExcepciones = !state.mostrarExcepciones">
+                            <t t-if="state.mostrarExcepciones">Ocultar</t>
+                            <t t-else="">Mostrar</t>
+                        </button>
+                    </div>
+
+                    <div t-if="state.mostrarExcepciones" class="d-flex flex-column gap-1">
+                        <div t-foreach="state.datos.excepciones" t-as="e" t-key="e_index"
+                             class="o_ags_excepcion d-flex align-items-start gap-3 px-3 py-2"
+                             t-att-class="'o_ags_' + e.gravedad"
+                             t-on-click="() => this.abrir(e)">
+                            <span class="o_ags_marca"/>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold" t-esc="e.titulo"/>
+                                <div class="o_ags_detalle" t-esc="e.detalle"/>
+                            </div>
+                            <i class="fa fa-angle-right o_ags_flecha"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZONA 2 · VENTAS DEL MES -->
+            <div class="o_ags_tarjeta mb-4 p-3">
+                <div class="d-flex align-items-baseline justify-content-between mb-3">
+                    <span class="o_ags_titulo_zona">Ventas del mes</span>
+                    <div class="text-end">
+                        <span class="o_ags_cifra_grande" t-esc="state.datos.ventas.real"/>
+                        <span t-if="state.datos.ventas.hay_meta" class="o_ags_detalle ms-2">
+                            de <t t-esc="state.datos.ventas.meta"/>
+                            · <t t-esc="state.datos.ventas.cumplimiento"/>%
+                        </span>
+                    </div>
+                </div>
+                <div t-if="!state.datos.ventas.hay_meta" class="o_ags_detalle mb-2">
+                    Sin metas aprobadas para este periodo.
+                </div>
+                <table class="table table-sm mb-0 o_ags_tabla">
+                    <tbody>
+                        <tr t-foreach="state.datos.ventas.por_vendedor" t-as="v" t-key="v_index">
+                            <td t-esc="v.nombre"/>
+                            <td class="text-end" t-esc="v.real"/>
+                            <td class="text-end o_ags_detalle" t-esc="v.meta"/>
+                            <td class="text-end" style="width: 90px">
+                                <span t-if="v.meta_num" class="badge"
+                                      t-att-class="v.cumplimiento >= 100 ? 'text-bg-success' : (v.cumplimiento >= 80 ? 'text-bg-warning' : 'text-bg-danger')">
+                                    <t t-esc="v.cumplimiento"/>%
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ZONA 3 · BLOQUE EJECUTIVO -->
+            <div t-foreach="porEje" t-as="g" t-key="g.eje" class="mb-4">
+                <div class="o_ags_titulo_zona mb-2" t-esc="g.nombre"/>
+                <div class="row g-3">
+                    <div t-foreach="g.tarjetas" t-as="t" t-key="t.codigo"
+                         class="col-12 col-sm-6 col-lg-3">
+                        <div class="o_ags_kpi h-100 p-3" t-on-click="() => this.abrirParametro(t)">
+                            <div class="d-flex align-items-start justify-content-between mb-2">
+                                <span class="o_ags_kpi_etiqueta" t-esc="t.etiqueta"/>
+                                <span class="badge" t-att-class="claseSemaforo(t.semaforo)"
+                                      t-if="t.semaforo !== 'sin_dato'">
+                                    <t t-if="t.semaforo === 'verde'">En rango</t>
+                                    <t t-elif="t.semaforo === 'amarillo'">Atencion</t>
+                                    <t t-else="">Fuera</t>
+                                </span>
+                            </div>
+                            <div class="o_ags_kpi_valor" t-att-class="{ 'o_ags_sin_dato': !t.hay_dato }"
+                                 t-esc="t.valor"/>
+                            <div class="d-flex align-items-center justify-content-between mt-2">
+                                <span t-if="t.hay_dato" class="o_ags_detalle"
+                                      t-att-class="claseTendencia(t.tendencia)">
+                                    <i class="fa" t-att-class="iconoTendencia(t.tendencia)"/>
+                                    <t t-if="t.variacion"><t t-esc="Math.abs(t.variacion)"/>%</t>
+                                    <t t-else="">estable</t>
+                                </span>
+                                <span t-if="t.objetivo" class="o_ags_detalle">
+                                    meta <t t-esc="t.objetivo"/>
+                                </span>
+                            </div>
+                            <div t-if="t.atipico" class="o_ags_aviso mt-2">
+                                <i class="fa fa-exclamation-triangle me-1"/>Periodo atipico
+                            </div>
+                            <div t-elif="t.madurez === 'con_reservas'" class="o_ags_aviso mt-2">
+                                <i class="fa fa-info-circle me-1"/>Dato con reservas
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</t>
+
+</templates>

@@ -1,0 +1,157 @@
+// Cockpit de Gerencia
+//
+// El cockpit vive dentro de Odoo, asi que hereda su lenguaje visual en lugar
+// de imponer uno propio. La unica libertad que se toma es la jerarquia: la
+// zona de excepciones usa una barra de color a la izquierda en lugar de una
+// alerta completa, para que la lista se lea como un indice de pendientes y
+// no como una sucesion de alarmas.
+
+.o_ags_cockpit {
+    background-color: #f9fafb;
+
+    .o_ags_barra {
+        background-color: #ffffff;
+        border-bottom: 1px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .o_ags_periodo {
+        font-size: 0.8125rem;
+        color: #6c757d;
+        text-transform: capitalize;
+    }
+
+    .o_ags_titulo_zona {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #6c757d;
+    }
+
+    .o_ags_detalle {
+        font-size: 0.8125rem;
+        color: #6c757d;
+    }
+
+    // ---------- Excepciones ----------
+
+    .o_ags_todo_bien {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-left: 3px solid #28a745;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: #495057;
+
+        i { color: #28a745; }
+    }
+
+    .o_ags_excepcion {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.12s ease;
+
+        &:hover {
+            background-color: #f1f3f5;
+
+            .o_ags_flecha { opacity: 1; }
+        }
+
+        .o_ags_marca {
+            width: 3px;
+            align-self: stretch;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .o_ags_flecha {
+            color: #adb5bd;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            align-self: center;
+        }
+
+        &.o_ags_danger .o_ags_marca { background-color: #dc3545; }
+        &.o_ags_warning .o_ags_marca { background-color: #ffc107; }
+        &.o_ags_info .o_ags_marca { background-color: #17a2b8; }
+    }
+
+    // ---------- Tarjetas ----------
+
+    .o_ags_tarjeta {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+    }
+
+    .o_ags_cifra_grande {
+        font-size: 1.375rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: #212529;
+    }
+
+    .o_ags_tabla {
+        font-size: 0.875rem;
+
+        td {
+            padding: 0.3rem 0.5rem;
+            border-color: #f1f3f5;
+            font-variant-numeric: tabular-nums;
+        }
+
+        tr:last-child td { border-bottom: 0; }
+    }
+
+    // ---------- Indicadores ----------
+
+    .o_ags_kpi {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+        &:hover {
+            border-color: #adb5bd;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+    }
+
+    .o_ags_kpi_etiqueta {
+        font-size: 0.8125rem;
+        color: #495057;
+        line-height: 1.2;
+    }
+
+    .o_ags_kpi_valor {
+        font-size: 1.5rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+        color: #212529;
+
+        &.o_ags_sin_dato {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #adb5bd;
+        }
+    }
+
+    .o_ags_aviso {
+        font-size: 0.75rem;
+        color: #856404;
+        background-color: #fff8e1;
+        border-radius: 3px;
+        padding: 0.2rem 0.4rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_ags_cockpit * { transition: none !important; }
+}
