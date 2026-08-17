@@ -566,9 +566,11 @@ class AgsCalculador(models.AbstractModel):
             total += saldo
             venc = l.date_maturity or l.date
             dias = (hasta - venc).days
+            # El saldo por vencer va SOLO a corriente. Antes se sumaba
+            # tambien al tramo 0-30, lo que hacia que los tramos superaran
+            # el total y el porcentaje pasara de 100.
             if dias <= 0:
                 corriente += saldo
-                tramos["0-30"] += saldo
             elif dias <= 30:
                 tramos["0-30"] += saldo
             elif dias <= 60:
@@ -579,10 +581,12 @@ class AgsCalculador(models.AbstractModel):
                 tramos["90+"] += saldo
         if not total:
             return False
-        pct = (corriente / total) * 100.0
-        nota = "Total: %s | 0-30: %s | 31-60: %s | 61-90: %s | 90+: %s" % (
-            round(total, 0), round(tramos["0-30"], 0), round(tramos["31-60"], 0),
-            round(tramos["61-90"], 0), round(tramos["90+"], 0))
+        pct = min((corriente / total) * 100.0, 100.0)
+        nota = ("Total: %s | Por vencer: %s | 1-30: %s | 31-60: %s | "
+                "61-90: %s | 90+: %s") % (
+            round(total, 0), round(corriente, 0), round(tramos["0-30"], 0),
+            round(tramos["31-60"], 0), round(tramos["61-90"], 0),
+            round(tramos["90+"], 0))
         return self._registrar(parametro, pct, hasta, notas=nota)
 
     @api.model

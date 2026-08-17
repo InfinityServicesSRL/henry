@@ -472,12 +472,14 @@ class AgsConfig(models.Model):
     # Si el plan de cuentas cambia, basta actualizar estas listas y volver a
     # ejecutar la autoconfiguracion desde el boton de la vista.
     CODIGOS_DEUDA_FINANCIERA = [
-        "21030100",  # CXP Sup. Financ. Personas Juridicas RD$
-        "21030101",  # CXP Sup. Financ. Personas Juridicas US$
-        "21030102",  # Prima CXP Sup. Financ. Personas Juridicas
-        "21030201",  # CXP Sup. Financ. Personas Fisicas RD$
-        "21030202",  # CXP Sup. Financ. Personas Fisicas US$
-        "21030203",  # Prima CXP Sup. Financ. Personas Fisicas
+        # Codigos verificados por ID en agosto 2026. Son 2102xx y no 2103xx:
+        # las cuentas 2103xx son Vacation Payable e ITBIS retenido.
+        "21020100",  # CXP Sup. Financ. Personas Juridicas RD$
+        "21020101",  # CXP Sup. Financ. Personas Juridicas US$
+        "21020102",  # Prima CXP Sup. Financ. Personas Juridicas
+        "21020200",  # CXP Sup. Financ. Personas Fisicas RD$
+        "21020201",  # CXP Sup. Financ. Personas Fisicas US$
+        "21020202",  # Prima CXP Sup. Financ. Personas Fisicas
         "21010205",  # Tarjeta de credito 0122
         "21010206",  # Tarjeta de credito 1103
         "21010207",  # Tarjeta de credito 5100
