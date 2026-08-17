@@ -13,6 +13,8 @@
                             string="Autoconfigurar cuentas" class="btn-primary"/>
                     <button name="action_validar" type="object"
                             string="Validar configuracion"/>
+                    <button name="action_diagnosticar_traducciones" type="object"
+                            string="Revisar nombres de cuentas"/>
                 </header>
                 <sheet>
                     <div class="oe_title">

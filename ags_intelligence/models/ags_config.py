@@ -330,6 +330,31 @@ class AgsConfig(models.Model):
     # Resolucion de cuentas
     # ------------------------------------------------------------------
 
+    def _idioma_contable(self):
+        """Idioma en que estan nombradas las cuentas de AG Supply.
+
+        POR QUE IMPORTA: el plan de cuentas tiene nombres distintos en cada
+        idioma, y las traducciones al ingles no son fieles. Ejemplos reales
+        verificados en agosto 2026:
+
+          31040100  es_DO "Resultados Acumulados"  vs  en_US "Legal Reserve"
+          11050200  es_DO "Inventario de Materia Prima"
+                    en_US "Allowance for doubtful accounts receivable"
+          61010400  es_DO "Sueldos y Salarios"
+                    en_US "Servicios profesionales, ARS y compensacion"
+
+        Leer el nombre en ingles llevo a tres conclusiones equivocadas en el
+        analisis: creer que una cuenta de resultados acumulados era una
+        reserva legal, que el inventario de materia prima era una provision
+        de cuentas por cobrar, y que la nomina incluia servicios
+        profesionales.
+
+        Cuando el modulo detecta cuentas por palabras en su nombre -- como la
+        mano de obra directa -- tiene que hacerlo sobre el nombre en espanol.
+        """
+        self.ensure_one()
+        return "es_DO"
+
     def _cuentas_por_tipo(self, tipos):
         """Devuelve las cuentas de la compania que coinciden con los tipos."""
         self.ensure_one()
@@ -363,14 +388,24 @@ class AgsConfig(models.Model):
         return todas - self.cuentas_ingreso()
 
     def cuentas_mod(self):
-        """Mano de obra directa dentro del costo de ventas."""
+        """Mano de obra directa dentro del costo de ventas.
+
+        La deteccion es por palabras en el nombre de la cuenta, y se hace
+        sobre el nombre en ESPANOL de forma explicita: si se leyera el nombre
+        en el idioma del usuario, un usuario en ingles no encontraria ninguna
+        coincidencia y la mano de obra saldria en cero sin aviso.
+        """
         self.ensure_one()
         if self.cuenta_mod_ids:
             return self.cuenta_mod_ids
         claves = ["SUELDO", "SALARIO", "INCENTIVO", "HORAS EXTRA",
-                  "VACACIONES", "ATENCIONES", "NAVIDAD", "BONIFICA"]
+                  "VACACIONES", "ATENCIONES", "NAVIDAD", "BONIFICA",
+                  "REGALIA", "PRESTACIONES", "TSS", "INFOTEP"]
+        lang = self._idioma_contable()
         return self.cuentas_costo_venta().filtered(
-            lambda c: any(k in (c.name or "").upper() for k in claves)
+            lambda c: any(
+                k in (c.with_context(lang=lang).name or "").upper()
+                for k in claves)
         )
 
     def cuentas_costo_venta(self):
@@ -530,6 +565,56 @@ class AgsConfig(models.Model):
                           % ", ".join(r["no_encontradas"]))
         raise UserError(
             _("Autoconfiguracion completada\n\n%s") % "\n".join(lineas))
+
+    def diagnosticar_traducciones(self, umbral=10):
+        """Cuentas cuyo nombre en ingles difiere del espanol.
+
+        Existe porque tres conclusiones del analisis de agosto 2026 fueron
+        equivocadas por leer el nombre en ingles de una cuenta. Las
+        traducciones del plan de cuentas de AG Supply no son fieles: hay
+        casos donde el nombre en ingles describe una cuenta completamente
+        distinta.
+
+        Devuelve las divergencias para que quien interprete un saldo sepa
+        que el nombre que esta leyendo puede no corresponder.
+        """
+        self.ensure_one()
+        salida = []
+        for c in self.env["account.account"].search([
+                ("company_ids", "in", self.company_id.id)]):
+            es = (c.with_context(lang="es_DO").name or "").strip()
+            en = (c.with_context(lang="en_US").name or "").strip()
+            if not es or not en or es == en:
+                continue
+            # Divergencia real: no comparten ni la primera palabra significativa
+            pe = {w for w in es.upper().split() if len(w) > 3}
+            pn = {w for w in en.upper().split() if len(w) > 3}
+            if pe & pn:
+                continue
+            salida.append({
+                "code": c.code, "es": es, "en": en,
+                "account_type": c.account_type,
+            })
+        return salida
+
+    def action_diagnosticar_traducciones(self):
+        """Boton de la vista: muestra las cuentas con nombres divergentes."""
+        self.ensure_one()
+        d = self.diagnosticar_traducciones()
+        if not d:
+            raise UserError(_("Todas las cuentas tienen nombres coherentes "
+                              "entre espanol e ingles."))
+        lineas = ["%s\n   es: %s\n   en: %s" % (x["code"], x["es"], x["en"])
+                  for x in d[:25]]
+        extra = ""
+        if len(d) > 25:
+            extra = _("\n\nY %s cuentas mas.") % (len(d) - 25)
+        raise UserError(
+            _("%(n)s cuentas tienen nombres que no coinciden entre idiomas.\n\n"
+              "El modulo lee siempre el nombre en espanol. Esta lista sirve "
+              "para saber cuando el nombre en ingles puede confundir a quien "
+              "interprete un reporte.\n\n%(l)s%(e)s") % {
+                "n": len(d), "l": "\n\n".join(lineas), "e": extra})
 
     def action_validar(self):
         """Comprueba que la configuracion permita calcular, y avisa si no."""
