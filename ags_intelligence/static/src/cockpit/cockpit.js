@@ -235,6 +235,21 @@ export class AgsCockpit extends Component {
                 "ags.cockpit", "serie", [codigo, 24, this.fechaConsulta()]);
         }
         this.state.serieAbierta = codigo;
+        // Aunque el panel se dibuja junto a su eje, la tarjeta pulsada puede
+        // ser de la ultima fila y el grafico nacer justo debajo del borde
+        // visible. Dos frames de espera: uno para que OWL renderice, otro
+        // para que el navegador calcule la posicion definitiva.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            const el = document.querySelector(".o_ags_serie");
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+        }));
+    }
+
+    /** El panel pertenece al eje de la tarjeta que lo abrio. */
+    serieEnEje(grupo) {
+        return grupo.tarjetas.some((t) => t.codigo === this.state.serieAbierta);
     }
 
     get serieActual() {
