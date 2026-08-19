@@ -6,7 +6,7 @@ from odoo.tools.misc import format_date
 # Version del contrato de datos que consume el cliente OWL.
 # Si cambia la forma del payload, sube el numero y el front puede advertir en
 # lugar de romperse en silencio contra una estructura que ya no existe.
-CONTRATO = 1
+CONTRATO = 2
 
 # Indicadores del bloque ejecutivo, en el orden en que se muestran.
 # Diez es el limite deliberado: con 54 calculadores disponibles, un cockpit
@@ -48,6 +48,9 @@ ORDEN_BLOQUES = [
     "cockpit",
 ]
 
+# Filtros que el cockpit acepta. Cada uno declara hasta donde llega.
+FILTROS = ("vendedor_id", "mercado_id", "almacen_id")
+
 
 class AgsCockpit(models.AbstractModel):
     """Datos del cockpit de gerencia.
@@ -69,6 +72,15 @@ class AgsCockpit(models.AbstractModel):
          (actual, baseline, objetivo, delta contra cada uno). Responden las dos
          preguntas que importan: mejore respecto a donde arranque, y donde
          estoy frente al mercado.
+
+    ALCANCE DE LOS FILTROS. ags.medicion guarda valores agregados de toda la
+    empresa: no tiene dimension de vendedor, mercado ni almacen. Por eso un
+    filtro solo puede afectar de verdad a las ventas, las metas, la
+    rentabilidad por cliente y la parte de la banda que vive en almacenes.
+    Cada zona declara su alcance en el payload y el front sella las que no
+    responden al filtro. Un filtro que se aplica a medias y no lo dice hace
+    mas dano que no tener filtro: el gerente cree estar viendo a un vendedor
+    y esta viendo a la empresa entera.
 
     NINGUN umbral vive en este archivo. Todo semaforo sale de
     ags.benchmark.evaluar_valor() respetando ags.parametro.direccion. Cambiar
@@ -150,18 +162,122 @@ class AgsCockpit(models.AbstractModel):
         }
 
     # ------------------------------------------------------------------
+    # Filtros
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _normalizar(self, filtros):
+        """Limpia lo que llega del cliente y descarta lo que no exista.
+
+        Un id que ya no existe se ignora en lugar de romper: el usuario pudo
+        dejar la pantalla abierta mientras alguien archivaba un almacen.
+        """
+        salida = {}
+        for clave in FILTROS:
+            valor = (filtros or {}).get(clave)
+            if not valor:
+                continue
+            try:
+                salida[clave] = int(valor)
+            except (TypeError, ValueError):
+                continue
+        modelos = {
+            "vendedor_id": "res.users",
+            "mercado_id": "ags.mercado",
+            "almacen_id": "stock.warehouse",
+        }
+        for clave, modelo in modelos.items():
+            if clave in salida:
+                registro = self.env[modelo].browse(salida[clave]).exists()
+                if not registro:
+                    salida.pop(clave)
+        return salida
+
+    @api.model
+    def opciones_filtros(self):
+        """Valores para los selectores, acotados a lo que tiene sentido elegir.
+
+        Los vendedores se sacan de quien realmente facturo en los ultimos doce
+        meses, no de la lista completa de usuarios: un desplegable con sesenta
+        nombres de los que cinco venden no es un filtro, es un obstaculo.
+        """
+        desde = self._cierre_mes(atras=12).replace(day=1)
+        grupos = self.env["account.move"]._read_group(
+            [
+                ("move_type", "=", "out_invoice"),
+                ("state", "=", "posted"),
+                ("invoice_date", ">=", desde),
+                ("invoice_user_id", "!=", False),
+            ],
+            groupby=["invoice_user_id"],
+        )
+        vendedores = [
+            {"id": g[0].id, "nombre": g[0].name}
+            for g in grupos if g[0]
+        ]
+        vendedores.sort(key=lambda v: v["nombre"])
+        return {
+            "vendedores": vendedores,
+            "mercados": [
+                {"id": m.id, "nombre": m.name}
+                for m in self.env["ags.mercado"].search([], order="secuencia, name")
+            ],
+            "almacenes": [
+                {"id": w.id, "nombre": w.name}
+                for w in self.env["stock.warehouse"].search([], order="name")
+            ],
+        }
+
+    @api.model
+    def _etiquetas_filtros(self, filtros):
+        """Como se leen los filtros activos en pantalla."""
+        etiquetas = []
+        if filtros.get("vendedor_id"):
+            etiquetas.append({
+                "clave": "vendedor_id",
+                "campo": _("Vendedor"),
+                "valor": self.env["res.users"].browse(filtros["vendedor_id"]).name,
+            })
+        if filtros.get("mercado_id"):
+            etiquetas.append({
+                "clave": "mercado_id",
+                "campo": _("Mercado"),
+                "valor": self.env["ags.mercado"].browse(filtros["mercado_id"]).name,
+            })
+        if filtros.get("almacen_id"):
+            etiquetas.append({
+                "clave": "almacen_id",
+                "campo": _("Almacen"),
+                "valor": self.env["stock.warehouse"].browse(filtros["almacen_id"]).name,
+            })
+        return etiquetas
+
+    @api.model
+    def _dominio_facturas(self, filtros):
+        """Parte dimensional del dominio de facturas de venta."""
+        dominio = []
+        if filtros.get("vendedor_id"):
+            dominio.append(("invoice_user_id", "=", filtros["vendedor_id"]))
+        if filtros.get("mercado_id"):
+            dominio.append(("partner_id.ags_mercado_id", "=", filtros["mercado_id"]))
+        return dominio
+
+    # ------------------------------------------------------------------
     # Zona 0: banda de confianza
     # ------------------------------------------------------------------
 
     @api.model
     def _hallazgo(self, clave, codigo_param, etiqueta, cantidad, modelo,
-                  dominio, gravedad_base="warning"):
+                  dominio, gravedad_base="warning", es_global=False):
         """Arma un hallazgo de la banda y decide su gravedad.
 
         Si existe un parametro de Salud del ERP con benchmark cargado, manda
         el benchmark (D1). Si no lo hay, la regla minima es binaria: o esta
         limpio o no lo esta. Deliberadamente conservadora, porque el proposito
         de la banda es advertir, no tranquilizar.
+
+        es_global marca los hallazgos que no responden al filtro de almacen,
+        porque no viven en un almacen: un asiento en borrador es de la empresa.
         """
         gravedad = "ok" if not cantidad else gravedad_base
         semaforo = "sin_dato"
@@ -184,10 +300,11 @@ class AgsCockpit(models.AbstractModel):
             "semaforo": semaforo,
             "modelo": modelo,
             "dominio": dominio,
+            "es_global": es_global,
         }
 
     @api.model
-    def _banda_confianza(self, cierre):
+    def _banda_confianza(self, cierre, filtros):
         """Que tan creible es el resto de la pantalla.
 
         Se mide contra el estado ACTUAL del ERP, no contra la medicion
@@ -202,22 +319,32 @@ class AgsCockpit(models.AbstractModel):
         hoy = fields.Date.context_today(self)
         limite_oc = hoy - relativedelta(days=15)
 
+        almacen = False
+        if filtros.get("almacen_id"):
+            almacen = self.env["stock.warehouse"].browse(filtros["almacen_id"])
+        por_almacen = (
+            [("picking_type_id.warehouse_id", "=", almacen.id)] if almacen else []
+        )
+
         dom_asientos = [("state", "=", "draft"), ("move_type", "!=", "entry")]
         dom_ots = [("state", "not in", ["done", "cancel"]),
-                   ("date_finished", "<", hoy)]
+                   ("date_finished", "<", hoy)] + por_almacen
         dom_pickings = [("state", "not in", ["done", "cancel"]),
-                        ("scheduled_date", "<", hoy)]
+                        ("scheduled_date", "<", hoy)] + por_almacen
         dom_oc = [("state", "in", ["draft", "sent"]),
                   ("date_order", "<=", limite_oc)]
-        dom_quants = [("quantity", "<", 0),
-                      ("location_id.usage", "=", "internal")]
+        dom_quants = [("quantity", "<", 0)]
+        if almacen and almacen.view_location_id:
+            dom_quants += [("location_id", "child_of", almacen.view_location_id.id)]
+        else:
+            dom_quants += [("location_id.usage", "=", "internal")]
 
         hallazgos = [
             self._hallazgo(
                 "asientos_borrador", "ASIENTOS_BORRADOR",
                 "Facturas y asientos en borrador",
                 self.env["account.move"].search_count(dom_asientos),
-                "account.move", dom_asientos, "danger"),
+                "account.move", dom_asientos, "danger", es_global=True),
             self._hallazgo(
                 "ots_vencidas", "OTS_ABIERTAS_VENCIDAS",
                 "Ordenes de produccion abiertas y vencidas",
@@ -232,7 +359,7 @@ class AgsCockpit(models.AbstractModel):
                 "oc_sin_confirmar", "OC_SIN_CONFIRMAR",
                 "Ordenes de compra sin confirmar (mas de 15 dias)",
                 self.env["purchase.order"].search_count(dom_oc),
-                "purchase.order", dom_oc),
+                "purchase.order", dom_oc, es_global=True),
             # Sin parametro asociado: el inventario negativo no es un indicador
             # de gestion con banda tolerable, es un error de datos. Cualquier
             # cantidad distinta de cero invalida costo y margen.
@@ -273,6 +400,7 @@ class AgsCockpit(models.AbstractModel):
             # ordenara distinto que la frase que la encabeza, el ojo iria a la
             # primera cajita creyendo que es la mas grave.
             "hallazgos": sucios + [h for h in hallazgos if not h["cantidad"]],
+            "alcance": "almacen" if almacen else "empresa",
         }
 
     # ------------------------------------------------------------------
@@ -280,38 +408,46 @@ class AgsCockpit(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @api.model
-    def _excepciones(self, cierre):
+    def _excepciones(self, cierre, filtros):
         """Reune todo lo que requiere atencion, ordenado por gravedad."""
         salida = []
         Param = self.env["ags.parametro"]
         Med = self.env["ags.medicion"]
+        hay_dimension = bool(filtros.get("vendedor_id") or filtros.get("mercado_id"))
 
-        # Indicadores en rojo contra el benchmark
-        rojos = Med.search([
-            ("fecha_periodo", "=", cierre),
-            ("semaforo", "=", "rojo"),
-        ])
-        for m in rojos:
-            p = m.parametro_id
-            salida.append({
-                "tipo": "indicador",
-                "gravedad": "danger",
-                "titulo": p.name,
-                "detalle": "%s frente a un objetivo de %s" % (
-                    self._formato(m.valor, p.unidad),
-                    self._formato(m.valor_objetivo, p.unidad)
-                    if m.valor_objetivo else "-"),
-                "accion": "parametro",
-                "res_id": p.id,
-            })
+        # Indicadores en rojo contra el benchmark.
+        # Son agregados de empresa: cuando hay filtro por dimension se omiten
+        # en lugar de mostrarse como si pertenecieran al vendedor elegido.
+        if not hay_dimension:
+            rojos = Med.search([
+                ("fecha_periodo", "=", cierre),
+                ("semaforo", "=", "rojo"),
+            ])
+            for m in rojos:
+                p = m.parametro_id
+                salida.append({
+                    "tipo": "indicador",
+                    "gravedad": "danger",
+                    "titulo": p.name,
+                    "detalle": "%s frente a un objetivo de %s" % (
+                        self._formato(m.valor, p.unidad),
+                        self._formato(m.valor_objetivo, p.unidad)
+                        if m.valor_objetivo else "-"),
+                    "accion": "parametro",
+                    "res_id": p.id,
+                })
 
         # Metas incumplidas del periodo
-        metas = self.env["ags.meta"].search([
+        dom_metas = [
             ("fecha_cierre", "=", cierre),
             ("semaforo", "=", "rojo"),
             ("estado", "in", ["aprobada", "cerrada"]),
-        ])
-        for t in metas:
+        ]
+        if filtros.get("vendedor_id"):
+            dom_metas.append(("vendedor_id", "=", filtros["vendedor_id"]))
+        if filtros.get("mercado_id"):
+            dom_metas.append(("mercado_id", "=", filtros["mercado_id"]))
+        for t in self.env["ags.meta"].search(dom_metas):
             quien = ""
             if t.dimension == "vendedor" and t.vendedor_id:
                 quien = " · %s" % t.vendedor_id.name
@@ -327,11 +463,16 @@ class AgsCockpit(models.AbstractModel):
             })
 
         # Clientes que destruyen valor
-        destruyen = self.env["ags.rentabilidad"].search([
+        dom_rent = [
             ("fecha_periodo", "=", cierre),
             ("destruye_valor", "=", True),
-        ], order="margen_economico", limit=5)
-        for r in destruyen:
+        ]
+        if filtros.get("vendedor_id"):
+            dom_rent.append(("vendedor_id", "=", filtros["vendedor_id"]))
+        if filtros.get("mercado_id"):
+            dom_rent.append(("mercado_id", "=", filtros["mercado_id"]))
+        for r in self.env["ags.rentabilidad"].search(
+                dom_rent, order="margen_economico", limit=5):
             salida.append({
                 "tipo": "cliente",
                 "gravedad": "warning",
@@ -346,19 +487,20 @@ class AgsCockpit(models.AbstractModel):
         # Indicadores cuyo dato aun no es confiable.
         # Se muestran como aviso y no como problema: no son un resultado malo,
         # son una advertencia de que ese numero todavia no significa nada.
-        no_confiables = Param.search([
-            ("madurez", "=", "con_reservas"),
-            ("codigo", "in", [c for c, _n, _e in EJECUTIVO]),
-        ])
-        for p in no_confiables:
-            salida.append({
-                "tipo": "madurez",
-                "gravedad": "info",
-                "titulo": "Dato aun no confiable: %s" % p.name,
-                "detalle": p.madurez_detalle or "",
-                "accion": "parametro",
-                "res_id": p.id,
-            })
+        if not hay_dimension:
+            no_confiables = Param.search([
+                ("madurez", "=", "con_reservas"),
+                ("codigo", "in", [c for c, _n, _e in EJECUTIVO]),
+            ])
+            for p in no_confiables:
+                salida.append({
+                    "tipo": "madurez",
+                    "gravedad": "info",
+                    "titulo": "Dato aun no confiable: %s" % p.name,
+                    "detalle": p.madurez_detalle or "",
+                    "accion": "parametro",
+                    "res_id": p.id,
+                })
 
         orden = {"danger": 0, "warning": 1, "info": 2}
         return sorted(salida, key=lambda x: orden.get(x["gravedad"], 9))
@@ -522,12 +664,15 @@ class AgsCockpit(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @api.model
-    def _alertas(self, cierre, limite=15):
+    def _alertas(self, cierre, filtros, limite=15):
         """Alertas abiertas del periodo, listas para el drill-down."""
-        registros = self.env["ags.alerta"].search([
+        dominio = [
             ("fecha_periodo", "=", cierre),
             ("estado", "=", "abierta"),
-        ], limit=limite)
+        ]
+        if filtros.get("vendedor_id"):
+            dominio.append(("responsable_id", "=", filtros["vendedor_id"]))
+        registros = self.env["ags.alerta"].search(dominio, limit=limite)
         prioridades = dict(self.env["ags.alerta"]._fields["prioridad"].selection)
         tipos = dict(self.env["ags.alerta"]._fields["tipo"].selection)
         salida = []
@@ -552,21 +697,24 @@ class AgsCockpit(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @api.model
-    def _ventas_vs_meta(self, cierre):
+    def _ventas_vs_meta(self, cierre, filtros):
         desde = cierre.replace(day=1)
         facturas = self.env["account.move"].search([
             ("move_type", "=", "out_invoice"),
             ("state", "=", "posted"),
             ("invoice_date", ">=", desde),
             ("invoice_date", "<=", cierre),
-        ])
+        ] + self._dominio_facturas(filtros))
         real = sum(facturas.mapped("amount_untaxed"))
 
-        metas = self.env["ags.meta"].search([
+        dom_metas = [
             ("fecha_cierre", "=", cierre),
             ("dimension", "=", "vendedor"),
             ("estado", "in", ["aprobada", "cerrada"]),
-        ])
+        ]
+        if filtros.get("vendedor_id"):
+            dom_metas.append(("vendedor_id", "=", filtros["vendedor_id"]))
+        metas = self.env["ags.meta"].search(dom_metas)
         meta_total = sum(metas.mapped("valor"))
 
         por_vendedor = []
@@ -595,6 +743,7 @@ class AgsCockpit(models.AbstractModel):
             "cumplimiento": round(real / meta_total * 100.0, 1) if meta_total else 0.0,
             "hay_meta": bool(meta_total),
             "por_vendedor": por_vendedor[:8],
+            "alcance": "filtrado" if filtros else "empresa",
         }
 
     # ------------------------------------------------------------------
@@ -602,7 +751,7 @@ class AgsCockpit(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @api.model
-    def datos(self, fecha=None):
+    def datos(self, fecha=None, filtros=None):
         """Devuelve todo lo que el cockpit necesita en una sola llamada.
 
         Un unico viaje al servidor por dos razones: el front no puede quedar
@@ -617,11 +766,12 @@ class AgsCockpit(models.AbstractModel):
         """
         if isinstance(fecha, str) and fecha:
             fecha = fields.Date.to_date(fecha)
+        filtros = self._normalizar(filtros)
         cierre = self._cierre_mes(fecha)
         previo = self._cierre_mes(fecha, atras=1)
         homologo = self._cierre_mes(fecha, atras=12)
 
-        excepciones = self._excepciones(cierre)
+        excepciones = self._excepciones(cierre, filtros)
         return {
             "contrato": CONTRATO,
             # strftime usa el locale del servidor y devolvia "August 2026" en
@@ -634,23 +784,30 @@ class AgsCockpit(models.AbstractModel):
             "cierre": cierre.isoformat(),
             "previo": previo.isoformat(),
             "homologo": homologo.isoformat(),
-            "confianza": self._banda_confianza(cierre),
+            "filtros": filtros,
+            "filtros_activos": self._etiquetas_filtros(filtros),
+            "hay_filtro": bool(filtros),
+            # Las zonas que salen de ags.medicion son agregados de empresa y
+            # no responden al filtro. Se declara aqui para que el front lo
+            # selle en pantalla en vez de dejar que el gerente lo suponga.
+            "alcance_agregado": "empresa",
+            "confianza": self._banda_confianza(cierre, filtros),
             "excepciones": excepciones,
             "n_excepciones": len([e for e in excepciones
                                   if e["gravedad"] in ("danger", "warning")]),
             "ejecutivo": self._ejecutivo(cierre, previo, homologo),
             "bloques": self._bloques(cierre, homologo),
-            "alertas": self._alertas(cierre),
-            "ventas": self._ventas_vs_meta(cierre),
+            "alertas": self._alertas(cierre, filtros),
+            "ventas": self._ventas_vs_meta(cierre, filtros),
             "ejes": EJES,
         }
 
     @api.model
-    def recalcular(self, fecha=None):
+    def recalcular(self, fecha=None, filtros=None):
         """Recalcula el periodo desde el cockpit, sin salir de la pantalla."""
         if isinstance(fecha, str) and fecha:
             fecha = fields.Date.to_date(fecha)
         f = fecha or fields.Date.context_today(self)
         self.env["ags.calculador"].calcular_periodo(f)
         self.env["ags.rentabilidad"].calcular_periodo(f)
-        return self.datos(fecha)
+        return self.datos(fecha, filtros)

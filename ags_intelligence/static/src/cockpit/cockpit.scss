@@ -242,6 +242,56 @@
         color: #adb5bd;
         font-variant-numeric: tabular-nums;
     }
+
+    // ---------- Filtros ----------
+
+    .o_ags_filtros {
+        background-color: #ffffff;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .o_ags_filtro_label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #6c757d;
+        margin-bottom: 0.15rem;
+    }
+
+    .o_ags_chip {
+        display: inline-flex;
+        align-items: center;
+        background-color: #ffffff;
+        border: 1px solid #adb5bd;
+        border-radius: 999px;
+        padding: 0.1rem 0.6rem;
+        font-size: 0.8125rem;
+        color: #495057;
+        cursor: pointer;
+
+        &:hover {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+    }
+
+    // El sello de alcance. Discreto pero permanente: su trabajo es impedir
+    // que alguien lea una cifra de empresa como si fuera de un vendedor,
+    // no llamar la atencion sobre si mismo.
+    .o_ags_sello {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.6875rem;
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: 0;
+        color: #6c757d;
+        background-color: #f1f3f5;
+        border: 1px solid #dee2e6;
+        border-radius: 3px;
+        padding: 0.05rem 0.35rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

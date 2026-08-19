@@ -13,6 +13,12 @@
                 </span>
             </div>
             <div class="d-flex align-items-center gap-2">
+                <button class="btn btn-sm" t-on-click="() => state.mostrarFiltros = !state.mostrarFiltros"
+                        t-att-class="hayFiltro ? 'btn-primary' : 'btn-light'"
+                        title="Filtros">
+                    <i class="fa fa-filter"/>
+                    <span t-if="hayFiltro" class="ms-1" t-esc="Object.keys(state.filtros).length"/>
+                </button>
                 <button class="btn btn-sm btn-light" t-on-click="() => this.mover(1)"
                         title="Mes anterior">
                     <i class="fa fa-chevron-left"/>
@@ -29,6 +35,50 @@
             </div>
         </div>
 
+        <!-- Barra de filtros -->
+        <div t-if="state.mostrarFiltros" class="o_ags_filtros px-4 py-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="o_ags_filtro_label">Vendedor</label>
+                    <select class="form-select form-select-sm"
+                            t-on-change="(ev) => this.cambiarFiltro('vendedor_id', ev.target.value)">
+                        <option value="">Todos</option>
+                        <option t-foreach="state.opciones.vendedores" t-as="v" t-key="v.id"
+                                t-att-value="v.id"
+                                t-att-selected="state.filtros.vendedor_id === v.id"
+                                t-esc="v.nombre"/>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="o_ags_filtro_label">Mercado</label>
+                    <select class="form-select form-select-sm"
+                            t-on-change="(ev) => this.cambiarFiltro('mercado_id', ev.target.value)">
+                        <option value="">Todos</option>
+                        <option t-foreach="state.opciones.mercados" t-as="m" t-key="m.id"
+                                t-att-value="m.id"
+                                t-att-selected="state.filtros.mercado_id === m.id"
+                                t-esc="m.nombre"/>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="o_ags_filtro_label">Almacen</label>
+                    <select class="form-select form-select-sm"
+                            t-on-change="(ev) => this.cambiarFiltro('almacen_id', ev.target.value)">
+                        <option value="">Todos</option>
+                        <option t-foreach="state.opciones.almacenes" t-as="a" t-key="a.id"
+                                t-att-value="a.id"
+                                t-att-selected="state.filtros.almacen_id === a.id"
+                                t-esc="a.nombre"/>
+                    </select>
+                </div>
+            </div>
+            <div class="o_ags_detalle mt-2">
+                El filtro alcanza a ventas, metas, rentabilidad por cliente y — con almacen —
+                a la banda de confianza. Los indicadores agregados no se pueden filtrar y
+                quedan marcados como tales.
+            </div>
+        </div>
+
         <!-- Cargando -->
         <div t-if="state.cargando" class="d-flex justify-content-center py-5">
             <div class="spinner-border text-primary" role="status">
@@ -37,6 +87,17 @@
         </div>
 
         <div t-else="" class="p-4">
+
+            <!-- Filtros activos -->
+            <div t-if="state.datos.hay_filtro" class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                <span class="o_ags_titulo_zona">Filtrando por</span>
+                <span t-foreach="state.datos.filtros_activos" t-as="f" t-key="f.clave"
+                      class="o_ags_chip" t-on-click="() => this.quitarFiltro(f.clave)">
+                    <t t-esc="f.campo"/>: <strong t-esc="f.valor"/>
+                    <i class="fa fa-times ms-2"/>
+                </span>
+                <button class="btn btn-sm btn-link p-0" t-on-click="limpiarFiltros">Limpiar</button>
+            </div>
 
             <!-- ZONA 0 · BANDA DE CONFIANZA
                  Va antes que cualquier cifra. Si el ERP tiene pendientes que
@@ -68,7 +129,11 @@
                                  t-att-class="'o_ags_' + h.gravedad"
                                  t-on-click="() => this.abrirHallazgo(h)">
                                 <span class="o_ags_hallazgo_cifra" t-esc="h.cantidad"/>
-                                <span class="flex-grow-1" t-esc="h.etiqueta"/>
+                                <span class="flex-grow-1">
+                                    <t t-esc="h.etiqueta"/>
+                                    <span t-if="h.es_global and state.filtros.almacen_id"
+                                          class="o_ags_sello ms-1">toda la empresa</span>
+                                </span>
                                 <i class="fa fa-angle-right o_ags_flecha"/>
                             </div>
                         </div>
@@ -145,9 +210,17 @@
                 </table>
             </div>
 
-            <!-- ZONA 3 · BLOQUE EJECUTIVO -->
+            <!-- ZONA 3 · BLOQUE EJECUTIVO
+                 Sale de mediciones agregadas de empresa. Cuando hay un filtro
+                 activo se sella para que nadie lea estas cifras como si
+                 pertenecieran al vendedor o mercado elegido. -->
             <div t-foreach="porEje" t-as="g" t-key="g.eje" class="mb-4">
-                <div class="o_ags_titulo_zona mb-2" t-esc="g.nombre"/>
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="o_ags_titulo_zona" t-esc="g.nombre"/>
+                    <span t-if="state.datos.hay_filtro" class="o_ags_sello">
+                        <i class="fa fa-globe me-1"/>Toda la empresa
+                    </span>
+                </div>
                 <div class="row g-3">
                     <div t-foreach="g.tarjetas" t-as="t" t-key="t.codigo"
                          class="col-12 col-sm-6 col-lg-3">

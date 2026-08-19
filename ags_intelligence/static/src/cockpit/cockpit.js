@@ -35,9 +35,15 @@ export class AgsCockpit extends Component {
             datos: null,
             mostrarExcepciones: true,
             mostrarBanda: false,
+            mostrarFiltros: false,
+            filtros: {},
+            opciones: { vendedores: [], mercados: [], almacenes: [] },
             mes: 0,
         });
-        onWillStart(() => this.cargar());
+        onWillStart(async () => {
+            await this.cargarOpciones();
+            await this.cargar();
+        });
     }
 
     async cargar() {
@@ -45,7 +51,7 @@ export class AgsCockpit extends Component {
         try {
             const fecha = this.fechaConsulta();
             this.state.datos = await this.orm.call(
-                "ags.cockpit", "datos", [fecha]);
+                "ags.cockpit", "datos", [fecha, this.filtrosPlanos()]);
             // El detalle de la banda se abre solo cuando hay algo grave.
             // En nivel aviso el titular alcanza; abrirlo siempre convertiria
             // la advertencia en ruido de fondo que se aprende a ignorar.
@@ -71,7 +77,8 @@ export class AgsCockpit extends Component {
         this.state.recalculando = true;
         try {
             this.state.datos = await this.orm.call(
-                "ags.cockpit", "recalcular", [this.fechaConsulta()]);
+                "ags.cockpit", "recalcular",
+                [this.fechaConsulta(), this.filtrosPlanos()]);
             this.notification.add(_t("Periodo recalculado"), { type: "success" });
         } catch (e) {
             this.notification.add(_t("No se pudo recalcular el periodo"),
@@ -143,6 +150,40 @@ export class AgsCockpit extends Component {
             target: "current",
             name: hallazgo.etiqueta,
         });
+    }
+
+    async cargarOpciones() {
+        this.state.opciones = await this.orm.call(
+            "ags.cockpit", "opciones_filtros", []);
+    }
+
+    /** useState envuelve el objeto en un Proxy; el ORM necesita uno plano. */
+    filtrosPlanos() {
+        return Object.assign({}, this.state.filtros);
+    }
+
+    async cambiarFiltro(clave, valor) {
+        const id = parseInt(valor, 10);
+        if (id) {
+            this.state.filtros[clave] = id;
+        } else {
+            delete this.state.filtros[clave];
+        }
+        await this.cargar();
+    }
+
+    async quitarFiltro(clave) {
+        delete this.state.filtros[clave];
+        await this.cargar();
+    }
+
+    async limpiarFiltros() {
+        this.state.filtros = {};
+        await this.cargar();
+    }
+
+    get hayFiltro() {
+        return Object.keys(this.state.filtros).length > 0;
     }
 
     get confianza() {
