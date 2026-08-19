@@ -242,7 +242,15 @@ class AgsCockpit(models.AbstractModel):
                 "stock.quant", dom_quants, "danger"),
         ]
 
-        sucios = [h for h in hallazgos if h["cantidad"]]
+        # Orden por gravedad y luego por volumen: el titular solo cita tres
+        # hallazgos, y deben ser los tres peores, no los tres primeros de la
+        # lista. Con 96 lineas de inventario negativo escondidas detras de 4
+        # asientos en borrador, la advertencia pierde justo lo que importa.
+        peso = {"danger": 0, "warning": 1, "ok": 2}
+        sucios = sorted(
+            [h for h in hallazgos if h["cantidad"]],
+            key=lambda h: (peso.get(h["gravedad"], 9), -h["cantidad"]),
+        )
         if any(h["gravedad"] == "danger" for h in sucios):
             nivel = "alerta"
         elif sucios:
