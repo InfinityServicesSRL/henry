@@ -1,63 +1,83 @@
 // Cockpit de Gerencia
 //
-// El cockpit vive dentro de Odoo, asi que hereda su lenguaje visual en lugar
-// de imponer uno propio. La unica libertad que se toma es la jerarquia: la
-// zona de excepciones usa una barra de color a la izquierda en lugar de una
-// alerta completa, para que la lista se lea como un indice de pendientes y
-// no como una sucesion de alarmas.
+// TOKENS DEL TEMA
+//
+// Ningun color se escribe a mano en este archivo. Todos salen de las
+// variables de Odoo, con el valor anterior como red de seguridad por si una
+// version futura renombra alguna: un SCSS que no compila tumba el bundle
+// entero del backend, y eso no puede depender de que una variable siga
+// existiendo.
+//
+// Tomarlos del tema resuelve tres cosas de golpe: la paleta deja de ser la
+// de Bootstrap y pasa a ser la de Odoo, el modo oscuro funciona solo, y un
+// cambio de tema se propaga sin tocar el modulo.
+
+$ags-fondo:        if(variable-exists(o-view-background-color), $o-view-background-color, #ffffff);
+$ags-lienzo:       if(variable-exists(o-gray-100), $o-gray-100, #f9fafb);
+$ags-borde:        if(variable-exists(o-gray-300), $o-gray-300, #dee2e6);
+$ags-borde-suave:  if(variable-exists(o-gray-200), $o-gray-200, #f1f3f5);
+$ags-debil:        if(variable-exists(o-gray-500), $o-gray-500, #adb5bd);
+$ags-tenue:        if(variable-exists(o-gray-600), $o-gray-600, #6c757d);
+$ags-texto-suave:  if(variable-exists(o-gray-700), $o-gray-700, #495057);
+$ags-texto:        if(variable-exists(o-main-text-color), $o-main-text-color, #212529);
+
+// El acento de Odoo Enterprise es el teal de los titulos y enlaces de los
+// modulos nativos, no el azul de Bootstrap.
+$ags-acento:       if(variable-exists(o-enterprise-action-color), $o-enterprise-action-color, #017e84);
+
+$ags-exito:        if(variable-exists(success), $success, #28a745);
+$ags-peligro:      if(variable-exists(danger), $danger, #dc3545);
+$ags-aviso:        if(variable-exists(warning), $warning, #ffc107);
+$ags-info:         if(variable-exists(info), $info, #17a2b8);
 
 .o_ags_cockpit {
-    background-color: #f9fafb;
-
-    .o_ags_barra {
-        background-color: #ffffff;
-        border-bottom: 1px solid #dee2e6;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
+    background-color: $ags-lienzo;
+    overflow: auto;
 
     .o_ags_periodo {
         font-size: 0.8125rem;
-        color: #6c757d;
+        color: $ags-tenue;
         text-transform: capitalize;
     }
 
+    // Los modulos nativos titulan en teal y a tamano de lectura. Las
+    // versalitas grises son un recurso de dashboards SaaS y era una de las
+    // cosas que hacian que el cockpit se leyera como ajeno a Odoo.
     .o_ags_titulo_zona {
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: #6c757d;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
+        color: $ags-acento;
     }
 
     .o_ags_detalle {
         font-size: 0.8125rem;
-        color: #6c757d;
+        color: $ags-tenue;
     }
 
     // ---------- Excepciones ----------
 
     .o_ags_todo_bien {
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
-        border-left: 3px solid #28a745;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-left: 3px solid $ags-exito;
         border-radius: 4px;
         font-size: 0.875rem;
-        color: #495057;
+        color: $ags-texto-suave;
 
-        i { color: #28a745; }
+        i { color: $ags-exito; }
     }
 
     .o_ags_excepcion {
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
         border-radius: 4px;
         cursor: pointer;
         transition: background-color 0.12s ease;
 
         &:hover {
-            background-color: #f1f3f5;
+            background-color: $ags-borde-suave;
 
             .o_ags_flecha { opacity: 1; }
         }
@@ -70,22 +90,22 @@
         }
 
         .o_ags_flecha {
-            color: #adb5bd;
+            color: $ags-debil;
             opacity: 0;
             transition: opacity 0.12s ease;
             align-self: center;
         }
 
-        &.o_ags_danger .o_ags_marca { background-color: #dc3545; }
-        &.o_ags_warning .o_ags_marca { background-color: #ffc107; }
-        &.o_ags_info .o_ags_marca { background-color: #17a2b8; }
+        &.o_ags_danger .o_ags_marca { background-color: $ags-peligro; }
+        &.o_ags_warning .o_ags_marca { background-color: $ags-aviso; }
+        &.o_ags_info .o_ags_marca { background-color: $ags-info; }
     }
 
     // ---------- Tarjetas ----------
 
     .o_ags_tarjeta {
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
         border-radius: 4px;
     }
 
@@ -93,7 +113,7 @@
         font-size: 1.375rem;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
-        color: #212529;
+        color: $ags-texto;
     }
 
     .o_ags_tabla {
@@ -101,7 +121,7 @@
 
         td {
             padding: 0.3rem 0.5rem;
-            border-color: #f1f3f5;
+            border-color: $ags-borde-suave;
             font-variant-numeric: tabular-nums;
         }
 
@@ -111,21 +131,21 @@
     // ---------- Indicadores ----------
 
     .o_ags_kpi {
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
         border-radius: 4px;
         cursor: pointer;
         transition: border-color 0.12s ease, box-shadow 0.12s ease;
 
         &:hover {
-            border-color: #adb5bd;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            border-color: $ags-debil;
+            box-shadow: 0 1px 3px rgba($ags-texto, 0.10);
         }
     }
 
     .o_ags_kpi_etiqueta {
         font-size: 0.8125rem;
-        color: #495057;
+        color: $ags-texto-suave;
         line-height: 1.2;
     }
 
@@ -134,19 +154,19 @@
         font-weight: 600;
         font-variant-numeric: tabular-nums;
         line-height: 1.1;
-        color: #212529;
+        color: $ags-texto;
 
         &.o_ags_sin_dato {
             font-size: 1rem;
             font-weight: 400;
-            color: #adb5bd;
+            color: $ags-debil;
         }
     }
 
     .o_ags_aviso {
         font-size: 0.75rem;
-        color: #856404;
-        background-color: #fff8e1;
+        color: darken($ags-aviso, 28%);
+        background-color: rgba($ags-aviso, 0.14);
         border-radius: 3px;
         padding: 0.2rem 0.4rem;
     }
@@ -161,7 +181,7 @@
 
     .o_ags_banda {
         border-radius: 4px;
-        border: 1px solid #dee2e6;
+        border: 1px solid $ags-borde;
         font-size: 0.875rem;
 
         .o_ags_banda_titular {
@@ -170,43 +190,43 @@
         }
 
         &.o_ags_banda_alerta {
-            background-color: #fdf3f3;
-            border-color: #f1b8b8;
-            border-left: 3px solid #dc3545;
+            background-color: rgba($ags-peligro, 0.06);
+            border-color: rgba($ags-peligro, 0.35);
+            border-left: 3px solid $ags-peligro;
 
-            > div > i { color: #dc3545; }
-            .o_ags_banda_titular { color: #842029; }
+            > div > i { color: $ags-peligro; }
+            .o_ags_banda_titular { color: darken($ags-peligro, 18%); }
         }
 
         &.o_ags_banda_aviso {
-            background-color: #fffaf0;
-            border-color: #f5dfb0;
-            border-left: 3px solid #ffc107;
+            background-color: rgba($ags-aviso, 0.08);
+            border-color: rgba($ags-aviso, 0.45);
+            border-left: 3px solid $ags-aviso;
 
-            > div > i { color: #b8860b; }
-            .o_ags_banda_titular { color: #664d03; }
+            > div > i { color: darken($ags-aviso, 22%); }
+            .o_ags_banda_titular { color: darken($ags-aviso, 32%); }
         }
 
         &.o_ags_banda_ok {
-            background-color: #ffffff;
-            border-left: 3px solid #28a745;
+            background-color: $ags-fondo;
+            border-left: 3px solid $ags-exito;
 
-            > div > i { color: #28a745; }
-            .o_ags_banda_titular { color: #495057; font-weight: 400; }
+            > div > i { color: $ags-exito; }
+            .o_ags_banda_titular { color: $ags-texto-suave; font-weight: 400; }
         }
     }
 
     .o_ags_hallazgo {
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
         border-radius: 4px;
         cursor: pointer;
         font-size: 0.8125rem;
-        color: #495057;
+        color: $ags-texto-suave;
         transition: border-color 0.12s ease;
 
         &:hover {
-            border-color: #adb5bd;
+            border-color: $ags-debil;
 
             .o_ags_flecha { opacity: 1; }
         }
@@ -220,13 +240,13 @@
         }
 
         .o_ags_flecha {
-            color: #adb5bd;
+            color: $ags-debil;
             opacity: 0;
             transition: opacity 0.12s ease;
         }
 
-        &.o_ags_danger .o_ags_hallazgo_cifra { color: #dc3545; }
-        &.o_ags_warning .o_ags_hallazgo_cifra { color: #b8860b; }
+        &.o_ags_danger .o_ags_hallazgo_cifra { color: $ags-peligro; }
+        &.o_ags_warning .o_ags_hallazgo_cifra { color: darken($ags-aviso, 22%); }
     }
 
     // ---------- Deltas de las tarjetas ----------
@@ -239,15 +259,15 @@
 
     .o_ags_kpi_refs {
         font-size: 0.75rem;
-        color: #adb5bd;
+        color: $ags-debil;
         font-variant-numeric: tabular-nums;
     }
 
     // ---------- Filtros ----------
 
     .o_ags_filtros {
-        background-color: #ffffff;
-        border-bottom: 1px solid #dee2e6;
+        background-color: $ags-fondo;
+        border-bottom: 1px solid $ags-borde;
     }
 
     .o_ags_filtro_label {
@@ -255,24 +275,24 @@
         font-weight: 600;
         letter-spacing: 0.04em;
         text-transform: uppercase;
-        color: #6c757d;
+        color: $ags-tenue;
         margin-bottom: 0.15rem;
     }
 
     .o_ags_chip {
         display: inline-flex;
         align-items: center;
-        background-color: #ffffff;
-        border: 1px solid #adb5bd;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-debil;
         border-radius: 999px;
         padding: 0.1rem 0.6rem;
         font-size: 0.8125rem;
-        color: #495057;
+        color: $ags-texto-suave;
         cursor: pointer;
 
         &:hover {
-            border-color: #dc3545;
-            color: #dc3545;
+            border-color: $ags-peligro;
+            color: $ags-peligro;
         }
     }
 
@@ -286,9 +306,9 @@
         font-weight: 500;
         text-transform: none;
         letter-spacing: 0;
-        color: #6c757d;
-        background-color: #f1f3f5;
-        border: 1px solid #dee2e6;
+        color: $ags-tenue;
+        background-color: $ags-borde-suave;
+        border: 1px solid $ags-borde;
         border-radius: 3px;
         padding: 0.05rem 0.35rem;
     }
@@ -296,8 +316,8 @@
     // ---------- Bloques comparativos ----------
 
     .o_ags_bloque {
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
         border-radius: 4px;
         overflow: hidden;
     }
@@ -305,12 +325,12 @@
     .o_ags_bloque_cabecera {
         cursor: pointer;
         font-size: 0.875rem;
-        color: #212529;
+        color: $ags-texto;
         user-select: none;
 
-        &:hover { background-color: #f8f9fa; }
+        &:hover { background-color: $ags-lienzo; }
 
-        i { color: #adb5bd; width: 0.75rem; }
+        i { color: $ags-debil; width: 0.75rem; }
     }
 
     .o_ags_comparativo {
@@ -322,16 +342,16 @@
             font-weight: 600;
             letter-spacing: 0.03em;
             text-transform: uppercase;
-            color: #6c757d;
-            border-top: 1px solid #f1f3f5;
-            border-bottom: 1px solid #dee2e6;
+            color: $ags-tenue;
+            border-top: 1px solid $ags-borde-suave;
+            border-bottom: 1px solid $ags-borde;
             padding: 0.35rem 0.5rem;
             white-space: nowrap;
         }
 
         tbody td {
             padding: 0.35rem 0.5rem;
-            border-color: #f1f3f5;
+            border-color: $ags-borde-suave;
             font-variant-numeric: tabular-nums;
             vertical-align: middle;
         }
@@ -339,7 +359,7 @@
         tbody tr {
             cursor: pointer;
 
-            &:hover { background-color: #f8f9fa; }
+            &:hover { background-color: $ags-lienzo; }
         }
 
         tbody tr:last-child td { border-bottom: 0; }
@@ -355,42 +375,42 @@
         border-radius: 50%;
         margin-right: 0.5rem;
         vertical-align: middle;
-        background-color: #dee2e6;
+        background-color: $ags-borde;
 
-        &.o_ags_punto_verde { background-color: #28a745; }
-        &.o_ags_punto_amarillo { background-color: #ffc107; }
-        &.o_ags_punto_rojo { background-color: #dc3545; }
+        &.o_ags_punto_verde { background-color: $ags-exito; }
+        &.o_ags_punto_amarillo { background-color: $ags-aviso; }
+        &.o_ags_punto_rojo { background-color: $ags-peligro; }
     }
 
     // ---------- Serie temporal ----------
 
     .o_ags_btn_serie {
-        color: #adb5bd;
+        color: $ags-debil;
         line-height: 1;
 
-        &:hover { color: #495057; }
+        &:hover { color: $ags-texto-suave; }
     }
 
     .o_ags_grafico {
         width: 100%;
         height: 160px;
         display: block;
-        background-color: #ffffff;
-        border: 1px solid #f1f3f5;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde-suave;
         border-radius: 3px;
 
-        .o_ags_zona_buena { fill: #28a745; opacity: 0.10; }
-        .o_ags_zona_tolerable { fill: #ffc107; opacity: 0.10; }
+        .o_ags_zona_buena { fill: $ags-exito; opacity: 0.10; }
+        .o_ags_zona_tolerable { fill: $ags-aviso; opacity: 0.10; }
 
         .o_ags_linea_objetivo {
-            stroke: #28a745;
+            stroke: $ags-exito;
             stroke-width: 1;
             stroke-dasharray: 4 3;
             vector-effect: non-scaling-stroke;
         }
 
         .o_ags_linea_baseline {
-            stroke: #adb5bd;
+            stroke: $ags-debil;
             stroke-width: 1;
             stroke-dasharray: 2 3;
             vector-effect: non-scaling-stroke;
@@ -398,30 +418,30 @@
 
         .o_ags_linea_serie {
             fill: none;
-            stroke: #343a40;
+            stroke: $ags-texto;
             stroke-width: 1.5;
             stroke-linejoin: round;
             vector-effect: non-scaling-stroke;
         }
 
         circle {
-            stroke: #ffffff;
+            stroke: $ags-fondo;
             stroke-width: 1;
             vector-effect: non-scaling-stroke;
         }
 
-        .o_ags_marca_verde { fill: #28a745; }
-        .o_ags_marca_amarilla { fill: #ffc107; }
-        .o_ags_marca_roja { fill: #dc3545; }
-        .o_ags_marca_neutra { fill: #6c757d; }
+        .o_ags_marca_verde { fill: $ags-exito; }
+        .o_ags_marca_amarilla { fill: $ags-aviso; }
+        .o_ags_marca_roja { fill: $ags-peligro; }
+        .o_ags_marca_neutra { fill: $ags-tenue; }
         // Los periodos atipicos se dibujan huecos: siguen siendo datos
         // reales, pero no representan la operacion normal.
-        .o_ags_marca_atipica { fill: #ffffff; stroke: #6c757d; }
+        .o_ags_marca_atipica { fill: $ags-fondo; stroke: $ags-tenue; }
     }
 
     .o_ags_leyenda {
         font-size: 0.75rem;
-        color: #6c757d;
+        color: $ags-tenue;
     }
 
     .o_ags_muestra {
@@ -433,14 +453,14 @@
         vertical-align: middle;
 
         &.o_ags_muestra_buena { background-color: rgba(40, 167, 69, 0.25); }
-        &.o_ags_muestra_baseline { background-color: #adb5bd; height: 2px; }
+        &.o_ags_muestra_baseline { background-color: $ags-debil; height: 2px; }
     }
 
     // ---------- Alertas ----------
 
     .o_ags_alerta {
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
         border-radius: 4px;
 
         > div:first-of-type { cursor: pointer; }
@@ -452,9 +472,9 @@
             flex-shrink: 0;
         }
 
-        &.o_ags_danger .o_ags_marca { background-color: #dc3545; }
-        &.o_ags_warning .o_ags_marca { background-color: #ffc107; }
-        &.o_ags_info .o_ags_marca { background-color: #17a2b8; }
+        &.o_ags_danger .o_ags_marca { background-color: $ags-peligro; }
+        &.o_ags_warning .o_ags_marca { background-color: $ags-aviso; }
+        &.o_ags_info .o_ags_marca { background-color: $ags-info; }
     }
 
     // La recomendacion se distingue del detalle a proposito: una describe el
@@ -462,7 +482,7 @@
     // lea como mas texto en lugar de como una instruccion.
     .o_ags_recomendacion {
         font-size: 0.8125rem;
-        color: #0a58ca;
+        color: $ags-acento;
         margin-top: 0.15rem;
     }
 }

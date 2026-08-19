@@ -3,6 +3,7 @@
 import { Component, useState, onWillStart } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
+import { Layout } from "@web/search/layout";
 import { _t } from "@web/core/l10n/translation";
 
 /**
@@ -23,6 +24,11 @@ import { _t } from "@web/core/l10n/translation";
  */
 export class AgsCockpit extends Component {
     static template = "ags_intelligence.Cockpit";
+    // Layout monta el control panel nativo: breadcrumb, migas de navegacion
+    // y la barra de acciones en la misma fila donde cualquier usuario de
+    // Odoo espera encontrarlas. Antes el cockpit dibujaba su propia
+    // cabecera, y era lo primero que delataba que no era una vista nativa.
+    static components = { Layout };
     static props = { "*": true };
 
     setup() {
