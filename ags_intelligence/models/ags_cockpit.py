@@ -269,7 +269,10 @@ class AgsCockpit(models.AbstractModel):
             "nivel": nivel,
             "titular": titular,
             "n_sucios": len(sucios),
-            "hallazgos": hallazgos,
+            # Mismo orden que el titular: lo peor primero. Si la lista se
+            # ordenara distinto que la frase que la encabeza, el ojo iria a la
+            # primera cajita creyendo que es la mas grave.
+            "hallazgos": sucios + [h for h in hallazgos if not h["cantidad"]],
         }
 
     # ------------------------------------------------------------------
