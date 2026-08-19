@@ -802,6 +802,76 @@ class AgsCockpit(models.AbstractModel):
             "ejes": EJES,
         }
 
+    # ------------------------------------------------------------------
+    # Series temporales
+    # ------------------------------------------------------------------
+
+    @api.model
+    def serie(self, codigo, meses=24, fecha=None):
+        """Historia de un indicador con sus referencias.
+
+        Devuelve los puntos y, por separado, las bandas del benchmark y el
+        baseline. El grafico las dibuja de fondo en lugar de trazarlas como
+        una linea mas: una banda de fondo se lee como territorio -- estoy
+        dentro o fuera -- mientras que una linea invita a compararla contra
+        la serie punto por punto, que no es la pregunta.
+
+        Los periodos atipicos viajan marcados para que el front los pinte
+        distinto: son datos reales, pero no representan la operacion normal.
+        """
+        param = self.env["ags.parametro"].search([("codigo", "=", codigo)], limit=1)
+        if not param:
+            return {}
+        if isinstance(fecha, str) and fecha:
+            fecha = fields.Date.to_date(fecha)
+        cierre = self._cierre_mes(fecha)
+        desde = cierre.replace(day=1) - relativedelta(months=meses - 1)
+
+        mediciones = self.env["ags.medicion"].search([
+            ("parametro_id", "=", param.id),
+            ("fecha_periodo", ">=", desde),
+            ("fecha_periodo", "<=", cierre),
+        ], order="fecha_periodo asc")
+
+        puntos = [{
+            "fecha": m.fecha_periodo.isoformat(),
+            "label": format_date(self.env, m.fecha_periodo, date_format="MMM yy"),
+            "valor": m.valor,
+            "texto": self._formato(m.valor, param.unidad),
+            "semaforo": m.semaforo or "sin_dato",
+            "atipico": m.periodo_atipico,
+        } for m in mediciones]
+
+        hoy = fields.Date.context_today(self)
+        benchmark = param.benchmark_ids.filtered(
+            lambda b: b.vigente_desde and b.vigente_desde <= hoy
+            and (not b.vigente_hasta or b.vigente_hasta >= hoy)
+        )[:1]
+        baseline = param.baseline_ids.filtered(lambda b: b.vigente)[:1]
+
+        return {
+            "codigo": param.codigo,
+            "nombre": param.name,
+            "unidad": param.unidad,
+            "direccion": param.direccion,
+            "puntos": puntos,
+            "n_puntos": len(puntos),
+            "banda": {
+                "hay_dato": bool(benchmark),
+                "minimo": benchmark.valor_minimo if benchmark else 0.0,
+                "objetivo": benchmark.valor_objetivo if benchmark else 0.0,
+                "clase_mundial": benchmark.valor_clase_mundial if benchmark else 0.0,
+                "objetivo_texto": self._formato(
+                    benchmark.valor_objetivo, param.unidad) if benchmark else "",
+            },
+            "baseline": {
+                "hay_dato": bool(baseline),
+                "valor": baseline.valor if baseline else 0.0,
+                "texto": self._formato(
+                    baseline.valor, param.unidad) if baseline else "",
+            },
+        }
+
     @api.model
     def recalcular(self, fecha=None, filtros=None):
         """Recalcula el periodo desde el cockpit, sin salir de la pantalla."""

@@ -227,6 +227,11 @@
                         <div class="o_ags_kpi h-100 p-3" t-on-click="() => this.abrirParametro(t)">
                             <div class="d-flex align-items-start justify-content-between mb-2">
                                 <span class="o_ags_kpi_etiqueta" t-esc="t.etiqueta"/>
+                                <button class="btn btn-sm btn-link p-0 me-1 o_ags_btn_serie"
+                                        t-on-click.stop="() => this.alternarSerie(t.codigo)"
+                                        title="Ver historia">
+                                    <i class="fa fa-line-chart"/>
+                                </button>
                                 <span class="badge" t-att-class="claseSemaforo(t.semaforo)"
                                       t-if="t.semaforo !== 'sin_dato'">
                                     <t t-if="t.semaforo === 'verde'">En rango</t>
@@ -284,6 +289,63 @@
                 </div>
             </div>
 
+
+            <!-- SERIE DEL INDICADOR
+                 Se abre bajo demanda desde cualquier tarjeta. La banda del
+                 benchmark va de fondo: la pregunta no es cuanto vale el
+                 objetivo, sino si la serie vive dentro o fuera de el. -->
+            <div t-if="serieActual" class="o_ags_serie o_ags_tarjeta mb-4 p-3">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div>
+                        <span class="fw-semibold" t-esc="serieActual.nombre"/>
+                        <span class="o_ags_detalle ms-2">
+                            ultimos <t t-esc="serieActual.n_puntos"/> periodos
+                        </span>
+                    </div>
+                    <button class="btn btn-sm btn-link p-0"
+                            t-on-click="() => state.serieAbierta = false">Cerrar</button>
+                </div>
+
+                <t t-set="g" t-value="geometriaSerie(serieActual)"/>
+                <div t-if="!g" class="o_ags_detalle">Sin mediciones en el rango.</div>
+                <div t-else="">
+                    <svg class="o_ags_grafico" t-att-viewBox="'0 0 ' + g.ancho + ' ' + g.alto"
+                         preserveAspectRatio="none" role="img">
+                        <rect t-if="g.zonaTolerable" x="0" t-att-y="g.zonaTolerable.y"
+                              t-att-width="g.ancho" t-att-height="g.zonaTolerable.alto"
+                              class="o_ags_zona_tolerable"/>
+                        <rect t-if="g.zonaBuena" x="0" t-att-y="g.zonaBuena.y"
+                              t-att-width="g.ancho" t-att-height="g.zonaBuena.alto"
+                              class="o_ags_zona_buena"/>
+                        <line t-if="g.yObjetivo" x1="0" t-att-y1="g.yObjetivo"
+                              t-att-x2="g.ancho" t-att-y2="g.yObjetivo"
+                              class="o_ags_linea_objetivo"/>
+                        <line t-if="g.yBaseline" x1="0" t-att-y1="g.yBaseline"
+                              t-att-x2="g.ancho" t-att-y2="g.yBaseline"
+                              class="o_ags_linea_baseline"/>
+                        <polyline t-att-points="g.linea" class="o_ags_linea_serie"/>
+                        <circle t-foreach="g.marcas" t-as="m" t-key="m_index"
+                                t-att-cx="m.cx" t-att-cy="m.cy" r="3"
+                                t-att-class="claseMarca(m)">
+                            <title><t t-esc="m.label"/>: <t t-esc="m.texto"/></title>
+                        </circle>
+                    </svg>
+                    <div class="d-flex justify-content-between o_ags_detalle mt-1">
+                        <span t-esc="g.primerLabel"/>
+                        <span class="o_ags_leyenda">
+                            <span t-if="serieActual.banda.hay_dato">
+                                <span class="o_ags_muestra o_ags_muestra_buena"/> dentro de objetivo
+                                (<t t-esc="serieActual.banda.objetivo_texto"/>)
+                            </span>
+                            <span t-if="serieActual.baseline.hay_dato" class="ms-3">
+                                <span class="o_ags_muestra o_ags_muestra_baseline"/> baseline
+                                (<t t-esc="serieActual.baseline.texto"/>)
+                            </span>
+                        </span>
+                        <span t-esc="g.ultimoLabel"/>
+                    </div>
+                </div>
+            </div>
 
             <!-- ZONA 4 · BLOQUES COMPARATIVOS
                  Las dos preguntas que importan, una al lado de la otra:

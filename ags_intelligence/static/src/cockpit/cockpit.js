@@ -37,6 +37,8 @@ export class AgsCockpit extends Component {
             mostrarBanda: false,
             mostrarFiltros: false,
             bloquesAbiertos: {},
+            series: {},
+            serieAbierta: false,
             filtros: {},
             opciones: { vendedores: [], mercados: [], almacenes: [] },
             mes: 0,
@@ -214,6 +216,103 @@ export class AgsCockpit extends Component {
             mejora: "text-success",
             deterioro: "text-danger",
         }[delta.sentido] || "text-muted";
+    }
+
+    /**
+     * Abre o cierra la serie de un indicador.
+     *
+     * Se carga bajo demanda y se cachea: veinticuatro meses por cada uno de
+     * los diez indicadores serian doscientas cuarenta lecturas para una
+     * pantalla donde el gerente normalmente mira una o dos.
+     */
+    async alternarSerie(codigo) {
+        if (this.state.serieAbierta === codigo) {
+            this.state.serieAbierta = false;
+            return;
+        }
+        if (!this.state.series[codigo]) {
+            this.state.series[codigo] = await this.orm.call(
+                "ags.cockpit", "serie", [codigo, 24, this.fechaConsulta()]);
+        }
+        this.state.serieAbierta = codigo;
+    }
+
+    get serieActual() {
+        const c = this.state.serieAbierta;
+        return c ? this.state.series[c] : null;
+    }
+
+    /**
+     * Convierte la serie en coordenadas SVG.
+     *
+     * Se dibuja a mano en vez de usar una libreria de graficos por dos
+     * razones: la unica forma que hace falta es una linea sobre bandas de
+     * fondo, y las rutas de las librerias que trae Odoo cambian entre
+     * versiones, lo que convertiria el cockpit en algo que se rompe solo en
+     * la proxima actualizacion.
+     */
+    geometriaSerie(s) {
+        const W = 640, H = 160, PX = 10, PY = 12;
+        if (!s || !s.puntos || !s.puntos.length) {
+            return null;
+        }
+        const valores = s.puntos.map((p) => p.valor);
+        const refs = [];
+        if (s.banda.hay_dato) {
+            refs.push(s.banda.minimo, s.banda.objetivo, s.banda.clase_mundial);
+        }
+        if (s.baseline.hay_dato) {
+            refs.push(s.baseline.valor);
+        }
+        const todos = valores.concat(refs.filter((v) => v || v === 0));
+        let min = Math.min(...todos);
+        let max = Math.max(...todos);
+        if (min === max) {
+            min -= 1;
+            max += 1;
+        }
+        const margen = (max - min) * 0.08;
+        min -= margen;
+        max += margen;
+
+        const x = (i) => s.puntos.length === 1
+            ? W / 2
+            : PX + (i * (W - 2 * PX)) / (s.puntos.length - 1);
+        const y = (v) => H - PY - ((v - min) / (max - min)) * (H - 2 * PY);
+        const rect = (a, b) => {
+            const y1 = y(a);
+            const y2 = y(b);
+            return { y: Math.min(y1, y2), alto: Math.abs(y2 - y1) };
+        };
+
+        return {
+            ancho: W,
+            alto: H,
+            linea: s.puntos.map((p, i) => `${x(i)},${y(p.valor)}`).join(" "),
+            marcas: s.puntos.map((p, i) => ({
+                cx: x(i), cy: y(p.valor), semaforo: p.semaforo,
+                atipico: p.atipico, label: p.label, texto: p.texto,
+            })),
+            zonaBuena: s.banda.hay_dato && s.banda.clase_mundial
+                ? rect(s.banda.objetivo, s.banda.clase_mundial) : null,
+            zonaTolerable: s.banda.hay_dato && s.banda.minimo
+                ? rect(s.banda.minimo, s.banda.objetivo) : null,
+            yObjetivo: s.banda.hay_dato ? y(s.banda.objetivo) : null,
+            yBaseline: s.baseline.hay_dato ? y(s.baseline.valor) : null,
+            primerLabel: s.puntos[0].label,
+            ultimoLabel: s.puntos[s.puntos.length - 1].label,
+        };
+    }
+
+    claseMarca(m) {
+        if (m.atipico) {
+            return "o_ags_marca_atipica";
+        }
+        return {
+            verde: "o_ags_marca_verde",
+            amarillo: "o_ags_marca_amarilla",
+            rojo: "o_ags_marca_roja",
+        }[m.semaforo] || "o_ags_marca_neutra";
     }
 
     get hayFiltro() {

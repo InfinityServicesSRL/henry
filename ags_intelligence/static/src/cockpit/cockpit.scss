@@ -361,6 +361,80 @@
         &.o_ags_punto_amarillo { background-color: #ffc107; }
         &.o_ags_punto_rojo { background-color: #dc3545; }
     }
+
+    // ---------- Serie temporal ----------
+
+    .o_ags_btn_serie {
+        color: #adb5bd;
+        line-height: 1;
+
+        &:hover { color: #495057; }
+    }
+
+    .o_ags_grafico {
+        width: 100%;
+        height: 160px;
+        display: block;
+        background-color: #ffffff;
+        border: 1px solid #f1f3f5;
+        border-radius: 3px;
+
+        .o_ags_zona_buena { fill: #28a745; opacity: 0.10; }
+        .o_ags_zona_tolerable { fill: #ffc107; opacity: 0.10; }
+
+        .o_ags_linea_objetivo {
+            stroke: #28a745;
+            stroke-width: 1;
+            stroke-dasharray: 4 3;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .o_ags_linea_baseline {
+            stroke: #adb5bd;
+            stroke-width: 1;
+            stroke-dasharray: 2 3;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .o_ags_linea_serie {
+            fill: none;
+            stroke: #343a40;
+            stroke-width: 1.5;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
+        }
+
+        circle {
+            stroke: #ffffff;
+            stroke-width: 1;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .o_ags_marca_verde { fill: #28a745; }
+        .o_ags_marca_amarilla { fill: #ffc107; }
+        .o_ags_marca_roja { fill: #dc3545; }
+        .o_ags_marca_neutra { fill: #6c757d; }
+        // Los periodos atipicos se dibujan huecos: siguen siendo datos
+        // reales, pero no representan la operacion normal.
+        .o_ags_marca_atipica { fill: #ffffff; stroke: #6c757d; }
+    }
+
+    .o_ags_leyenda {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    .o_ags_muestra {
+        display: inline-block;
+        width: 10px;
+        height: 8px;
+        border-radius: 2px;
+        margin-right: 0.25rem;
+        vertical-align: middle;
+
+        &.o_ags_muestra_buena { background-color: rgba(40, 167, 69, 0.25); }
+        &.o_ags_muestra_baseline { background-color: #adb5bd; height: 2px; }
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
