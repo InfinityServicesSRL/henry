@@ -38,6 +38,44 @@
 
         <div t-else="" class="p-4">
 
+            <!-- ZONA 0 · BANDA DE CONFIANZA
+                 Va antes que cualquier cifra. Si el ERP tiene pendientes que
+                 distorsionan los numeros, el gerente se entera antes de leer
+                 el primero, no despues de tomar una decision con el. -->
+            <div t-if="confianza" class="o_ags_banda mb-4"
+                 t-att-class="claseBanda(confianza.nivel)">
+                <div class="d-flex align-items-start gap-3 px-3 py-2">
+                    <i class="fa mt-1" t-att-class="iconoBanda(confianza.nivel)"/>
+                    <div class="flex-grow-1">
+                        <div class="o_ags_banda_titular" t-esc="confianza.titular"/>
+                        <div t-if="confianza.nivel !== 'ok'" class="o_ags_detalle mt-1">
+                            Las cifras de este periodo se calcularon con estos pendientes abiertos.
+                        </div>
+                    </div>
+                    <button t-if="confianza.nivel !== 'ok'" class="btn btn-sm btn-link p-0 flex-shrink-0"
+                            t-on-click="() => state.mostrarBanda = !state.mostrarBanda">
+                        <t t-if="state.mostrarBanda">Ocultar detalle</t>
+                        <t t-else="">Ver detalle</t>
+                    </button>
+                </div>
+
+                <div t-if="state.mostrarBanda and confianza.nivel !== 'ok'"
+                     class="o_ags_banda_detalle px-3 pb-3">
+                    <div class="row g-2">
+                        <div t-foreach="hallazgosSucios" t-as="h" t-key="h.clave"
+                             class="col-12 col-sm-6 col-lg-4">
+                            <div class="o_ags_hallazgo d-flex align-items-center gap-2 px-2 py-2"
+                                 t-att-class="'o_ags_' + h.gravedad"
+                                 t-on-click="() => this.abrirHallazgo(h)">
+                                <span class="o_ags_hallazgo_cifra" t-esc="h.cantidad"/>
+                                <span class="flex-grow-1" t-esc="h.etiqueta"/>
+                                <i class="fa fa-angle-right o_ags_flecha"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- ZONA 1 · EXCEPCIONES -->
             <div class="o_ags_excepciones mb-4">
                 <div t-if="!state.datos.excepciones.length"
@@ -125,17 +163,43 @@
                             </div>
                             <div class="o_ags_kpi_valor" t-att-class="{ 'o_ags_sin_dato': !t.hay_dato }"
                                  t-esc="t.valor"/>
-                            <div class="d-flex align-items-center justify-content-between mt-2">
-                                <span t-if="t.hay_dato" class="o_ags_detalle"
-                                      t-att-class="claseTendencia(t.tendencia)">
-                                    <i class="fa" t-att-class="iconoTendencia(t.tendencia)"/>
-                                    <t t-if="t.variacion"><t t-esc="Math.abs(t.variacion)"/>%</t>
-                                    <t t-else="">estable</t>
-                                </span>
-                                <span t-if="t.objetivo" class="o_ags_detalle">
-                                    meta <t t-esc="t.objetivo"/>
-                                </span>
+
+                            <!-- Delta contra el mes anterior y contra el mismo mes
+                                 del año pasado. Nunca contra el año completo: ocho
+                                 meses no se comparan con doce. -->
+                            <div t-if="t.hay_dato" class="o_ags_deltas mt-2">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="o_ags_detalle" t-att-class="claseTendencia(t.delta_mes.sentido)">
+                                        <i class="fa" t-att-class="iconoTendencia(t.delta_mes.sentido)"/>
+                                        <t t-if="t.delta_mes.hay_dato">
+                                            <t t-esc="Math.abs(t.delta_mes.pct)"/>%
+                                        </t>
+                                        <t t-else="">sin previo</t>
+                                    </span>
+                                    <span class="o_ags_detalle">vs mes anterior</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="o_ags_detalle"
+                                          t-att-class="claseTendencia(t.delta_homologo.sentido)">
+                                        <t t-if="t.delta_homologo.hay_dato">
+                                            <i class="fa" t-att-class="iconoTendencia(t.delta_homologo.sentido)"/>
+                                            <t t-esc="Math.abs(t.delta_homologo.pct)"/>%
+                                        </t>
+                                        <t t-else="">sin comparable</t>
+                                    </span>
+                                    <span class="o_ags_detalle">
+                                        vs <t t-esc="state.datos.homologo_label"/>
+                                    </span>
+                                </div>
                             </div>
+
+                            <!-- Referencias: de donde arranco y a donde debe llegar -->
+                            <div t-if="t.baseline or t.objetivo" class="o_ags_kpi_refs mt-2">
+                                <span t-if="t.baseline">base <t t-esc="t.baseline"/></span>
+                                <span t-if="t.baseline and t.objetivo"> · </span>
+                                <span t-if="t.objetivo">meta <t t-esc="t.objetivo"/></span>
+                            </div>
+
                             <div t-if="t.atipico" class="o_ags_aviso mt-2">
                                 <i class="fa fa-exclamation-triangle me-1"/>Periodo atipico
                             </div>

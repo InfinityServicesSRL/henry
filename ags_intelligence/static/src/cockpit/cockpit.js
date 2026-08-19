@@ -8,13 +8,18 @@ import { _t } from "@web/core/l10n/translation";
 /**
  * Cockpit de Gerencia.
  *
- * Dos zonas y el orden importa: primero las excepciones, despues el
- * panorama. El cockpit se abre para saber si hay algo que atender, no
- * para admirar los indicadores.
+ * Tres zonas y el orden importa:
  *
- * Cuando no hay excepciones la zona se colapsa a una sola linea que lo
- * dice. Una pantalla vacia que informa es mas util que un espacio en
- * blanco.
+ *   0. Banda de confianza: que tan creible es lo que sigue. Va primero
+ *      porque un margen calculado sobre inventario negativo no es un
+ *      margen, y el gerente tiene derecho a saberlo antes de leer la cifra.
+ *   1. Excepciones: solo lo que requiere atencion.
+ *   2. Panorama: ventas del mes e indicadores ejecutivos.
+ *
+ * El cockpit se abre para saber si hay algo que atender, no para admirar
+ * los indicadores. Cuando no hay excepciones la zona se colapsa a una sola
+ * linea que lo dice: una pantalla vacia que informa es mas util que un
+ * espacio en blanco.
  */
 export class AgsCockpit extends Component {
     static template = "ags_intelligence.Cockpit";
@@ -29,6 +34,7 @@ export class AgsCockpit extends Component {
             recalculando: false,
             datos: null,
             mostrarExcepciones: true,
+            mostrarBanda: false,
             mes: 0,
         });
         onWillStart(() => this.cargar());
@@ -40,6 +46,12 @@ export class AgsCockpit extends Component {
             const fecha = this.fechaConsulta();
             this.state.datos = await this.orm.call(
                 "ags.cockpit", "datos", [fecha]);
+            // El detalle de la banda se abre solo cuando hay algo grave.
+            // En nivel aviso el titular alcanza; abrirlo siempre convertiria
+            // la advertencia en ruido de fondo que se aprende a ignorar.
+            this.state.mostrarBanda =
+                this.state.datos.confianza &&
+                this.state.datos.confianza.nivel === "alerta";
         } finally {
             this.state.cargando = false;
         }
@@ -112,6 +124,39 @@ export class AgsCockpit extends Component {
         });
     }
 
+    /**
+     * Abre los registros que ensucian el dato.
+     *
+     * El servidor manda el dominio junto al conteo justamente para esto: una
+     * advertencia que no lleva al lugar donde se arregla el problema se
+     * termina ignorando.
+     */
+    abrirHallazgo(hallazgo) {
+        if (!hallazgo.cantidad || !hallazgo.modelo) {
+            return;
+        }
+        this.action.doAction({
+            type: "ir.actions.act_window",
+            res_model: hallazgo.modelo,
+            domain: hallazgo.dominio,
+            views: [[false, "list"], [false, "form"]],
+            target: "current",
+            name: hallazgo.etiqueta,
+        });
+    }
+
+    get confianza() {
+        return this.state.datos ? this.state.datos.confianza : null;
+    }
+
+    get hallazgosSucios() {
+        const c = this.confianza;
+        if (!c) {
+            return [];
+        }
+        return c.hallazgos.filter((h) => h.cantidad);
+    }
+
     /** Agrupa las tarjetas por eje para que el bloque se lea por bloques. */
     get porEje() {
         const grupos = [];
@@ -127,6 +172,20 @@ export class AgsCockpit extends Component {
             g.tarjetas.push(t);
         }
         return grupos;
+    }
+
+    claseBanda(nivel) {
+        return {
+            alerta: "o_ags_banda_alerta",
+            aviso: "o_ags_banda_aviso",
+        }[nivel] || "o_ags_banda_ok";
+    }
+
+    iconoBanda(nivel) {
+        return {
+            alerta: "fa-exclamation-triangle",
+            aviso: "fa-exclamation-circle",
+        }[nivel] || "fa-check-circle";
     }
 
     claseSemaforo(s) {

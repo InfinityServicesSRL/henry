@@ -150,6 +150,98 @@
         border-radius: 3px;
         padding: 0.2rem 0.4rem;
     }
+
+    // ---------- Banda de confianza ----------
+    //
+    // Ocupa el ancho completo y va sobre todo lo demas. El color no es
+    // decorativo: en nivel alerta el gerente debe registrar la advertencia
+    // antes de fijar la vista en cualquier cifra de la pantalla. Aun asi se
+    // mantiene como franja y no como modal, porque una advertencia que
+    // obliga a hacer clic para seguir trabajando se despacha sin leerla.
+
+    .o_ags_banda {
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        font-size: 0.875rem;
+
+        .o_ags_banda_titular {
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        &.o_ags_banda_alerta {
+            background-color: #fdf3f3;
+            border-color: #f1b8b8;
+            border-left: 3px solid #dc3545;
+
+            > div > i { color: #dc3545; }
+            .o_ags_banda_titular { color: #842029; }
+        }
+
+        &.o_ags_banda_aviso {
+            background-color: #fffaf0;
+            border-color: #f5dfb0;
+            border-left: 3px solid #ffc107;
+
+            > div > i { color: #b8860b; }
+            .o_ags_banda_titular { color: #664d03; }
+        }
+
+        &.o_ags_banda_ok {
+            background-color: #ffffff;
+            border-left: 3px solid #28a745;
+
+            > div > i { color: #28a745; }
+            .o_ags_banda_titular { color: #495057; font-weight: 400; }
+        }
+    }
+
+    .o_ags_hallazgo {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8125rem;
+        color: #495057;
+        transition: border-color 0.12s ease;
+
+        &:hover {
+            border-color: #adb5bd;
+
+            .o_ags_flecha { opacity: 1; }
+        }
+
+        .o_ags_hallazgo_cifra {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            min-width: 2.25rem;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .o_ags_flecha {
+            color: #adb5bd;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+        }
+
+        &.o_ags_danger .o_ags_hallazgo_cifra { color: #dc3545; }
+        &.o_ags_warning .o_ags_hallazgo_cifra { color: #b8860b; }
+    }
+
+    // ---------- Deltas de las tarjetas ----------
+
+    .o_ags_deltas {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .o_ags_kpi_refs {
+        font-size: 0.75rem;
+        color: #adb5bd;
+        font-variant-numeric: tabular-nums;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

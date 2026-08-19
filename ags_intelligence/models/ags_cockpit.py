@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from dateutil.relativedelta import relativedelta
 from odoo import models, fields, api, _
+from odoo.tools.misc import format_date
 
 # Version del contrato de datos que consume el cliente OWL.
 # Si cambia la forma del payload, sube el numero y el front puede advertir en
@@ -620,7 +621,13 @@ class AgsCockpit(models.AbstractModel):
         excepciones = self._excepciones(cierre)
         return {
             "contrato": CONTRATO,
-            "periodo": cierre.strftime("%B %Y").capitalize(),
+            # strftime usa el locale del servidor y devolvia "August 2026" en
+            # una pantalla que el gerente lee en espanol. format_date respeta
+            # el idioma del usuario.
+            "periodo": format_date(self.env, cierre, date_format="MMMM y").capitalize(),
+            "periodo_label": format_date(self.env, cierre, date_format="MMM y"),
+            "previo_label": format_date(self.env, previo, date_format="MMM y"),
+            "homologo_label": format_date(self.env, homologo, date_format="MMM y"),
             "cierre": cierre.isoformat(),
             "previo": previo.isoformat(),
             "homologo": homologo.isoformat(),
