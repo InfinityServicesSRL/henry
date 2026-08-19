@@ -292,6 +292,75 @@
         border-radius: 3px;
         padding: 0.05rem 0.35rem;
     }
+
+    // ---------- Bloques comparativos ----------
+
+    .o_ags_bloque {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .o_ags_bloque_cabecera {
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: #212529;
+        user-select: none;
+
+        &:hover { background-color: #f8f9fa; }
+
+        i { color: #adb5bd; width: 0.75rem; }
+    }
+
+    .o_ags_comparativo {
+        font-size: 0.8125rem;
+        margin-bottom: 0;
+
+        thead th {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: #6c757d;
+            border-top: 1px solid #f1f3f5;
+            border-bottom: 1px solid #dee2e6;
+            padding: 0.35rem 0.5rem;
+            white-space: nowrap;
+        }
+
+        tbody td {
+            padding: 0.35rem 0.5rem;
+            border-color: #f1f3f5;
+            font-variant-numeric: tabular-nums;
+            vertical-align: middle;
+        }
+
+        tbody tr {
+            cursor: pointer;
+
+            &:hover { background-color: #f8f9fa; }
+        }
+
+        tbody tr:last-child td { border-bottom: 0; }
+    }
+
+    // El punto de color reemplaza a la etiqueta de texto en las filas: con
+    // veintitres indicadores en un bloque, veintitres badges compiten entre
+    // si y ninguno resalta.
+    .o_ags_punto {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+        vertical-align: middle;
+        background-color: #dee2e6;
+
+        &.o_ags_punto_verde { background-color: #28a745; }
+        &.o_ags_punto_amarillo { background-color: #ffc107; }
+        &.o_ags_punto_rojo { background-color: #dc3545; }
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

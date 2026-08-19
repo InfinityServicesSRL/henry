@@ -284,6 +284,83 @@
                 </div>
             </div>
 
+
+            <!-- ZONA 4 · BLOQUES COMPARATIVOS
+                 Las dos preguntas que importan, una al lado de la otra:
+                 mejore respecto a donde arranque (delta vs baseline) y donde
+                 estoy frente al mercado (delta vs objetivo). Un solo numero
+                 no responde ninguna de las dos. -->
+            <div t-if="state.datos.bloques.length" class="mb-4">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="o_ags_titulo_zona">Comparativo por eje</span>
+                    <span t-if="state.datos.hay_filtro" class="o_ags_sello">
+                        <i class="fa fa-globe me-1"/>Toda la empresa
+                    </span>
+                </div>
+
+                <div t-foreach="state.datos.bloques" t-as="b" t-key="b.eje"
+                     class="o_ags_bloque mb-2">
+                    <div class="o_ags_bloque_cabecera d-flex align-items-center gap-2 px-3 py-2"
+                         t-on-click="() => this.alternarBloque(b.eje)">
+                        <i class="fa" t-att-class="estaAbierto(b.eje) ? 'fa-caret-down' : 'fa-caret-right'"/>
+                        <span class="fw-semibold" t-esc="b.nombre"/>
+                        <span t-if="b.n_rojos" class="badge text-bg-danger" t-esc="b.n_rojos"/>
+                        <span class="o_ags_detalle ms-auto">
+                            <t t-esc="b.filas.length"/> indicadores
+                        </span>
+                    </div>
+
+                    <div t-if="filasVisibles(b).length" class="table-responsive">
+                        <table class="table table-sm mb-0 o_ags_comparativo">
+                            <thead>
+                                <tr>
+                                    <th>Indicador</th>
+                                    <th class="text-end">Actual</th>
+                                    <th class="text-end">Baseline</th>
+                                    <th class="text-end">Objetivo</th>
+                                    <th class="text-end">Δ baseline</th>
+                                    <th class="text-end">Δ objetivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="filasVisibles(b)" t-as="f" t-key="f.codigo"
+                                    t-on-click="() => this.abrirParametro(f)">
+                                    <td>
+                                        <span class="o_ags_punto"
+                                              t-att-class="'o_ags_punto_' + f.semaforo"/>
+                                        <t t-esc="f.nombre"/>
+                                        <span t-if="f.atipico" class="o_ags_sello ms-1">atipico</span>
+                                        <span t-elif="f.madurez === 'con_reservas'"
+                                              class="o_ags_sello ms-1">con reservas</span>
+                                    </td>
+                                    <td class="text-end fw-semibold" t-esc="f.actual"/>
+                                    <td class="text-end o_ags_detalle">
+                                        <t t-if="f.baseline" t-esc="f.baseline"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end o_ags_detalle">
+                                        <t t-if="f.objetivo" t-esc="f.objetivo"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end" t-att-class="claseDelta(f.delta_baseline)">
+                                        <t t-if="f.delta_baseline.hay_dato" t-esc="f.delta_baseline.texto"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end" t-att-class="claseDelta(f.delta_objetivo)">
+                                        <t t-if="f.delta_objetivo.hay_dato" t-esc="f.delta_objetivo.texto"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div t-elif="!estaAbierto(b.eje)" class="o_ags_detalle px-3 pb-2">
+                        Sin indicadores fuera de rango en este eje.
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 </t>

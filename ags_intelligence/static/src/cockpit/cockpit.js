@@ -36,6 +36,7 @@ export class AgsCockpit extends Component {
             mostrarExcepciones: true,
             mostrarBanda: false,
             mostrarFiltros: false,
+            bloquesAbiertos: {},
             filtros: {},
             opciones: { vendedores: [], mercados: [], almacenes: [] },
             mes: 0,
@@ -180,6 +181,39 @@ export class AgsCockpit extends Component {
     async limpiarFiltros() {
         this.state.filtros = {};
         await this.cargar();
+    }
+
+    alternarBloque(eje) {
+        this.state.bloquesAbiertos[eje] = !this.state.bloquesAbiertos[eje];
+    }
+
+    estaAbierto(eje) {
+        return !!this.state.bloquesAbiertos[eje];
+    }
+
+    /**
+     * Que filas se ven en un bloque cerrado.
+     *
+     * Un bloque cerrado no se calla del todo: sigue mostrando lo que esta en
+     * rojo. Colapsar por completo un eje con cinco indicadores fuera de rango
+     * convertiria el plegado en una forma de esconder el problema, que es
+     * justo lo contrario de lo que hace este cockpit.
+     */
+    filasVisibles(bloque) {
+        if (this.estaAbierto(bloque.eje)) {
+            return bloque.filas;
+        }
+        return bloque.filas.filter((f) => f.semaforo === "rojo");
+    }
+
+    claseDelta(delta) {
+        if (!delta || !delta.hay_dato) {
+            return "text-muted";
+        }
+        return {
+            mejora: "text-success",
+            deterioro: "text-danger",
+        }[delta.sentido] || "text-muted";
     }
 
     get hayFiltro() {
