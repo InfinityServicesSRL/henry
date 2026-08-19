@@ -435,6 +435,36 @@
         &.o_ags_muestra_buena { background-color: rgba(40, 167, 69, 0.25); }
         &.o_ags_muestra_baseline { background-color: #adb5bd; height: 2px; }
     }
+
+    // ---------- Alertas ----------
+
+    .o_ags_alerta {
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+
+        > div:first-of-type { cursor: pointer; }
+
+        .o_ags_marca {
+            width: 3px;
+            align-self: stretch;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        &.o_ags_danger .o_ags_marca { background-color: #dc3545; }
+        &.o_ags_warning .o_ags_marca { background-color: #ffc107; }
+        &.o_ags_info .o_ags_marca { background-color: #17a2b8; }
+    }
+
+    // La recomendacion se distingue del detalle a proposito: una describe el
+    // problema y la otra dice que hacer, y mezclarlas hace que la segunda se
+    // lea como mas texto en lugar de como una instruccion.
+    .o_ags_recomendacion {
+        font-size: 0.8125rem;
+        color: #0a58ca;
+        margin-top: 0.15rem;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

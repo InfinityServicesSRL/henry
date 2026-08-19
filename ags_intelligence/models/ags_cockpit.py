@@ -663,20 +663,39 @@ class AgsCockpit(models.AbstractModel):
     # Alertas del periodo
     # ------------------------------------------------------------------
 
+    # Una alerta sigue viva mientras nadie la atienda ni la descarte. El
+    # estado "enviada" cuenta como viva: que el digest haya salido por correo
+    # no significa que el problema este resuelto.
+    ESTADOS_VIVOS = ("nueva", "enviada")
+
     @api.model
     def _alertas(self, cierre, filtros, limite=15):
-        """Alertas abiertas del periodo, listas para el drill-down."""
+        """Alertas vivas del periodo, listas para el drill-down."""
         dominio = [
             ("fecha_periodo", "=", cierre),
-            ("estado", "=", "abierta"),
+            ("estado", "in", list(self.ESTADOS_VIVOS)),
         ]
         if filtros.get("vendedor_id"):
             dominio.append(("responsable_id", "=", filtros["vendedor_id"]))
-        registros = self.env["ags.alerta"].search(dominio, limit=limite)
+        registros = self.env["ags.alerta"].search(
+            dominio, order="prioridad, periodos_seguidos desc", limit=limite)
         prioridades = dict(self.env["ags.alerta"]._fields["prioridad"].selection)
         tipos = dict(self.env["ags.alerta"]._fields["tipo"].selection)
         salida = []
         for a in registros:
+            unidad = a.parametro_id.unidad if a.parametro_id else False
+
+            # A donde lleva el clic. Se resuelve en el servidor porque es el
+            # unico lado que sabe que relacion trae cada tipo de alerta.
+            if a.partner_id:
+                destino = ("res.partner", a.partner_id.id, a.partner_id.display_name)
+            elif a.meta_id:
+                destino = ("ags.meta", a.meta_id.id, _("Meta"))
+            elif a.parametro_id:
+                destino = ("ags.parametro", a.parametro_id.id, a.parametro_id.name)
+            else:
+                destino = (False, False, "")
+
             salida.append({
                 "id": a.id,
                 "titulo": a.titulo,
@@ -687,10 +706,41 @@ class AgsCockpit(models.AbstractModel):
                 "prioridad": a.prioridad,
                 "prioridad_nombre": prioridades.get(a.prioridad, a.prioridad),
                 "periodos_seguidos": a.periodos_seguidos,
+                "estado": a.estado,
                 "parametro_id": a.parametro_id.id or False,
                 "responsable": a.responsable_id.name or "",
+                "valor": self._formato(a.valor, unidad) if unidad else "",
+                "referencia": (self._formato(a.valor_referencia, unidad)
+                               if unidad and a.valor_referencia else ""),
+                "modelo_destino": destino[0],
+                "res_id_destino": destino[1],
+                "nombre_destino": destino[2],
             })
         return salida
+
+    @api.model
+    def cerrar_alerta(self, alerta_id, accion, fecha=None, filtros=None):
+        """Marca una alerta como atendida o descartada y devuelve el payload.
+
+        Se cierra desde el cockpit, sin abrir el formulario: si atender una
+        alerta cuesta tres clics y un cambio de pantalla, la lista se queda
+        llena de cosas ya resueltas y deja de significar nada.
+        """
+        alerta = self.env["ags.alerta"].browse(int(alerta_id)).exists()
+        if alerta:
+            if accion == "atendida":
+                alerta.action_atendida()
+            elif accion == "descartada":
+                alerta.action_descartada()
+        return self.datos(fecha, filtros)
+
+    @api.model
+    def generar_alertas(self, fecha=None, filtros=None):
+        """Corre los detectores del periodo y devuelve el payload actualizado."""
+        if isinstance(fecha, str) and fecha:
+            fecha = fields.Date.to_date(fecha)
+        self.env["ags.alerta"].generar(fecha)
+        return self.datos(fecha, filtros)
 
     # ------------------------------------------------------------------
     # Ventas del mes contra meta

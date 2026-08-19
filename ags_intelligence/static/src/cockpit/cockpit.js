@@ -39,6 +39,7 @@ export class AgsCockpit extends Component {
             bloquesAbiertos: {},
             series: {},
             serieAbierta: false,
+            generandoAlertas: false,
             filtros: {},
             opciones: { vendedores: [], mercados: [], almacenes: [] },
             mes: 0,
@@ -332,6 +333,51 @@ export class AgsCockpit extends Component {
 
     get hayFiltro() {
         return Object.keys(this.state.filtros).length > 0;
+    }
+
+    async cerrarAlerta(alerta, accion) {
+        this.state.datos = await this.orm.call(
+            "ags.cockpit", "cerrar_alerta",
+            [alerta.id, accion, this.fechaConsulta(), this.filtrosPlanos()]);
+        this.notification.add(
+            accion === "atendida" ? _t("Alerta atendida") : _t("Alerta descartada"),
+            { type: "success" });
+    }
+
+    async generarAlertas() {
+        this.state.generandoAlertas = true;
+        try {
+            this.state.datos = await this.orm.call(
+                "ags.cockpit", "generar_alertas",
+                [this.fechaConsulta(), this.filtrosPlanos()]);
+            const n = this.state.datos.alertas.length;
+            this.notification.add(
+                n ? _t("%s alertas del periodo", n) : _t("Sin alertas que reportar"),
+                { type: n ? "warning" : "success" });
+        } finally {
+            this.state.generandoAlertas = false;
+        }
+    }
+
+    abrirDestinoAlerta(alerta) {
+        if (!alerta.modelo_destino || !alerta.res_id_destino) {
+            return;
+        }
+        this.action.doAction({
+            type: "ir.actions.act_window",
+            res_model: alerta.modelo_destino,
+            res_id: alerta.res_id_destino,
+            views: [[false, "form"]],
+            target: "current",
+            name: alerta.nombre_destino,
+        });
+    }
+
+    clasePrioridad(p) {
+        return {
+            "1": "o_ags_danger",
+            "2": "o_ags_warning",
+        }[p] || "o_ags_info";
     }
 
     get confianza() {

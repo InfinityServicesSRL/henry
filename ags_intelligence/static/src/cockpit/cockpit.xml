@@ -178,6 +178,61 @@
                 </div>
             </div>
 
+            <!-- ZONA 1B · ALERTAS DEL PERIODO
+                 Las excepciones dicen que esta fuera de rango hoy. Las alertas
+                 anaden la dimension que falta: cuantos periodos lleva asi y
+                 que hacer al respecto. Se cierran desde aqui porque una lista
+                 que cuesta mantener limpia deja de leerse. -->
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="o_ags_titulo_zona">Alertas del periodo</span>
+                        <span t-if="state.datos.alertas.length" class="badge text-bg-secondary"
+                              t-esc="state.datos.alertas.length"/>
+                    </div>
+                    <button class="btn btn-sm btn-link p-0" t-on-click="generarAlertas"
+                            t-att-disabled="state.generandoAlertas">
+                        <i class="fa fa-search me-1" t-att-class="{ 'fa-spin': state.generandoAlertas }"/>
+                        Detectar
+                    </button>
+                </div>
+
+                <div t-if="!state.datos.alertas.length" class="o_ags_detalle">
+                    Sin alertas vivas en este periodo.
+                </div>
+
+                <div t-else="" class="d-flex flex-column gap-1">
+                    <div t-foreach="state.datos.alertas" t-as="a" t-key="a.id"
+                         class="o_ags_alerta d-flex align-items-start gap-3 px-3 py-2"
+                         t-att-class="clasePrioridad(a.prioridad)">
+                        <span class="o_ags_marca"/>
+                        <div class="flex-grow-1" t-on-click="() => this.abrirDestinoAlerta(a)">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-semibold" t-esc="a.titulo"/>
+                                <span t-if="a.periodos_seguidos > 1" class="o_ags_sello">
+                                    <t t-esc="a.periodos_seguidos"/> periodos
+                                </span>
+                                <span class="o_ags_sello" t-esc="a.tipo_nombre"/>
+                            </div>
+                            <div t-if="a.detalle" class="o_ags_detalle" t-esc="a.detalle"/>
+                            <div t-if="a.recomendacion" class="o_ags_recomendacion">
+                                <i class="fa fa-arrow-right me-1"/><t t-esc="a.recomendacion"/>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                            <button class="btn btn-sm btn-light" title="Marcar atendida"
+                                    t-on-click.stop="() => this.cerrarAlerta(a, 'atendida')">
+                                <i class="fa fa-check"/>
+                            </button>
+                            <button class="btn btn-sm btn-light" title="Descartar"
+                                    t-on-click.stop="() => this.cerrarAlerta(a, 'descartada')">
+                                <i class="fa fa-times"/>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- ZONA 2 · VENTAS DEL MES -->
             <div class="o_ags_tarjeta mb-4 p-3">
                 <div class="d-flex align-items-baseline justify-content-between mb-3">
