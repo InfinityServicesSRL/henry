@@ -22,3 +22,4 @@ from . import purchase_order
 from . import account_move
 from . import account_move_nc
 from . import ags_calculador
+from . import ags_calculador_calidad
