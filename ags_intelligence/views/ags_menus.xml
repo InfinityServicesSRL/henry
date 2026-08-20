@@ -8,7 +8,7 @@
             name="Inteligencia"
             sequence="90"
             web_icon="ags_intelligence,static/description/icon.png"
-            groups="ags_intelligence.group_ags_manager"/>
+            groups="ags_intelligence.group_ags_delegado"/>
 
     <!-- Pantalla de inicio -->
     <menuitem id="menu_ags_cockpit"
@@ -62,7 +62,8 @@
             name="Proyecciones"
             parent="menu_ags_parametros_root"
             action="action_ags_proyeccion"
-            sequence="50"/>
+            sequence="50"
+            groups="ags_intelligence.group_ags_manager"/>
 
     <!-- ============================================================
          CONFIGURACION
@@ -96,12 +97,14 @@
             name="Rentabilidad por cliente"
             parent="menu_ags_metas_root"
             action="action_ags_rentabilidad"
-            sequence="15"/>
+            sequence="15"
+            groups="ags_intelligence.group_ags_manager"/>
 
     <menuitem id="menu_ags_cartera"
             name="Cartera"
             parent="menu_ags_root"
-            sequence="20"/>
+            sequence="20"
+            groups="ags_intelligence.group_ags_manager"/>
 
     <menuitem id="menu_ags_aging_cxc"
             name="Antiguedad por cobrar"
@@ -118,7 +121,8 @@
     <menuitem id="menu_ags_abastecimiento"
             name="Abastecimiento"
             parent="menu_ags_root"
-            sequence="25"/>
+            sequence="25"
+            groups="ags_intelligence.group_ags_manager"/>
 
     <menuitem id="menu_ags_importaciones"
             name="Importaciones pendientes"
@@ -135,7 +139,8 @@
     <menuitem id="menu_ags_config"
             name="Configuracion"
             parent="menu_ags_root"
-            sequence="99"/>
+            sequence="99"
+            groups="ags_intelligence.group_ags_manager"/>
 
     <menuitem id="menu_ags_config_contable"
             name="Configuracion contable"

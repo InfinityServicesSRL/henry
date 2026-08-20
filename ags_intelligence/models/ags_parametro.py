@@ -202,6 +202,14 @@ class AgsParametro(models.Model):
         string="Configuracion pendiente",
         help="Que falta declarar para que este parametro pueda calcularse",
     )
+    confidencial = fields.Boolean(
+        string="Confidencial",
+        default=False,
+        help="Marca los indicadores que solo debe ver Gerencia: margenes por "
+             "cliente, P&L, cuentas por pagar, costos unitarios. La "
+             "clasificacion vive aqui y no en el codigo, para que reclasificar "
+             "un indicador sea editar un registro y no desplegar una version.",
+    )
     active = fields.Boolean(default=True)
 
     _sql_constraints = [

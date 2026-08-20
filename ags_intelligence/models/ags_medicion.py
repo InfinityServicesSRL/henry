@@ -28,6 +28,11 @@ class AgsMedicion(models.Model):
         related="parametro_id.codigo", string="Codigo", store=True
     )
     seccion = fields.Selection(related="parametro_id.seccion", string="Seccion", store=True)
+    # Almacenado a proposito: la regla de registro que filtra lo confidencial
+    # se evalua en SQL, y un related sin store obligaria a resolverlo fila a
+    # fila en Python sobre las 317 mediciones en cada lectura.
+    confidencial = fields.Boolean(
+        related="parametro_id.confidencial", string="Confidencial", store=True)
     unidad = fields.Selection(related="parametro_id.unidad", string="Unidad")
     direccion = fields.Selection(related="parametro_id.direccion", string="Direccion")
 

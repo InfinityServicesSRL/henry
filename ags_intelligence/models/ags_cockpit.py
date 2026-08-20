@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from dateutil.relativedelta import relativedelta
 from odoo import models, fields, api, _
+from odoo.exceptions import AccessError
 from odoo.tools.misc import format_date
 
 # Version del contrato de datos que consume el cliente OWL.
@@ -98,6 +99,33 @@ class AgsCockpit(models.AbstractModel):
         f = fecha or fields.Date.context_today(self)
         primero = f.replace(day=1) - relativedelta(months=atras)
         return primero + relativedelta(months=1, days=-1)
+
+    @api.model
+    def _es_gerencia(self):
+        """Quien puede ver la informacion sensible.
+
+        Las reglas de registro ya filtran parametros y mediciones
+        confidenciales por si solas, asi que las tarjetas y los bloques se
+        depuran sin que este metodo intervenga. Hace falta igualmente para
+        dos cosas que las reglas no cubren: los modelos que el delegado no
+        puede ni leer (consultarlos lanzaria AccessError en vez de devolver
+        una lista vacia) y el desglose de ventas de otros vendedores.
+        """
+        return self.env.user.has_group("ags_intelligence.group_ags_manager")
+
+    @api.model
+    def _contar(self, modelo, dominio):
+        """Cuenta registros tolerando que el usuario no tenga acceso.
+
+        Un delegado sin permisos de contabilidad no puede contar asientos en
+        borrador. La banda de confianza omite ese hallazgo en lugar de
+        reventar la pantalla entera, y lo omite en silencio: decirle a quien
+        no puede verlo que existe algo que no puede ver no le sirve de nada.
+        """
+        try:
+            return self.env[modelo].search_count(dominio)
+        except AccessError:
+            return None
 
     @api.model
     def _formato(self, valor, unidad):
@@ -343,22 +371,22 @@ class AgsCockpit(models.AbstractModel):
             self._hallazgo(
                 "asientos_borrador", "ASIENTOS_BORRADOR",
                 "Facturas y asientos en borrador",
-                self.env["account.move"].search_count(dom_asientos),
+                self._contar("account.move", dom_asientos),
                 "account.move", dom_asientos, "danger", es_global=True),
             self._hallazgo(
                 "ots_vencidas", "OTS_ABIERTAS_VENCIDAS",
                 "Ordenes de produccion abiertas y vencidas",
-                self.env["mrp.production"].search_count(dom_ots),
+                self._contar("mrp.production", dom_ots),
                 "mrp.production", dom_ots),
             self._hallazgo(
                 "mov_sin_validar", "MOV_SIN_VALIDAR",
                 "Movimientos de inventario sin validar",
-                self.env["stock.picking"].search_count(dom_pickings),
+                self._contar("stock.picking", dom_pickings),
                 "stock.picking", dom_pickings),
             self._hallazgo(
                 "oc_sin_confirmar", "OC_SIN_CONFIRMAR",
                 "Ordenes de compra sin confirmar (mas de 15 dias)",
-                self.env["purchase.order"].search_count(dom_oc),
+                self._contar("purchase.order", dom_oc),
                 "purchase.order", dom_oc, es_global=True),
             # Sin parametro asociado: el inventario negativo no es un indicador
             # de gestion con banda tolerable, es un error de datos. Cualquier
@@ -366,7 +394,7 @@ class AgsCockpit(models.AbstractModel):
             self._hallazgo(
                 "inventario_negativo", None,
                 "Lineas de inventario en negativo",
-                self.env["stock.quant"].search_count(dom_quants),
+                self._contar("stock.quant", dom_quants),
                 "stock.quant", dom_quants, "danger"),
         ]
 
@@ -374,6 +402,9 @@ class AgsCockpit(models.AbstractModel):
         # hallazgos, y deben ser los tres peores, no los tres primeros de la
         # lista. Con 96 lineas de inventario negativo escondidas detras de 4
         # asientos en borrador, la advertencia pierde justo lo que importa.
+        # cantidad None = el usuario no puede consultar ese modelo.
+        hallazgos = [h for h in hallazgos if h["cantidad"] is not None]
+
         peso = {"danger": 0, "warning": 1, "ok": 2}
         sucios = sorted(
             [h for h in hallazgos if h["cantidad"]],
@@ -462,7 +493,9 @@ class AgsCockpit(models.AbstractModel):
                 "res_id": t.id,
             })
 
-        # Clientes que destruyen valor
+        # Clientes que destruyen valor.
+        # El modelo no tiene ACL para el delegado a proposito: consultarlo sin
+        # permiso lanzaria AccessError, asi que ni se intenta.
         dom_rent = [
             ("fecha_periodo", "=", cierre),
             ("destruye_valor", "=", True),
@@ -471,8 +504,12 @@ class AgsCockpit(models.AbstractModel):
             dom_rent.append(("vendedor_id", "=", filtros["vendedor_id"]))
         if filtros.get("mercado_id"):
             dom_rent.append(("mercado_id", "=", filtros["mercado_id"]))
-        for r in self.env["ags.rentabilidad"].search(
-                dom_rent, order="margen_economico", limit=5):
+        rentables = (
+            self.env["ags.rentabilidad"].search(
+                dom_rent, order="margen_economico", limit=5)
+            if self._es_gerencia() else self.env["ags.rentabilidad"].browse()
+        )
+        for r in rentables:
             salida.append({
                 "tipo": "cliente",
                 "gravedad": "warning",
@@ -748,13 +785,29 @@ class AgsCockpit(models.AbstractModel):
 
     @api.model
     def _ventas_vs_meta(self, cierre, filtros):
+        """Ventas del mes contra meta.
+
+        Un delegado ve su propia venta, no la de sus companeros: el ranking
+        completo del equipo es informacion de Gerencia. El filtro se aplica
+        en el dominio y no recortando el resultado, para que el total tampoco
+        delate la venta de los demas.
+        """
         desde = cierre.replace(day=1)
-        facturas = self.env["account.move"].search([
-            ("move_type", "=", "out_invoice"),
-            ("state", "=", "posted"),
-            ("invoice_date", ">=", desde),
-            ("invoice_date", "<=", cierre),
-        ] + self._dominio_facturas(filtros))
+        propio = [] if self._es_gerencia() else [
+            ("invoice_user_id", "=", self.env.user.id)]
+        try:
+            facturas = self.env["account.move"].search([
+                ("move_type", "=", "out_invoice"),
+                ("state", "=", "posted"),
+                ("invoice_date", ">=", desde),
+                ("invoice_date", "<=", cierre),
+            ] + propio + self._dominio_facturas(filtros))
+        except AccessError:
+            return {
+                "real": "", "real_num": 0.0, "meta": "", "meta_num": 0.0,
+                "cumplimiento": 0.0, "hay_meta": False, "por_vendedor": [],
+                "alcance": "sin_acceso",
+            }
         real = sum(facturas.mapped("amount_untaxed"))
 
         dom_metas = [
@@ -841,6 +894,7 @@ class AgsCockpit(models.AbstractModel):
             # no responden al filtro. Se declara aqui para que el front lo
             # selle en pantalla en vez de dejar que el gerente lo suponga.
             "alcance_agregado": "empresa",
+            "es_gerencia": self._es_gerencia(),
             "confianza": self._banda_confianza(cierre, filtros),
             "excepciones": excepciones,
             "n_excepciones": len([e for e in excepciones

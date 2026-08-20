@@ -50,6 +50,7 @@
                             <field name="unidad"/>
                             <field name="direccion"/>
                             <field name="tipo_benchmark"/>
+                            <field name="confidencial"/>
                         </group>
                         <group string="Operacion">
                             <field name="captura"/>
