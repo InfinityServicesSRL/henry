@@ -17,7 +17,8 @@
                 <field name="secuencia" column_invisible="1"/>
                 <field name="rol"/>
                 <field name="tipo"/>
-                <field name="cuentas_codigos" optional="show"/>
+                <field name="cuentas_resumen" optional="show"/>
+                <field name="cuentas_codigos" optional="hide"/>
                 <field name="fecha_desde" optional="hide"/>
                 <field name="fecha_hasta" optional="show"/>
                 <field name="valor" sum="Total"/>
@@ -91,7 +92,7 @@
                             <list create="false" edit="false">
                                 <field name="rol"/>
                                 <field name="tipo"/>
-                                <field name="cuentas_codigos"/>
+                                <field name="cuentas_resumen"/>
                                 <field name="fecha_hasta"/>
                                 <field name="valor" sum="Total"/>
                                 <button name="action_ver_origen" type="object"

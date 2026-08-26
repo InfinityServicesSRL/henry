@@ -17,6 +17,37 @@ _ALMACEN = threading.local()
 TOPE_COMPONENTES = 40
 
 
+# Nombre que debe llevar cada conjunto de cuentas cuando aparezca en el
+# desglose. Se resuelve comparando el conjunto que recibio el calculo contra
+# los conjuntos que define la configuracion: asi ningun calculador tiene que
+# declarar su etiqueta a mano, y los que se escriban manana la heredan.
+_ETIQUETAS = [
+    ("cuenta_inventario_ids", "Inventario"),
+    ("cuenta_deuda_financiera_ids", "Deuda financiera"),
+    ("cuenta_gasto_financiero_ids", "Gastos financieros"),
+    ("cuentas_ingreso", "Ingresos operativos"),
+    ("cuentas_ingreso_no_operativo", "Ingresos no operativos"),
+    ("cuentas_costo_venta", "Costo de ventas"),
+    ("cuentas_mod", "Mano de obra directa"),
+    ("cuentas_gasto_operativo", "Gastos operativos"),
+    ("cuentas_depreciacion", "Depreciacion"),
+    ("cuentas_efectivo", "Efectivo y equivalentes"),
+    ("cuentas_activo_circulante", "Activo circulante"),
+    ("cuentas_activo_total", "Activo total"),
+    ("cuentas_pasivo_corriente", "Pasivo corriente"),
+    ("cuentas_pasivo_total", "Pasivo total"),
+    ("cuentas_patrimonio", "Patrimonio"),
+]
+
+# Conjuntos que no vienen de un metodo con nombre sino de un filtro por tipo
+# de cuenta dentro del propio calculo.
+_ETIQUETAS_POR_TIPO = [
+    (("income", "income_other"), "Ingresos del ejercicio"),
+    (("expense", "expense_direct_cost", "expense_depreciation"),
+     "Gastos del ejercicio"),
+]
+
+
 def _traza():
     if not hasattr(_ALMACEN, "componentes"):
         _ALMACEN.componentes = []
@@ -63,21 +94,60 @@ class AgsCalculadorTraza(models.AbstractModel):
         return valor
 
     @api.model
+    def _catalogo(self):
+        """Conjuntos de cuentas conocidos, con su nombre de negocio.
+
+        Se arma una sola vez por corrida. Resolver la etiqueta comparando
+        conjuntos, y no exigiendo que cada calculador la declare, significa
+        que los 54 calculadores existentes quedan etiquetados sin tocarlos.
+        """
+        catalogo = getattr(_ALMACEN, "catalogo", None)
+        if catalogo is not None:
+            return catalogo
+        catalogo = []
+        try:
+            cfg = self._config()
+            for nombre, etiqueta in _ETIQUETAS:
+                try:
+                    valor = getattr(cfg, nombre, None)
+                    cuentas = valor() if callable(valor) else valor
+                except Exception:
+                    continue
+                if cuentas:
+                    catalogo.append((frozenset(cuentas.ids), etiqueta))
+            for tipos, etiqueta in _ETIQUETAS_POR_TIPO:
+                try:
+                    cuentas = cfg._cuentas_por_tipo(list(tipos))
+                except Exception:
+                    continue
+                if cuentas:
+                    catalogo.append((frozenset(cuentas.ids), etiqueta))
+        except Exception:
+            _logger.warning(
+                "ags.componente: no se pudo armar el catalogo de rotulos")
+        _ALMACEN.catalogo = catalogo
+        return catalogo
+
+    @api.model
     def _rotulo(self, cuentas):
         """Nombre legible de un conjunto de cuentas.
 
-        Cuando el calculador no declara un concepto, se usa el nombre de la
-        cuenta. Los nombres del plan contable de AG Supply son descriptivos,
-        asi que el desglose se lee igual de bien.
+        Primero se busca el conjunto en el catalogo: si el calculo consulto
+        exactamente las cuentas de inventario, la pieza se llama
+        "Inventario" y no "3 cuentas: 11050100...". Si el conjunto no
+        corresponde a ninguno conocido se cae al nombre de la cuenta, y como
+        ultimo recurso al conteo. El detalle de codigos vive en su propia
+        columna; repetirlo aqui solo ensucia la lectura.
         """
         if not cuentas:
             return "Sin cuentas"
+        ids = frozenset(cuentas.ids)
+        for conjunto, etiqueta in self._catalogo():
+            if conjunto == ids:
+                return etiqueta
         if len(cuentas) == 1:
             return "%s %s" % (cuentas.code or "", cuentas.name or "")
-        codigos = ", ".join(sorted(c.code or "" for c in cuentas)[:4])
-        if len(cuentas) > 4:
-            codigos += " y %s mas" % (len(cuentas) - 4)
-        return "%s cuentas: %s" % (len(cuentas), codigos)
+        return "%s cuentas" % len(cuentas)
 
     # ------------------------------------------------------------------
     # Interceptacion de los dos accesos a saldos
@@ -162,8 +232,9 @@ class AgsCalculadorTraza(models.AbstractModel):
 
     @api.model
     def calcular_periodo(self, fecha=None, codigos=None):
-        """Limpia la traza antes de la corrida completa."""
+        """Limpia la traza y el catalogo antes de la corrida completa."""
         self._limpiar_traza()
+        _ALMACEN.catalogo = None
         return super().calcular_periodo(fecha=fecha, codigos=codigos)
 
 

@@ -1011,7 +1011,8 @@ class AgsCockpit(models.AbstractModel):
                 "tipo": c.tipo,
                 "valor": self._formato(c.valor, param.unidad)
                          if c.tipo == "derivado" else "{:,.2f}".format(c.valor),
-                "cuentas": c.cuentas_codigos or "",
+                "cuentas": c.cuentas_resumen or "",
+                "cuentas_detalle": c.cuentas_codigos or "",
                 "desde": c.fecha_desde.isoformat() if c.fecha_desde else "",
                 "hasta": c.fecha_hasta.isoformat() if c.fecha_hasta else "",
                 "notas": c.notas or "",

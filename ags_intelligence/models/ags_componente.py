@@ -3,6 +3,9 @@ from odoo import models, fields, api, _
 from odoo.exceptions import UserError
 from odoo.tools.safe_eval import safe_eval
 
+# A partir de aqui la lista de codigos deja de informar y estorba.
+LIMITE_CODIGOS = 4
+
 
 class AgsComponente(models.Model):
     """Cada pieza que compone el valor de una medicion.
@@ -48,6 +51,8 @@ class AgsComponente(models.Model):
     cuenta_ids = fields.Many2many("account.account", string="Cuentas")
     cuentas_codigos = fields.Char(
         string="Codigos", compute="_compute_cuentas_codigos", store=True)
+    cuentas_resumen = fields.Char(
+        string="Cuentas", compute="_compute_cuentas_resumen", store=True)
     fecha_desde = fields.Date(string="Desde")
     fecha_hasta = fields.Date(string="Hasta")
 
@@ -60,6 +65,25 @@ class AgsComponente(models.Model):
         for rec in self:
             rec.cuentas_codigos = ", ".join(
                 sorted(c.code or "" for c in rec.cuenta_ids))
+
+    @api.depends("cuenta_ids")
+    def _compute_cuentas_resumen(self):
+        """Version corta para la tabla del cockpit.
+
+        Un indicador puede apoyarse en 87 cuentas. Volcarlas todas en una
+        celda convierte la fila en un muro de digitos y esconde lo unico que
+        el lector busca ahi, que es el importe. El detalle completo sigue
+        disponible en el tooltip y en la ficha del componente.
+        """
+        for rec in self:
+            codigos = sorted(c.code or "" for c in rec.cuenta_ids)
+            if not codigos:
+                rec.cuentas_resumen = ""
+            elif len(codigos) <= LIMITE_CODIGOS:
+                rec.cuentas_resumen = ", ".join(codigos)
+            else:
+                rec.cuentas_resumen = "%s cuentas (%s ... %s)" % (
+                    len(codigos), codigos[0], codigos[-1])
 
     def action_ver_origen(self):
         """Abre los registros que forman este componente.

@@ -495,6 +495,15 @@ $ags-info:         if(variable-exists(info), $info, #17a2b8);
         &:hover { color: $ags-acento; }
     }
 
+    .o_ags_cuentas {
+        // El detalle completo vive en el tooltip; aqui manda la legibilidad
+        // de la fila.
+        max-width: 22rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .o_ags_desglose {
         background-color: $ags-lienzo;
         border-top: 1px solid $ags-borde;

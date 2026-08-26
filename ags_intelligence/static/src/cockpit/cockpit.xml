@@ -471,7 +471,9 @@
                                         <t t-esc="c.rol"/>
                                         <div t-if="c.notas" class="o_ags_detalle" t-esc="c.notas"/>
                                     </td>
-                                    <td class="o_ags_detalle" t-esc="c.cuentas"/>
+                                    <td class="o_ags_detalle o_ags_cuentas"
+                                        t-att-title="c.cuentas_detalle"
+                                        t-esc="c.cuentas"/>
                                     <td class="o_ags_detalle" t-esc="c.hasta"/>
                                     <td class="text-end fw-semibold" t-esc="c.valor"/>
                                     <td class="text-end">
