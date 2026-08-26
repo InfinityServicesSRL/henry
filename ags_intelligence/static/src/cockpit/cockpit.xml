@@ -395,6 +395,11 @@
                                         <span class="o_ags_punto"
                                               t-att-class="'o_ags_punto_' + f.semaforo"/>
                                         <t t-esc="f.nombre"/>
+                                        <button class="btn btn-sm btn-link p-0 ms-2 o_ags_btn_origen"
+                                                t-on-click.stop="() => this.alternarDesglose(f.codigo)"
+                                                title="De donde sale este numero">
+                                            <i class="fa fa-sitemap"/>
+                                        </button>
                                         <span t-if="f.atipico" class="o_ags_sello ms-1">atipico</span>
                                         <span t-elif="f.madurez === 'con_reservas'"
                                               class="o_ags_sello ms-1">con reservas</span>
@@ -423,6 +428,63 @@
 
                     <div t-elif="!estaAbierto(b.eje)" class="o_ags_detalle px-3 pb-2">
                         Sin indicadores fuera de rango en este eje.
+                    </div>
+
+                    <!-- DESGLOSE DEL CALCULO
+                         La trazabilidad que pidio el auditor: cada pieza con
+                         sus cuentas, y de ahi a los apuntes que la forman. -->
+                    <div t-if="desgloseActual and desgloseActual.hay_dato and b.filas.some(f => f.codigo === state.desgloseAbierto)"
+                         class="o_ags_desglose px-3 py-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div>
+                                <span class="fw-semibold" t-esc="desgloseActual.nombre"/>
+                                <span class="o_ags_detalle ms-2">
+                                    valor calculado: <t t-esc="desgloseActual.valor"/>
+                                </span>
+                            </div>
+                            <button class="btn btn-sm btn-link p-0"
+                                    t-on-click="() => state.desgloseAbierto = false">Cerrar</button>
+                        </div>
+
+                        <div t-if="desgloseActual.metodo" class="o_ags_detalle mb-2"
+                             t-esc="desgloseActual.metodo"/>
+
+                        <div t-if="!desgloseActual.componentes.length" class="o_ags_aviso">
+                            <i class="fa fa-info-circle me-1"/>
+                            Este periodo se calculo antes de activarse la trazabilidad.
+                            Al recalcular el periodo, el desglose queda registrado.
+                        </div>
+
+                        <table t-else="" class="table table-sm mb-0 o_ags_comparativo">
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th>Cuentas</th>
+                                    <th>Hasta</th>
+                                    <th class="text-end">Valor</th>
+                                    <th class="text-end">Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="desgloseActual.componentes" t-as="c" t-key="c.id">
+                                    <td>
+                                        <t t-esc="c.rol"/>
+                                        <div t-if="c.notas" class="o_ags_detalle" t-esc="c.notas"/>
+                                    </td>
+                                    <td class="o_ags_detalle" t-esc="c.cuentas"/>
+                                    <td class="o_ags_detalle" t-esc="c.hasta"/>
+                                    <td class="text-end fw-semibold" t-esc="c.valor"/>
+                                    <td class="text-end">
+                                        <button t-if="c.tiene_origen"
+                                                class="btn btn-sm btn-link p-0"
+                                                t-on-click="() => this.abrirOrigen(c)">
+                                            Ver apuntes
+                                        </button>
+                                        <span t-else="" class="o_ags_detalle">derivado</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

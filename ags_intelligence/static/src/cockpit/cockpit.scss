@@ -485,6 +485,20 @@ $ags-info:         if(variable-exists(info), $info, #17a2b8);
         color: $ags-acento;
         margin-top: 0.15rem;
     }
+
+    // ---------- Desglose del calculo ----------
+
+    .o_ags_btn_origen {
+        color: $ags-debil;
+        line-height: 1;
+
+        &:hover { color: $ags-acento; }
+    }
+
+    .o_ags_desglose {
+        background-color: $ags-lienzo;
+        border-top: 1px solid $ags-borde;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

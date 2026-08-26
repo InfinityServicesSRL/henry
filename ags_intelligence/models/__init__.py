@@ -21,5 +21,7 @@ from . import res_partner
 from . import purchase_order
 from . import account_move
 from . import account_move_nc
+from . import ags_componente
 from . import ags_calculador
 from . import ags_calculador_calidad
+from . import ags_trazabilidad

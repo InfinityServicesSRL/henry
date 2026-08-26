@@ -976,6 +976,68 @@ class AgsCockpit(models.AbstractModel):
             },
         }
 
+    # ------------------------------------------------------------------
+    # Trazabilidad
+    # ------------------------------------------------------------------
+
+    @api.model
+    def desglose(self, codigo, fecha=None):
+        """Piezas que forman el valor de un indicador en el periodo.
+
+        Devuelve el desglose guardado en el momento del calculo, no una
+        reconstruccion: si los asientos cambiaron despues, el desglose sigue
+        mostrando contra que se calculo aquel dia, que es lo que permite
+        auditarlo.
+        """
+        param = self.env["ags.parametro"].search(
+            [("codigo", "=", codigo)], limit=1)
+        if not param:
+            return {}
+        if isinstance(fecha, str) and fecha:
+            fecha = fields.Date.to_date(fecha)
+        cierre = self._cierre_mes(fecha)
+        medicion = self.env["ags.medicion"].search([
+            ("parametro_id", "=", param.id),
+            ("fecha_periodo", "=", cierre),
+        ], limit=1)
+        if not medicion:
+            return {"hay_dato": False, "nombre": param.name}
+
+        piezas = []
+        for c in medicion.componente_ids:
+            piezas.append({
+                "id": c.id,
+                "rol": c.rol,
+                "tipo": c.tipo,
+                "valor": self._formato(c.valor, param.unidad)
+                         if c.tipo == "derivado" else "{:,.2f}".format(c.valor),
+                "cuentas": c.cuentas_codigos or "",
+                "desde": c.fecha_desde.isoformat() if c.fecha_desde else "",
+                "hasta": c.fecha_hasta.isoformat() if c.fecha_hasta else "",
+                "notas": c.notas or "",
+                "tiene_origen": bool(c.cuenta_ids) or bool(c.modelo and c.dominio),
+            })
+
+        return {
+            "hay_dato": True,
+            "nombre": param.name,
+            "codigo": param.codigo,
+            "medicion_id": medicion.id,
+            "valor": self._formato(medicion.valor, param.unidad),
+            "metodo": param.metodo_calculo or "",
+            "notas": medicion.notas or "",
+            "componentes": piezas,
+        }
+
+    @api.model
+    def abrir_origen(self, componente_id):
+        """Delega en el componente la apertura de sus registros de origen."""
+        componente = self.env["ags.componente"].browse(
+            int(componente_id)).exists()
+        if not componente:
+            return False
+        return componente.action_ver_origen()
+
     @api.model
     def recalcular(self, fecha=None, filtros=None):
         """Recalcula el periodo desde el cockpit, sin salir de la pantalla."""

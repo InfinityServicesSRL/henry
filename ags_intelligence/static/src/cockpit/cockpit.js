@@ -46,6 +46,8 @@ export class AgsCockpit extends Component {
             series: {},
             serieAbierta: false,
             generandoAlertas: false,
+            desgloses: {},
+            desgloseAbierto: false,
             filtros: {},
             opciones: { vendedores: [], mercados: [], almacenes: [] },
             mes: 0,
@@ -384,6 +386,42 @@ export class AgsCockpit extends Component {
             "1": "o_ags_danger",
             "2": "o_ags_warning",
         }[p] || "o_ags_info";
+    }
+
+    /**
+     * Abre el desglose de un indicador.
+     *
+     * Es la peticion del auditor: desde la cifra, llegar a las cuentas que
+     * la forman y de ahi a los apuntes. Se carga bajo demanda y se cachea
+     * como las series.
+     */
+    async alternarDesglose(codigo) {
+        if (this.state.desgloseAbierto === codigo) {
+            this.state.desgloseAbierto = false;
+            return;
+        }
+        if (!this.state.desgloses[codigo]) {
+            this.state.desgloses[codigo] = await this.orm.call(
+                "ags.cockpit", "desglose", [codigo, this.fechaConsulta()]);
+        }
+        this.state.desgloseAbierto = codigo;
+    }
+
+    get desgloseActual() {
+        const c = this.state.desgloseAbierto;
+        return c ? this.state.desgloses[c] : null;
+    }
+
+    /** El servidor decide a que registros lleva cada componente. */
+    async abrirOrigen(componente) {
+        if (!componente.tiene_origen) {
+            return;
+        }
+        const accion = await this.orm.call(
+            "ags.cockpit", "abrir_origen", [componente.id]);
+        if (accion) {
+            this.action.doAction(accion);
+        }
     }
 
     get confianza() {
