@@ -1571,7 +1571,16 @@ class AgsCalculador(models.AbstractModel):
                 resultados["error"].append((param.codigo, "metodo no implementado"))
                 continue
             try:
-                res = metodo(param, fecha)
+                # SAVEPOINT POR PARAMETRO, NO SOLO try/except.
+                #
+                # Atrapar la excepcion de Python no basta: si el fallo vino de
+                # una consulta invalida, Postgres deja la transaccion abortada
+                # y TODA consulta posterior responde "current transaction is
+                # aborted". Un unico calculador roto tumbaba la corrida
+                # completa y el log se llenaba de errores en cascada que
+                # escondian cual habia sido el primero.
+                with self.env.cr.savepoint():
+                    res = metodo(param, fecha)
                 if res:
                     resultados["ok"].append(param.codigo)
                 else:
@@ -1579,4 +1588,8 @@ class AgsCalculador(models.AbstractModel):
             except Exception as e:
                 _logger.exception("Error calculando %s", param.codigo)
                 resultados["error"].append((param.codigo, str(e)))
+        if resultados["error"]:
+            _logger.warning(
+                "Corrida con %s errores: %s", len(resultados["error"]),
+                ", ".join(c for c, _m in resultados["error"]))
         return resultados

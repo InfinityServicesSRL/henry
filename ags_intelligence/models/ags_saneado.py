@@ -119,6 +119,8 @@ class AgsCalculadorSaneado(models.AbstractModel):
 
         # Limpieza previa: si un ajuste dejo de estar vigente, su saneado no
         # puede quedarse en pantalla como si siguiera aplicando.
+        # Envuelto porque esta limpieza corre antes que los savepoints por
+        # indicador y es el primer acceso a BD de la pasada.
         obsoletas = self.env["ags.medicion"].search([
             ("fecha_periodo", "=", hasta),
             ("ajuste_ids", "!=", False),
