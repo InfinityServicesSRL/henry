@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "AG Intelligence",
-    "version": "18.0.7.6.0",
+    "version": "18.0.8.0.0",
     "category": "Productivity",
     "summary": "Analisis financiero, proyeccion de demanda e inteligencia comercial para AG Supply",
     "description": """
@@ -70,6 +70,7 @@ como referencia en un sistema de gestion real.
         "views/ags_rentabilidad_views.xml",
         "views/ags_cockpit_views.xml",
         "views/ags_alerta_views.xml",
+        "views/ags_ajuste_views.xml",
         "views/ags_componente_views.xml",
         "views/ags_menus.xml",
         # Datos semilla

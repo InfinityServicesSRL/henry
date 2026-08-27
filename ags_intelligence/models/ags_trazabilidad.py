@@ -223,6 +223,12 @@ class AgsCalculadorTraza(models.AbstractModel):
         if not medicion:
             return medicion
 
+        # La pasada de saneado recalcula el mismo indicador con cuentas
+        # excluidas. Guardar sus piezas junto a las de la corrida normal
+        # daria un desglose con el doble de lineas que no suma al valor.
+        if self.env.context.get("ags_sanear"):
+            return medicion
+
         if len(piezas) > TOPE_COMPONENTES:
             _logger.warning(
                 "ags.componente: %s acumulo %s piezas, se descarta la traza",

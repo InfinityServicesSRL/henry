@@ -48,6 +48,7 @@ export class AgsCockpit extends Component {
             generandoAlertas: false,
             desgloses: {},
             desgloseAbierto: false,
+            verSaneado: true,
             filtros: {},
             opciones: { vendedores: [], mercados: [], almacenes: [] },
             mes: 0,
@@ -214,7 +215,56 @@ export class AgsCockpit extends Component {
         if (this.estaAbierto(bloque.eje)) {
             return bloque.filas;
         }
-        return bloque.filas.filter((f) => f.semaforo === "rojo");
+        return bloque.filas.filter((f) => this.celda(f).semaforo === "rojo");
+    }
+
+    /**
+     * Hay indicadores con una segunda lectura en este periodo.
+     *
+     * El alternador solo aparece cuando existe algo que alternar: una barra
+     * con un interruptor que no cambia nada entrena a ignorarla.
+     */
+    get hayAjustes() {
+        return !!(this.state.datos && this.state.datos.hay_ajustes);
+    }
+
+    /**
+     * Que valores mostrar para una fila.
+     *
+     * El valor contable es el oficial y nunca desaparece: cuando se muestra
+     * la lectura saneada, el crudo baja a la segunda linea de la misma celda.
+     * Mostrar solo uno de los dos convertiria el ajuste en una correccion
+     * silenciosa, que es justo lo que no se quiere.
+     */
+    celda(f) {
+        const saneada = this.state.verSaneado && f.tiene_ajuste;
+        if (!saneada) {
+            return {
+                saneada: false,
+                valor: f.actual,
+                alterno: f.tiene_ajuste ? f.saneado : "",
+                alternoEtiqueta: "saneado",
+                semaforo: f.semaforo,
+                deltaBaseline: f.delta_baseline,
+                deltaObjetivo: f.delta_objetivo,
+            };
+        }
+        return {
+            saneada: true,
+            valor: f.saneado,
+            alterno: f.actual,
+            alternoEtiqueta: "contable",
+            semaforo: f.semaforo_saneado,
+            deltaBaseline: f.delta_baseline_saneado,
+            deltaObjetivo: f.delta_objetivo_saneado,
+        };
+    }
+
+    /** Texto del tooltip: por que este indicador tiene dos lecturas. */
+    motivoAjuste(f) {
+        return (f.ajustes || [])
+            .map((a) => a.name + (a.cuentas ? " (" + a.cuentas + ")" : ""))
+            .join(" · ");
     }
 
     claseDelta(delta) {

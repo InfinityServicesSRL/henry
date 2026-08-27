@@ -225,6 +225,24 @@
                     <span t-if="state.datos.hay_filtro" class="o_ags_sello">
                         <i class="fa fa-globe me-1"/>Toda la empresa
                     </span>
+
+                    <!-- DOBLE LECTURA
+                         Solo aparece si hay ajustes vigentes. La contable es
+                         el dato oficial; la saneada es la operacion sin el
+                         ruido de las cuentas que el auditor esta revisando. -->
+                    <div t-if="hayAjustes" class="btn-group btn-group-sm ms-auto o_ags_alternador"
+                         role="group">
+                        <button class="btn"
+                                t-att-class="state.verSaneado ? 'btn-secondary' : 'btn-outline-secondary'"
+                                t-on-click="() => state.verSaneado = true">
+                            Saneado
+                        </button>
+                        <button class="btn"
+                                t-att-class="!state.verSaneado ? 'btn-secondary' : 'btn-outline-secondary'"
+                                t-on-click="() => state.verSaneado = false">
+                            Contable
+                        </button>
+                    </div>
                 </div>
                 <div class="row g-3">
                     <div t-foreach="g.tarjetas" t-as="t" t-key="t.codigo"
@@ -391,9 +409,10 @@
                             <tbody>
                                 <tr t-foreach="filasVisibles(b)" t-as="f" t-key="f.codigo"
                                     t-on-click="() => this.abrirParametro(f)">
+                                    <t t-set="c" t-value="celda(f)"/>
                                     <td>
                                         <span class="o_ags_punto"
-                                              t-att-class="'o_ags_punto_' + f.semaforo"/>
+                                              t-att-class="'o_ags_punto_' + c.semaforo"/>
                                         <t t-esc="f.nombre"/>
                                         <button class="btn btn-sm btn-link p-0 ms-2 o_ags_btn_origen"
                                                 t-on-click.stop="() => this.alternarDesglose(f.codigo)"
@@ -403,8 +422,15 @@
                                         <span t-if="f.atipico" class="o_ags_sello ms-1">atipico</span>
                                         <span t-elif="f.madurez === 'con_reservas'"
                                               class="o_ags_sello ms-1">con reservas</span>
+                                        <span t-if="f.tiene_ajuste" class="o_ags_sello o_ags_sello_ajuste ms-1"
+                                              t-att-title="motivoAjuste(f)">ajustado</span>
                                     </td>
-                                    <td class="text-end fw-semibold" t-esc="f.actual"/>
+                                    <td class="text-end">
+                                        <div class="fw-semibold" t-esc="c.valor"/>
+                                        <div t-if="c.alterno" class="o_ags_detalle">
+                                            <t t-esc="c.alternoEtiqueta"/>: <t t-esc="c.alterno"/>
+                                        </div>
+                                    </td>
                                     <td class="text-end o_ags_detalle">
                                         <t t-if="f.baseline" t-esc="f.baseline"/>
                                         <t t-else="">—</t>
@@ -413,12 +439,12 @@
                                         <t t-if="f.objetivo" t-esc="f.objetivo"/>
                                         <t t-else="">—</t>
                                     </td>
-                                    <td class="text-end" t-att-class="claseDelta(f.delta_baseline)">
-                                        <t t-if="f.delta_baseline.hay_dato" t-esc="f.delta_baseline.texto"/>
+                                    <td class="text-end" t-att-class="claseDelta(c.deltaBaseline)">
+                                        <t t-if="c.deltaBaseline.hay_dato" t-esc="c.deltaBaseline.texto"/>
                                         <t t-else="">—</t>
                                     </td>
-                                    <td class="text-end" t-att-class="claseDelta(f.delta_objetivo)">
-                                        <t t-if="f.delta_objetivo.hay_dato" t-esc="f.delta_objetivo.texto"/>
+                                    <td class="text-end" t-att-class="claseDelta(c.deltaObjetivo)">
+                                        <t t-if="c.deltaObjetivo.hay_dato" t-esc="c.deltaObjetivo.texto"/>
                                         <t t-else="">—</t>
                                     </td>
                                 </tr>

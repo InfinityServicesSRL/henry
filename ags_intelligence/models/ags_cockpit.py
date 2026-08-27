@@ -678,6 +678,25 @@ class AgsCockpit(models.AbstractModel):
                 "delta_homologo": self._delta(
                     m.valor, homologas.get(p.id, 0.0), p.direccion, p.unidad),
                 "secuencia": p.secuencia,
+                # Lectura saneada. Viaja siempre junto a la contable: el
+                # front alterna entre las dos sin volver al servidor, y el
+                # valor contable nunca deja de estar disponible.
+                "tiene_ajuste": m.tiene_ajuste,
+                "saneado": self._formato(m.valor_saneado, p.unidad)
+                           if m.tiene_ajuste else "",
+                "saneado_num": m.valor_saneado,
+                "semaforo_saneado": m.semaforo_saneado or "sin_dato",
+                "delta_baseline_saneado": self._delta(
+                    m.valor_saneado, m.valor_baseline, p.direccion, p.unidad)
+                    if m.tiene_ajuste else {"hay_dato": False},
+                "delta_objetivo_saneado": self._delta(
+                    m.valor_saneado, m.valor_objetivo, p.direccion, p.unidad)
+                    if m.tiene_ajuste else {"hay_dato": False},
+                "ajustes": [
+                    {"id": a.id, "name": a.name, "motivo": a.motivo or "",
+                     "cuentas": a.cuentas_codigos or ""}
+                    for a in m.ajuste_ids
+                ],
             }
             por_seccion.setdefault(p.seccion, []).append(fila)
 
@@ -877,6 +896,7 @@ class AgsCockpit(models.AbstractModel):
         excepciones = self._excepciones(cierre, filtros)
         return {
             "contrato": CONTRATO,
+            "hay_ajustes": bool(self.env["ags.ajuste"]._vigentes(cierre)),
             # strftime usa el locale del servidor y devolvia "August 2026" en
             # una pantalla que el gerente lee en espanol. format_date respeta
             # el idioma del usuario.
