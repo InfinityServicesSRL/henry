@@ -495,6 +495,23 @@ $ags-info:         if(variable-exists(info), $info, #17a2b8);
         &:hover { color: $ags-acento; }
     }
 
+    .o_ags_parcial {
+        background-color: $ags-lienzo;
+        border: 1px solid $ags-borde;
+        border-radius: 0.5rem;
+        color: $ags-texto;
+
+        // El amarillo de warning no contrasta sobre el lienzo claro, y de
+        // todos modos esto no es una alarma: es una advertencia de metodo
+        // sobre como leer las cifras. Info y texto tenue lo dicen mejor.
+        > .fa { color: $ags-info; }
+    }
+
+    .o_ags_sello_parcial {
+        border-color: $ags-tenue;
+        color: $ags-tenue;
+    }
+
     .o_ags_sello_ajuste {
         // Se distingue del sello de "atipico" porque no dice lo mismo: uno
         // advierte sobre el periodo, este sobre el calculo.

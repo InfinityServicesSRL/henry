@@ -101,6 +101,36 @@ class AgsCockpit(models.AbstractModel):
         return primero + relativedelta(months=1, days=-1)
 
     @api.model
+    def _periodo_parcial(self, cierre):
+        """Cuantos dias del periodo consultado han cerrado de verdad.
+
+        POR QUE EXISTE: los indicadores de flujo (costo de ventas, consumo,
+        ventas) acumulan lo que va del mes, mientras los de saldo (inventario,
+        activo) son una foto completa. Dividir uno entre otro a mitad de mes
+        produce cifras que no son comparables con nada.
+
+        El caso que lo motivo: el 27 de agosto de 2026 el cockpit mostraba
+        483 dias de inventario. La cifra real de julio, mes cerrado, era 145.
+        La diferencia no era la operacion, era el calendario: 27 dias de
+        costo de ventas contra un inventario de cierre, multiplicado por 31.
+
+        Se cuentan dias COMPLETOS: el dia de hoy no ha terminado y sus
+        movimientos siguen entrando.
+        """
+        hoy = fields.Date.context_today(self)
+        if cierre < hoy:
+            return {"parcial": False}
+        inicio = cierre.replace(day=1)
+        transcurridos = max((hoy - inicio).days, 0)
+        totales = cierre.day
+        return {
+            "parcial": True,
+            "dias": transcurridos,
+            "dias_totales": totales,
+            "texto": "mes en curso · %s de %s dias" % (transcurridos, totales),
+        }
+
+    @api.model
     def _es_gerencia(self):
         """Quien puede ver la informacion sensible.
 
@@ -244,7 +274,13 @@ class AgsCockpit(models.AbstractModel):
             for g in grupos if g[0]
         ]
         vendedores.sort(key=lambda v: v["nombre"])
+        # Cuantos meses atras debe abrir el cockpit. Se decide en el servidor
+        # y no en el navegador porque depende de la fecha de la compania, no
+        # de la zona horaria de quien mira la pantalla.
+        hoy = fields.Date.context_today(self)
+        mes_inicial = 1 if self._cierre_mes(hoy) >= hoy else 0
         return {
+            "mes_inicial": mes_inicial,
             "vendedores": vendedores,
             "mercados": [
                 {"id": m.id, "nombre": m.name}
@@ -897,6 +933,7 @@ class AgsCockpit(models.AbstractModel):
         return {
             "contrato": CONTRATO,
             "hay_ajustes": bool(self.env["ags.ajuste"]._vigentes(cierre)),
+            "parcial": self._periodo_parcial(cierre),
             # strftime usa el locale del servidor y devolvia "August 2026" en
             # una pantalla que el gerente lee en espanol. format_date respeta
             # el idioma del usuario.

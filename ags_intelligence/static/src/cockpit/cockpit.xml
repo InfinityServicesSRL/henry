@@ -7,6 +7,8 @@
         <t t-set-slot="layout-buttons">
             <span class="o_ags_periodo me-3" t-if="state.datos">
                 <t t-esc="state.datos.periodo"/>
+                <span t-if="parcial" class="o_ags_sello o_ags_sello_parcial ms-1"
+                      t-att-title="parcial.texto">en curso</span>
             </span>
             <button class="btn btn-sm" t-on-click="() => state.mostrarFiltros = !state.mostrarFiltros"
                     t-att-class="hayFiltro ? 'btn-primary' : 'btn-secondary'"
@@ -47,6 +49,30 @@
                     <i class="fa fa-times ms-2"/>
                 </span>
                 <button class="btn btn-sm btn-link p-0" t-on-click="limpiarFiltros">Limpiar</button>
+            </div>
+
+            <!-- PERIODO EN CURSO
+                 Va antes que la banda de confianza porque cambia como se lee
+                 TODO lo que viene despues, incluida la propia banda. -->
+            <div t-if="parcial" class="o_ags_parcial d-flex align-items-start gap-3 px-3 py-2 mb-4">
+                <i class="fa fa-hourglass-half mt-1"/>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">
+                        Mes en curso: <t t-esc="parcial.dias"/> de
+                        <t t-esc="parcial.dias_totales"/> dias cerrados
+                    </div>
+                    <div class="o_ags_detalle">
+                        Los indicadores que acumulan movimiento del periodo —costo
+                        de ventas, consumo, ventas— solo tienen parte del mes,
+                        mientras los de saldo estan completos. Los ratios que
+                        combinan ambos, como dias de inventario, salen exagerados.
+                        Para comparar, usa el mes anterior.
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-secondary flex-shrink-0"
+                        t-on-click="() => this.mover(1)">
+                    Ver mes cerrado
+                </button>
             </div>
 
             <!-- ZONA 0 · BANDA DE CONFIANZA

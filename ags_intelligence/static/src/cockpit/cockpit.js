@@ -168,6 +168,18 @@ export class AgsCockpit extends Component {
     async cargarOpciones() {
         this.state.opciones = await this.orm.call(
             "ags.cockpit", "opciones_filtros", []);
+        // El cockpit abre en el ultimo mes CERRADO. Abrir en el mes en curso
+        // mostraba indicadores de flujo a medio acumular contra saldos
+        // completos, y eso se lee como un deterioro que no existe.
+        if (typeof this.state.opciones.mes_inicial === "number") {
+            this.state.mes = this.state.opciones.mes_inicial;
+        }
+    }
+
+    /** Datos del aviso de periodo incompleto; vacio si el mes ya cerro. */
+    get parcial() {
+        const p = this.state.datos && this.state.datos.parcial;
+        return p && p.parcial ? p : null;
     }
 
     /** useState envuelve el objeto en un Proxy; el ORM necesita uno plano. */
