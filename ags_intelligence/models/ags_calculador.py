@@ -1163,7 +1163,11 @@ class AgsCalculador(models.AbstractModel):
         for f in facturas:
             ocs = f.invoice_line_ids.mapped("purchase_line_id.order_id")
             if any(o.ags_tiene_pendiente for o in ocs):
-                total += abs(f.amount_residual_currency or 0.0)
+                # amount_residual de account.move ya viene en la moneda
+                # del documento; amount_residual_currency solo existe en las
+                # lineas. Como el dominio filtra currency_id = USD, el
+                # importe que se suma esta en dolares.
+                total += abs(f.amount_residual or 0.0)
                 n += 1
         nota = "Facturas con mercancia pendiente: %s" % n
         return self._registrar(parametro, total, hasta, notas=nota)

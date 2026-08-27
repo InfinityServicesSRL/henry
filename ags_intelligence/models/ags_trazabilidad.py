@@ -107,6 +107,10 @@ class AgsCalculadorTraza(models.AbstractModel):
         catalogo = []
         try:
             cfg = self._config()
+            try:
+                _ALMACEN.lang = cfg._idioma_contable()
+            except Exception:
+                _ALMACEN.lang = False
             for nombre, etiqueta in _ETIQUETAS:
                 try:
                     valor = getattr(cfg, nombre, None)
@@ -146,8 +150,24 @@ class AgsCalculadorTraza(models.AbstractModel):
             if conjunto == ids:
                 return etiqueta
         if len(cuentas) == 1:
-            return "%s %s" % (cuentas.code or "", cuentas.name or "")
+            cuenta = self._lang_contable(cuentas)
+            return "%s %s" % (cuenta.code or "", cuenta.name or "")
         return "%s cuentas" % len(cuentas)
+
+    @api.model
+    def _lang_contable(self, cuentas):
+        """Las cuentas leidas en el idioma en que AG Supply las nombro.
+
+        El plan contable esta en espanol y las traducciones al ingles no son
+        fieles: 11050200 es "Inventario de Materia Prima" en es_DO y
+        "Allowance for doubtful accounts" en en_US. Un desglose que muestre
+        el nombre en ingles no solo se lee raro, induce a error al auditor.
+        """
+        lang = getattr(_ALMACEN, "lang", None)
+        if lang is None:
+            self._catalogo()
+            lang = getattr(_ALMACEN, "lang", False)
+        return cuentas.with_context(lang=lang) if lang else cuentas
 
     # ------------------------------------------------------------------
     # Interceptacion de los dos accesos a saldos
@@ -235,6 +255,7 @@ class AgsCalculadorTraza(models.AbstractModel):
         """Limpia la traza y el catalogo antes de la corrida completa."""
         self._limpiar_traza()
         _ALMACEN.catalogo = None
+        _ALMACEN.lang = None
         return super().calcular_periodo(fecha=fecha, codigos=codigos)
 
 
