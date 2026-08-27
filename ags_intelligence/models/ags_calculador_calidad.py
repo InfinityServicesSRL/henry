@@ -106,8 +106,9 @@ class AgsCalculadorCalidad(models.AbstractModel):
             ("parent_state", "=", "posted"),
             ("date", "<=", ultimo),
         ])
-        peso = dias = 0.0
+        peso = dias = saldo = 0.0
         for linea in lineas:
+            saldo += linea.balance
             importe = abs(linea.balance)
             if not importe:
                 continue
@@ -115,8 +116,13 @@ class AgsCalculadorCalidad(models.AbstractModel):
             dias += importe * (ultimo - linea.date).days
         if not peso:
             return False
-        nota = "Ponderado sobre %s lineas por RD$ %s" % (
-            len(lineas), round(peso, 2))
+        # Se reportan las tres cifras por separado a proposito. El saldo es
+        # lo que queda pendiente de facturar; la base de ponderacion suma
+        # debitos y creditos en valor absoluto y es siempre mucho mayor.
+        # Confundirlas hace parecer que el pasivo es dos ordenes de magnitud
+        # mas grande de lo que es.
+        nota = "Saldo pendiente RD$ %s | %s lineas | base de ponderacion RD$ %s" % (
+            "{:,.2f}".format(saldo), len(lineas), "{:,.2f}".format(peso))
         return self._registrar(parametro, dias / peso, ultimo, notas=nota)
 
     # ------------------------------------------------------------------

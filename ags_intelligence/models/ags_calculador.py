@@ -209,14 +209,23 @@ class AgsCalculador(models.AbstractModel):
         dominio = [
             ("state", "=", "done"),
             ("date", ">=", desde),
-            ("date", "<=", hasta),
+            ("date", "<=", "%s 23:59:59" % hasta),
             ("raw_material_production_id", "!=", False),
             ("product_id.categ_id", "child_of", categorias.ids),
         ]
         if cfg.categoria_reproceso_ids:
-            dominio.append(
-                ("raw_material_production_id.product_id.categ_id",
-                 "not child_of", cfg.categoria_reproceso_ids.ids))
+            # "not child_of" NO es un operador de Odoo: el parser de dominios
+            # lo rechaza con "Invalid leaf". La jerarquia se resuelve primero
+            # y la exclusion se expresa como un "not in" sobre productos, que
+            # ademas deja explicito que se excluyen ORDENES cuyo producto
+            # terminado es de reproceso, no los movimientos de MP.
+            reproceso = self.env["product.product"].search([
+                ("categ_id", "child_of", cfg.categoria_reproceso_ids.ids),
+            ])
+            if reproceso:
+                dominio.append(
+                    ("raw_material_production_id.product_id", "not in",
+                     reproceso.ids))
         movimientos = self.env["stock.move"].search(dominio)
         return movimientos, self._valor_movimientos(movimientos)
 
@@ -842,7 +851,7 @@ class AgsCalculador(models.AbstractModel):
         desde, hasta = self._rango_mes(fecha)
         cantidad = self.env["stock.move"].search_count([
             ("is_inventory", "=", True), ("state", "=", "done"),
-            ("date", ">=", desde), ("date", "<=", hasta),
+            ("date", ">=", desde), ("date", "<=", "%s 23:59:59" % hasta),
         ])
         return self._registrar(parametro, cantidad, hasta)
 
@@ -860,7 +869,7 @@ class AgsCalculador(models.AbstractModel):
         desde, hasta = self._rango_mes(fecha)
         movs = self.env["stock.move"].search([
             ("is_inventory", "=", True), ("state", "=", "done"),
-            ("date", ">=", desde), ("date", "<=", hasta),
+            ("date", ">=", desde), ("date", "<=", "%s 23:59:59" % hasta),
         ])
         if not movs:
             return False
