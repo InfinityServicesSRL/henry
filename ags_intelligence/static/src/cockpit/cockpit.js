@@ -227,7 +227,9 @@ export class AgsCockpit extends Component {
         if (this.estaAbierto(bloque.eje)) {
             return bloque.filas;
         }
-        return bloque.filas.filter((f) => this.celda(f).semaforo === "rojo");
+        return bloque.filas.filter((f) =>
+            ["rojo", "sin_evidencia"].includes(this.celda(f).semaforo)
+        );
     }
 
     /**
@@ -398,6 +400,7 @@ export class AgsCockpit extends Component {
             verde: "o_ags_marca_verde",
             amarillo: "o_ags_marca_amarilla",
             rojo: "o_ags_marca_roja",
+            sin_evidencia: "o_ags_marca_sin_evidencia",
         }[m.semaforo] || "o_ags_marca_neutra";
     }
 
@@ -534,6 +537,7 @@ export class AgsCockpit extends Component {
             verde: "text-bg-success",
             amarillo: "text-bg-warning",
             rojo: "text-bg-danger",
+            sin_evidencia: "o_ags_badge_sin_evidencia",
         }[s] || "text-bg-secondary";
     }
 

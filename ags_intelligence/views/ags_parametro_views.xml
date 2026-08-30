@@ -7,7 +7,9 @@
         <field name="name">ags.parametro.list</field>
         <field name="model">ags.parametro</field>
         <field name="arch" type="xml">
-            <list string="Parametros" decoration-danger="semaforo == 'rojo'"
+            <list string="Parametros"
+                  decoration-danger="semaforo in ['rojo', 'sin_evidencia']"
+                  decoration-bf="semaforo == 'sin_evidencia'"
                   decoration-warning="semaforo == 'amarillo'"
                   decoration-success="semaforo == 'verde'"
                   decoration-muted="semaforo == 'sin_dato'">
@@ -25,7 +27,7 @@
                 <field name="semaforo" widget="badge"
                        decoration-success="semaforo == 'verde'"
                        decoration-warning="semaforo == 'amarillo'"
-                       decoration-danger="semaforo == 'rojo'"/>
+                       decoration-danger="semaforo in ['rojo', 'sin_evidencia']"/>
                 <field name="frecuencia" optional="hide"/>
                 <field name="responsable_id" optional="show"/>
             </list>

@@ -287,6 +287,40 @@ class AgsAlerta(models.Model):
                 "valor": m.valor,
                 "valor_referencia": tope,
             })
+
+        # Un indicador que se quedo sin registros que lo respalden. No vale
+        # cero: no vale. Se avisa alto solo cuando es un CAMBIO -- el mes
+        # pasado si habia registros y este no --, porque la condicion cronica
+        # ya escala sola a los tres periodos y repetirla cada mes la vuelve
+        # fondo, que es justo lo que este modelo evita por diseno.
+        previo = cierre.replace(day=1) - relativedelta(days=1)
+        for m in Med.search([
+            ("fecha_periodo", "=", cierre),
+            ("sin_evidencia", "=", True),
+        ]):
+            p = m.parametro_id
+            antes = Med.search([
+                ("parametro_id", "=", p.id),
+                ("fecha_periodo", "=", previo),
+            ], limit=1)
+            cambio = bool(antes and not antes.sin_evidencia)
+            salida.append({
+                "clave": "sin_evidencia:%s" % p.codigo,
+                "tipo": "registro",
+                "prioridad": "1" if cambio else "2",
+                "titulo": (
+                    "%s se quedo sin registros que lo respalden" % p.name
+                    if cambio else
+                    "%s sigue sin registros que lo respalden" % p.name),
+                "detalle": ("%s El valor calculado es cero porque no hay nada "
+                            "que medir, no porque el resultado sea bueno." % (
+                                m.notas or "")).strip(),
+                "recomendacion": _("Mientras no se registre, este indicador y "
+                                   "los que dependen de el no significan nada."),
+                "parametro_id": p.id,
+                "responsable_id": p.responsable_id.id or False,
+                "valor": m.valor,
+            })
         return salida
 
     # ==================================================================

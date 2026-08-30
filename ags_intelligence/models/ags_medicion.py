@@ -65,6 +65,7 @@ class AgsMedicion(models.Model):
             ("verde", "Verde"),
             ("amarillo", "Amarillo"),
             ("rojo", "Rojo"),
+            ("sin_evidencia", "Sin evidencia"),
             ("sin_dato", "Sin dato"),
         ],
         string="Semaforo vs mercado",
@@ -121,6 +122,21 @@ class AgsMedicion(models.Model):
         compute="_compute_estacional",
         digits=(16, 2),
     )
+    evidencia_n = fields.Integer(
+        string="Registros de respaldo",
+        default=0,
+        help="Cuantos registros base sustentan este numero. No es el valor: "
+             "es el conteo de la prueba. Un calculador que no lo declara "
+             "deja el campo en cero y sin_evidencia en falso, que era el "
+             "comportamiento anterior.",
+    )
+    sin_evidencia = fields.Boolean(
+        string="Sin evidencia",
+        default=False,
+        help="El calculador declaro evidencia y encontro cero registros. El "
+             "valor calculado es cero por construccion, no por resultado.",
+    )
+
     periodo_atipico = fields.Boolean(
         string="Periodo atipico",
         default=False,
@@ -155,6 +171,7 @@ class AgsMedicion(models.Model):
 
     @api.depends(
         "valor",
+        "sin_evidencia",
         "parametro_id",
         "parametro_id.direccion",
         "parametro_id.baseline_ids",
@@ -196,7 +213,14 @@ class AgsMedicion(models.Model):
                     and (not b.vigente_hasta or b.vigente_hasta >= hoy)
                 )[:1]
 
-            if not param or param.direccion == "neutro" or not benchmark:
+            # D14: un cero sin evidencia no es un buen resultado, es un
+            # registro que no se hizo. Se decide ANTES que todo lo demas,
+            # incluida la direccion del parametro: la ausencia de registro
+            # importa igual en un indicador neutro, y un benchmark que
+            # evalue ese cero lo pintaria verde.
+            if rec.sin_evidencia:
+                rec.semaforo = "sin_evidencia"
+            elif not param or param.direccion == "neutro" or not benchmark:
                 rec.semaforo = "sin_dato"
             else:
                 rec.semaforo = benchmark.evaluar_valor(rec.valor)

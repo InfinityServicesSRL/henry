@@ -27,8 +27,19 @@ class AgsCalculador(models.AbstractModel):
     # ==================================================================
 
     @api.model
-    def _registrar(self, parametro, valor, fecha_periodo, origen="auto", notas=False):
-        """Crea o actualiza la medicion de un parametro para un periodo."""
+    def _registrar(self, parametro, valor, fecha_periodo, origen="auto",
+                   notas=False, evidencia=None):
+        """Crea o actualiza la medicion de un parametro para un periodo.
+
+        evidencia es el CONTEO DE REGISTROS BASE que sustentan el numero, no
+        el numero. Un calculador que divide entre cero registros produce un
+        cero perfectamente valido en aritmetica y completamente falso en
+        significado: MERMA_CONVERSION daba 0.00% en verde con cero registros
+        de scrap, felicitando a una planta por no registrar su merma.
+
+        Dejarlo en None mantiene el comportamiento anterior intacto, para que
+        los 54 calculadores lo adopten de a uno y no de golpe.
+        """
         Medicion = self.env["ags.medicion"]
         existente = Medicion.search([
             ("parametro_id", "=", parametro.id),
@@ -41,6 +52,11 @@ class AgsCalculador(models.AbstractModel):
         }
         if notas:
             vals["notas"] = notas
+        if evidencia is not None:
+            # Se escriben ambos en cada corrida: si la evidencia vuelve, el
+            # indicador tiene que salir solo del estado sin_evidencia.
+            vals["evidencia_n"] = evidencia
+            vals["sin_evidencia"] = not evidencia
         if existente:
             existente.write(vals)
             return existente
@@ -243,12 +259,20 @@ class AgsCalculador(models.AbstractModel):
             return False
         movimientos, costo_mp = self._consumo_mp(desde, hasta)
         if not costo_mp:
+            # Antes se devolvia False y el indicador desaparecia en silencio.
+            # Un mes CON ventas y sin un solo movimiento de consumo de MP no
+            # es "sin dato": es una fabrica que no registro su consumo, o una
+            # configuracion de categorias vacia. Las dos cosas hay que verlas.
             _logger.warning("MP_PCT_VENTAS: sin consumo de MP en el periodo")
-            return False
+            return self._registrar(
+                parametro, 0.0, hasta, evidencia=0,
+                notas="Ventas por %s sin un solo movimiento de consumo de "
+                      "materia prima en el periodo." % round(ventas, 2))
         pct = (costo_mp / ventas) * 100.0
         nota = "MP consumida: %s | Ventas: %s | Movimientos: %s" % (
             round(costo_mp, 2), round(ventas, 2), len(movimientos))
-        return self._registrar(parametro, pct, hasta, notas=nota)
+        return self._registrar(parametro, pct, hasta, notas=nota,
+                               evidencia=len(movimientos))
 
     @api.model
     def _calc_merma_conversion(self, parametro, fecha=None):
@@ -281,7 +305,15 @@ class AgsCalculador(models.AbstractModel):
         pct = (valor_merma / valor_consumo) * 100.0
         nota = "Merma: %s | Consumo MP: %s | Registros de desecho: %s" % (
             round(valor_merma, 2), round(valor_consumo, 2), len(desechos))
-        return self._registrar(parametro, pct, hasta, notas=nota)
+        if not desechos:
+            nota += (" | Cero registros de desecho contra %s de MP consumida: "
+                     "el 0%% no es merma cero, es merma no registrada."
+                     % round(valor_consumo, 2))
+        # La evidencia son los REGISTROS DE DESECHO, no el consumo. Sin scrap
+        # el numerador es cero por construccion y el semaforo felicitaria a
+        # una planta que no registra su merma. Es el caso que motivo D14.
+        return self._registrar(parametro, pct, hasta, notas=nota,
+                               evidencia=len(desechos))
 
     @api.model
     def _calc_margen_economico(self, parametro, fecha=None):

@@ -285,6 +285,7 @@
                                       t-if="t.semaforo !== 'sin_dato'">
                                     <t t-if="t.semaforo === 'verde'">En rango</t>
                                     <t t-elif="t.semaforo === 'amarillo'">Atencion</t>
+                                    <t t-elif="t.semaforo === 'sin_evidencia'">Sin registro</t>
                                     <t t-else="">Fuera</t>
                                 </span>
                             </div>
@@ -415,6 +416,9 @@
                         <i class="fa" t-att-class="estaAbierto(b.eje) ? 'fa-caret-down' : 'fa-caret-right'"/>
                         <span class="fw-semibold" t-esc="b.nombre"/>
                         <span t-if="b.n_rojos" class="badge text-bg-danger" t-esc="b.n_rojos"/>
+                        <span t-if="b.n_sin_evidencia"
+                              class="badge o_ags_badge_sin_evidencia ms-1"
+                              t-esc="b.n_sin_evidencia"/>
                         <span class="o_ags_detalle ms-auto">
                             <t t-esc="b.filas.length"/> indicadores
                         </span>

@@ -153,7 +153,8 @@
         <field name="model">ags.medicion</field>
         <field name="arch" type="xml">
             <list string="Mediciones"
-                  decoration-danger="semaforo == 'rojo'"
+                  decoration-danger="semaforo in ['rojo', 'sin_evidencia']"
+                  decoration-bf="semaforo == 'sin_evidencia'"
                   decoration-warning="semaforo == 'amarillo'"
                   decoration-success="semaforo == 'verde'">
                 <field name="fecha_periodo"/>
@@ -230,6 +231,8 @@
                 <field name="parametro_id"/>
                 <field name="fecha_periodo"/>
                 <filter name="f_rojo" string="En rojo" domain="[('semaforo','=','rojo')]"/>
+                <filter name="f_sin_evidencia" string="Sin evidencia"
+                        domain="[('semaforo','=','sin_evidencia')]"/>
                 <filter name="f_deterioro" string="Deteriorando"
                         domain="[('tendencia_baseline','=','deterioro')]"/>
                 <group expand="1" string="Agrupar por">

@@ -504,6 +504,24 @@ class AgsCockpit(models.AbstractModel):
                     "res_id": p.id,
                 })
 
+            # Van junto a los rojos y no debajo: un indicador que nadie
+            # alimenta es peor noticia que uno fuera de rango, porque el
+            # fuera de rango por lo menos se sabe.
+            for m in Med.search([
+                ("fecha_periodo", "=", cierre),
+                ("sin_evidencia", "=", True),
+            ]):
+                p = m.parametro_id
+                salida.append({
+                    "tipo": "indicador",
+                    "gravedad": "danger",
+                    "titulo": "%s sin registros que lo respalden" % p.name,
+                    "detalle": "El valor es cero porque no hay nada que medir, "
+                               "no porque el resultado sea bueno.",
+                    "accion": "parametro",
+                    "res_id": p.id,
+                })
+
         # Metas incumplidas del periodo
         dom_metas = [
             ("fecha_cierre", "=", cierre),
@@ -747,6 +765,8 @@ class AgsCockpit(models.AbstractModel):
                 "eje": seccion,
                 "nombre": etiquetas.get(seccion, seccion),
                 "n_rojos": len([f for f in filas if f["semaforo"] == "rojo"]),
+                "n_sin_evidencia": len(
+                    [f for f in filas if f["semaforo"] == "sin_evidencia"]),
                 "filas": filas,
             })
         return bloques

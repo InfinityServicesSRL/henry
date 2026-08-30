@@ -30,6 +30,12 @@ $ags-peligro:      if(variable-exists(danger), $danger, #dc3545);
 $ags-aviso:        if(variable-exists(warning), $warning, #ffc107);
 $ags-info:         if(variable-exists(info), $info, #17a2b8);
 
+// D14: el estado "sin evidencia" se pinta MAS grave que el rojo. Un rojo es
+// un problema conocido; esto es un problema que no se ve. No hay color de
+// estado que pese mas que el rojo, asi que se usa el gris mas oscuro del
+// tema: en una pagina clara, el negro pesa mas que cualquier color.
+$ags-sin-evidencia: if(variable-exists(o-gray-900), $o-gray-900, #212529);
+
 .o_ags_cockpit {
     background-color: $ags-lienzo;
     overflow: auto;
@@ -161,6 +167,14 @@ $ags-info:         if(variable-exists(info), $info, #17a2b8);
             font-weight: 400;
             color: $ags-debil;
         }
+    }
+
+    // Badge del estado sin evidencia. No usa las clases text-bg-* de
+    // Bootstrap a proposito: ninguna de ellas pesa mas que el rojo, y este
+    // estado tiene que pesar mas.
+    .o_ags_badge_sin_evidencia {
+        background-color: $ags-sin-evidencia;
+        color: $ags-fondo;
     }
 
     .o_ags_aviso {
@@ -380,6 +394,7 @@ $ags-info:         if(variable-exists(info), $info, #17a2b8);
         &.o_ags_punto_verde { background-color: $ags-exito; }
         &.o_ags_punto_amarillo { background-color: $ags-aviso; }
         &.o_ags_punto_rojo { background-color: $ags-peligro; }
+        &.o_ags_punto_sin_evidencia { background-color: $ags-sin-evidencia; }
     }
 
     // ---------- Serie temporal ----------
@@ -433,6 +448,7 @@ $ags-info:         if(variable-exists(info), $info, #17a2b8);
         .o_ags_marca_verde { fill: $ags-exito; }
         .o_ags_marca_amarilla { fill: $ags-aviso; }
         .o_ags_marca_roja { fill: $ags-peligro; }
+        .o_ags_marca_sin_evidencia { fill: $ags-sin-evidencia; }
         .o_ags_marca_neutra { fill: $ags-tenue; }
         // Los periodos atipicos se dibujan huecos: siguen siendo datos
         // reales, pero no representan la operacion normal.

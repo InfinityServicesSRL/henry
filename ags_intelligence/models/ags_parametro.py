@@ -162,6 +162,7 @@ class AgsParametro(models.Model):
             ("verde", "Verde"),
             ("amarillo", "Amarillo"),
             ("rojo", "Rojo"),
+            ("sin_evidencia", "Sin evidencia"),
             ("sin_dato", "Sin dato"),
         ],
         string="Semaforo",
