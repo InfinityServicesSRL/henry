@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "AG Intelligence",
-    "version": "18.0.8.3.1",
+    "version": "18.0.8.4.0",
     "category": "Productivity",
     "summary": "Analisis financiero, proyeccion de demanda e inteligencia comercial para AG Supply",
     "description": """
@@ -94,6 +94,8 @@ como referencia en un sistema de gestion real.
         "data/ags_cron.xml",
         "data/ags_cron_aging.xml",
         "data/ags_cron_alertas.xml",
+        "data/ags_reglas_data.xml",
+        "data/ags_cron_auditoria.xml",
     ],
     "assets": {
         "web.assets_backend": [

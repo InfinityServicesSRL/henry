@@ -29,3 +29,7 @@ access_ags_componente_manager,ags.componente.manager,model_ags_componente,ags_in
 access_ags_componente_delegado,ags.componente.delegado,model_ags_componente,ags_intelligence.group_ags_delegado,1,0,0,0
 access_ags_ajuste_manager,ags.ajuste.manager,model_ags_ajuste,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_ajuste_delegado,ags.ajuste.delegado,model_ags_ajuste,ags_intelligence.group_ags_delegado,1,0,0,0
+access_ags_regla_manager,ags.regla.manager,model_ags_regla,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_regla_delegado,ags.regla.delegado,model_ags_regla,ags_intelligence.group_ags_delegado,1,0,0,0
+access_ags_hallazgo_manager,ags.hallazgo.manager,model_ags_hallazgo,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_hallazgo_delegado,ags.hallazgo.delegado,model_ags_hallazgo,ags_intelligence.group_ags_delegado,1,1,0,0

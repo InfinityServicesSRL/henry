@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Catalogo inicial de invariantes de la Etapa 8.
+
+     noupdate="1" A PROPOSITO. Estos registros tienen campos que se editan en
+     la interfaz (tolerancia, responsable, activa) y un data file sin
+     noupdate los pisa en cada actualizacion del modulo. Es exactamente el
+     defecto que arrastra ags_parametros_data.xml (pendiente 7 del doc de
+     estado) y no tiene sentido repetirlo en una tabla nueva.
+
+     Consecuencia: corregir aqui el texto o el metodo_tecnico de una regla ya
+     instalada NO se propaga. Hay que hacerlo desde odoo-bin shell.
+
+     Los responsables se dejan vacios: los ids de usuario no son los mismos en
+     staging y en produccion. Se asignan desde la interfaz (configuracion e
+     integridad y pendiente -> Solanyi; habito -> Henry). Un hallazgo sin
+     responsable cae en Gerencia, igual que en ags.alerta.
+-->
+<odoo noupdate="1">
+
+    <!-- ============================================================
+         FAMILIA: CONFIGURACION
+         Una casilla mal puesta. Se arregla una vez y no vuelve. Es la
+         familia mas barata de corregir y la que nadie estaba mirando.
+         ============================================================ -->
+
+    <record id="regla_categ_periodica_con_producto" model="ags.regla">
+        <field name="codigo">CATEG_PERIODICA_CON_PRODUCTO</field>
+        <field name="name">Categoria con producto en inventario periodico</field>
+        <field name="enunciado">Toda categoria de producto con articulos almacenables valora su inventario en tiempo real.</field>
+        <field name="por_que_importa">Una categoria en periodico no genera asiento de costo de ventas: el producto sale del almacen y el costo nunca llega a contabilidad. Prueba independiente de agosto 2026: el consumo de materia prima del mes (3,583,538.80) fue MAYOR que el costo de ventas contable (2,976,070.96). La parte no puede ser mayor que el todo.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_categ_periodica_con_producto</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">invalida</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dio'), ref('param_margen_bruto'),
+            ref('param_mp_pct_ventas'), ref('param_ccc')])]"/>
+    </record>
+
+    <record id="regla_categ_cuenta_prohibida" model="ags.regla">
+        <field name="codigo">CATEG_CUENTA_PROHIBIDA</field>
+        <field name="name">Categoria que valora contra una cuenta marcada NO USAR</field>
+        <field name="enunciado">Ninguna categoria de producto valora su inventario contra una cuenta cuyo nombre la marca como prohibida.</field>
+        <field name="por_que_importa">El plan contable de AG escribe la instruccion dentro del propio nombre de la cuenta. Una categoria en tiempo real apuntando ahi postea asientos a una cuenta que contabilidad dio por muerta, y el saldo aparece donde nadie lo busca. La cuenta 11050100 acumula 2,563,119.47 en 260 apuntes por esta via.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_categ_cuenta_prohibida</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">invalida</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dio'), ref('param_margen_bruto'),
+            ref('param_cuentas_inv_acreedoras')])]"/>
+    </record>
+
+    <record id="regla_categ_cuenta_divergente" model="ags.regla">
+        <field name="codigo">CATEG_CUENTA_DIVERGENTE</field>
+        <field name="name">Categorias hermanas con cuentas de valoracion distintas</field>
+        <field name="enunciado">Las categorias hijas de un mismo padre valoran contra la misma cuenta de inventario.</field>
+        <field name="por_que_importa">Una familia de producto partida en dos cuentas hace que cualquier lectura por cuenta sea incompleta sin que nadie lo note. Es como se cuela la deriva: se crea una categoria nueva, se acepta el valor por defecto, y la familia queda repartida.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_categ_cuenta_divergente</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dio'), ref('param_cuentas_inv_acreedoras')])]"/>
+    </record>
+
+    <record id="regla_compania_config_divergente" model="ags.regla">
+        <field name="codigo">COMPANIA_CONFIG_DIVERGENTE</field>
+        <field name="name">Companias con la valoracion configurada distinto</field>
+        <field name="enunciado">Todas las companias comparten la misma configuracion de valoracion y las mismas cuentas de inventario por categoria.</field>
+        <field name="por_que_importa">La valoracion es un campo company_dependent. Todo el diagnostico de agosto 2026 se hizo, sin saberlo, sobre una sola compania: la segunda tenia las 33 categorias en periodico apuntando a una cuenta de anticipos a suplidores que nadie configuro nunca.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_compania_config_divergente</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="False"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dio'), ref('param_margen_bruto'),
+            ref('param_mp_pct_ventas')])]"/>
+    </record>
+
+    <record id="regla_control_recepcion" model="ags.regla">
+        <field name="codigo">CONTROL_RECEPCION</field>
+        <field name="name">Productos comprables sin control por recepcion</field>
+        <field name="enunciado">Todo producto comprable se factura contra la cantidad recibida, no contra la pedida.</field>
+        <field name="por_que_importa">Con la politica en cantidades pedidas se puede facturar lo que aun no ha llegado y la conciliacion a tres bandas ni se activa. Es la palanca que deja crecer el saldo de bienes recibidos no facturados, hoy con 272.68 dias de antiguedad promedio ponderada. Corregirlo es masivo pero mecanico y no tiene efecto contable.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_control_recepcion</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="False"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_antiguedad_grni'), ref('param_dpo'),
+            ref('param_control_recepcion')])]"/>
+    </record>
+
+    <record id="regla_config_modulo_incompleta" model="ags.regla">
+        <field name="codigo">CONFIG_MODULO_INCOMPLETA</field>
+        <field name="name">Configuracion del modulo sin declarar</field>
+        <field name="enunciado">Los campos de configuracion de los que dependen los calculadores estan declarados.</field>
+        <field name="por_que_importa">No es una lista de deseos. Con las categorias de materia prima vacias, el consumo devuelve cero POR CONSTRUCCION y el indicador reporta 0.00% sin que nada avise. Eso estuvo ocurriendo hasta el 27 de agosto de 2026 y nadie lo vio, porque un cero se lee como un dato.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_config_modulo_incompleta</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">invalida</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_mp_pct_ventas'), ref('param_merma_conversion'),
+            ref('param_margen_bruto'), ref('param_margen_ebitda')])]"/>
+    </record>
+
+    <!-- ============================================================
+         FAMILIA: HABITO DE REGISTRO
+         No se arregla configurando. Requiere proceso y gente, y por
+         eso su responsable no es el mismo.
+         ============================================================ -->
+
+    <record id="regla_sin_registro_merma" model="ags.regla">
+        <field name="codigo">SIN_REGISTRO_MERMA</field>
+        <field name="name">Ordenes de produccion cerradas sin registro de desecho</field>
+        <field name="enunciado">Toda orden de produccion cerrada deja registrada su merma de conversion.</field>
+        <field name="por_que_importa">Para un fabricante de tissue, merma cero no es un logro: es merma no registrada. El desperdicio termina diluido en el costo del producto en vez de aparecer como una partida analizable. Las 139 listas de materiales ya tienen control de consumo configurado, asi que la herramienta esta puesta; falta el habito.</field>
+        <field name="familia">habito</field>
+        <field name="metodo_tecnico">_regla_sin_registro_merma</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">invalida</field>
+        <field name="por_compania" eval="False"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_merma_conversion'), ref('param_costo_conversion')])]"/>
+    </record>
+
+    <record id="regla_costo_estandar_en_cero" model="ags.regla">
+        <field name="codigo">COSTO_ESTANDAR_EN_CERO</field>
+        <field name="name">Producto con costeo estandar y costo en cero</field>
+        <field name="enunciado">Todo producto almacenable con costeo estandar tiene un costo estandar distinto de cero.</field>
+        <field name="por_que_importa">Un costo estandar en cero valora a cero todo lo que se produzca o se mueva de ese producto. No aparece como error en ningun sitio: aparece como un margen extraordinariamente bueno.</field>
+        <field name="familia">habito</field>
+        <field name="metodo_tecnico">_regla_costo_estandar_en_cero</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_margen_bruto'), ref('param_dio'),
+            ref('param_costo_conversion')])]"/>
+    </record>
+
+    <record id="regla_producto_duplicado" model="ags.regla">
+        <field name="codigo">PRODUCTO_DUPLICADO</field>
+        <field name="name">Fichas de producto con nombre repetido</field>
+        <field name="enunciado">No existen dos fichas de producto activas con el mismo nombre.</field>
+        <field name="por_que_importa">Duplicar la ficha en vez de corregir el registro reparte el historial de un mismo producto entre varios codigos y deja su costo sin serie. El patron que lo motivo: tres fichas creadas en agosto de 2026 con el nombre identico a una que ya existia y arrastraba cantidad negativa.</field>
+        <field name="familia">habito</field>
+        <field name="metodo_tecnico">_regla_producto_duplicado</field>
+        <field name="gravedad_base">info</field>
+        <field name="efecto">informa</field>
+        <field name="por_compania" eval="False"/>
+        <field name="frecuencia">diaria</field>
+    </record>
+
+    <!-- ============================================================
+         FAMILIA: INTEGRIDAD DEL DATO
+         El dato es imposible, no solo indeseable. Sin tolerancia:
+         una cantidad imposible no tiene cantidad aceptable.
+         ============================================================ -->
+
+    <record id="regla_inventario_negativo" model="ags.regla">
+        <field name="codigo">INVENTARIO_NEGATIVO</field>
+        <field name="name">Inventario en negativo</field>
+        <field name="enunciado">Ninguna ubicacion interna tiene existencias negativas.</field>
+        <field name="por_que_importa">No es un indicador con banda tolerable: es un dato imposible. El sistema esta valorando salidas de existencias que nunca entraron, de modo que costo y margen quedan sin sustento mientras exista una sola linea.</field>
+        <field name="familia">integridad</field>
+        <field name="metodo_tecnico">_regla_inventario_negativo</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">invalida</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dio'), ref('param_margen_bruto'),
+            ref('param_ajustes_inventario')])]"/>
+    </record>
+
+    <record id="regla_cuenta_inv_acreedora" model="ags.regla">
+        <field name="codigo">CUENTA_INV_ACREEDORA</field>
+        <field name="name">Cuenta de inventario con saldo acreedor</field>
+        <field name="enunciado">Las cuentas de inventario tienen saldo deudor.</field>
+        <field name="por_que_importa">Un activo con saldo acreedor no describe ninguna realidad fisica: no se puede deber inventario. Las cuentas se descubren desde la configuracion de las categorias, no desde codigos escritos en el codigo, para que la regla siga funcionando si manana se separa una cuenta.</field>
+        <field name="familia">integridad</field>
+        <field name="metodo_tecnico">_regla_cuenta_inv_acreedora</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dio'), ref('param_cuentas_inv_acreedoras')])]"/>
+    </record>
+
+</odoo>

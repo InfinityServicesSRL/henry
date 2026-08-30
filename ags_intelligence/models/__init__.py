@@ -27,3 +27,7 @@ from . import ags_calculador
 from . import ags_calculador_calidad
 from . import ags_trazabilidad
 from . import ags_saneado
+# Fase 2E - Capa de auditoria (Etapa 8)
+from . import ags_regla
+from . import ags_hallazgo
+from . import ags_auditor

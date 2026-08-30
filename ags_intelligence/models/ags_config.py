@@ -301,6 +301,17 @@ class AgsConfig(models.Model):
              "captura toda la diferencia, incluida la no registrada.",
     )
 
+    marcador_cuenta_prohibida = fields.Char(
+        string="Marca de cuenta prohibida",
+        default="NO USAR",
+        help="Texto que AG escribe DENTRO del nombre de una cuenta para "
+             "senalar que no debe usarse. Es una convencion util y fragil: en "
+             "ingles el sufijo se pierde, asi que la regla que lo busca lee "
+             "siempre el nombre en es_DO. Vive aqui y no en el codigo para "
+             "que cambiar la convencion no exija desplegar una version. "
+             "Vaciarlo desactiva la regla CATEG_CUENTA_PROHIBIDA.",
+    )
+
     notas = fields.Text(string="Notas de configuracion")
     active = fields.Boolean(default=True)
 
