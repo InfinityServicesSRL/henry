@@ -213,9 +213,13 @@ class AgsCalculadorTraza(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @api.model
-    def _registrar(self, parametro, valor, fecha_periodo, origen="auto", notas=False):
+    def _registrar(self, parametro, valor, fecha_periodo, origen="auto",
+                   notas=False, **kw):
+        # **kw: este metodo solo envuelve al de la base para colgarle el
+        # desglose. No tiene por que conocer la firma completa, y escribirla
+        # a mano lo rompe cada vez que la base gana un argumento.
         medicion = super()._registrar(
-            parametro, valor, fecha_periodo, origen=origen, notas=notas)
+            parametro, valor, fecha_periodo, origen=origen, notas=notas, **kw)
 
         piezas = list(_traza())
         self._limpiar_traza()

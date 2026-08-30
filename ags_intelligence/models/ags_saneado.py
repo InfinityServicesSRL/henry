@@ -62,16 +62,24 @@ class AgsCalculadorSaneado(models.AbstractModel):
     # ------------------------------------------------------------------
 
     @api.model
-    def _registrar(self, parametro, valor, fecha_periodo, origen="auto", notas=False):
+    def _registrar(self, parametro, valor, fecha_periodo, origen="auto",
+                   notas=False, **kw):
         """En modo saneado no se crea medicion: se anota junto al crudo.
 
         Si la pasada normal no produjo medicion para este periodo, tampoco hay
         donde anotar. Devolver False en vez de crear una medicion suelta evita
         que aparezca un indicador que solo existe en su version ajustada.
+
+        **kw en vez de la firma completa: esto es un envoltorio, no una
+        reimplementacion. La evidencia, en particular, no se toca aqui -- el
+        conteo de registros base es el mismo para las dos lecturas, porque un
+        ajuste excluye cuentas del calculo, no hace aparecer ni desaparecer
+        los registros que lo sustentan.
         """
         if not self.env.context.get("ags_sanear"):
             return super()._registrar(
-                parametro, valor, fecha_periodo, origen=origen, notas=notas)
+                parametro, valor, fecha_periodo, origen=origen, notas=notas,
+                **kw)
 
         # La traza de instrumentacion se acumulo durante este calculo y
         # aqui no se persiste: el desglose que se muestra es el de la corrida
