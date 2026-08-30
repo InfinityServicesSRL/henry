@@ -111,9 +111,16 @@ class AgsAuditor(models.AbstractModel):
 
         if regla.por_compania:
             for compania in Compania.search([]):
+                # with_company() mueve la compania al frente de
+                # allowed_company_ids pero deja las demas dentro, y las reglas
+                # de registro multiempresa filtran por ESA lista: sin acotarla
+                # una regla ve los datos de todas y devuelve el mismo numero
+                # para cada una. Paso en la primera corrida real, con las 96
+                # lineas de inventario negativo repetidas en las dos.
+                auditor = self.with_company(compania).with_context(
+                    allowed_company_ids=[compania.id])
                 lotes[compania.id] = getattr(
-                    self.with_company(compania), regla.metodo_tecnico
-                )(regla, compania) or []
+                    auditor, regla.metodo_tecnico)(regla, compania) or []
         else:
             propia = self.env.company
             lotes[propia.id] = []
@@ -305,22 +312,26 @@ class AgsAuditor(models.AbstractModel):
         if not marcador:
             return []
 
+        # Solo las que POSTEAN. Una categoria en inventario periodico apunta
+        # a la cuenta prohibida pero no escribe nada en ella: senalarla como
+        # grave llena la lista de hallazgos que no hacen dano. En la primera
+        # corrida eran 13 de 15, y una lista asi ensena a ignorarla.
+        #
+        # No se pierde nada: si alguien pasa esa categoria a tiempo real
+        # -- que es justamente la correccion que pide
+        # CATEG_PERIODICA_CON_PRODUCTO -- esta regla la ve al dia siguiente.
         salida = []
-        for categ in self.env["product.category"].search([]):
+        for categ in self.env["product.category"].search(
+                [("property_valuation", "=", "real_time")]):
             cuenta = categ.property_stock_valuation_account_id
             if not cuenta:
                 continue
             nombre = self._cuentas_en_idioma(cuenta).name or ""
             if marcador not in nombre.upper():
                 continue
-            # Una categoria en periodico contra esa cuenta es un pecado menor:
-            # no postea. En real_time si postea, y eso es lo grave.
-            postea = categ.property_valuation == "real_time"
             salida.append({
                 "clave": "%s:%s" % (regla.codigo, categ.id),
-                "sujeto": "%s -> %s%s" % (
-                    categ.complete_name, nombre,
-                    " (POSTEA: valoracion automatica)" if postea else ""),
+                "sujeto": "%s postea a %s" % (categ.complete_name, nombre),
                 "cantidad": 1,
                 "modelo": "product.category",
                 "dominio": [("id", "=", categ.id)],
@@ -468,6 +479,7 @@ class AgsAuditor(models.AbstractModel):
         cerradas = Produccion.search([
             ("state", "=", "done"),
             ("date_finished", ">=", "%s 00:00:00" % desde),
+            ("company_id", "=", compania.id),
         ])
         if not cerradas:
             return []
@@ -554,7 +566,9 @@ class AgsAuditor(models.AbstractModel):
         Cualquier cantidad distinta de cero invalida costo y margen, porque el
         sistema esta valorando salidas de existencias que nunca entraron.
         """
-        dominio = [("location_id.usage", "=", "internal"), ("quantity", "<", 0)]
+        dominio = [("location_id.usage", "=", "internal"),
+                   ("quantity", "<", 0),
+                   ("company_id", "=", compania.id)]
         n = self.env["stock.quant"].search_count(dominio)
         if not n:
             return []
@@ -584,7 +598,9 @@ class AgsAuditor(models.AbstractModel):
             return []
 
         grupos = self.env["account.move.line"]._read_group(
-            [("account_id", "in", cuentas.ids), ("parent_state", "=", "posted")],
+            [("account_id", "in", cuentas.ids),
+             ("parent_state", "=", "posted"),
+             ("company_id", "=", compania.id)],
             ["account_id"], ["balance:sum"])
         salida = []
         for cuenta, balance in grupos:
@@ -598,6 +614,7 @@ class AgsAuditor(models.AbstractModel):
                 "cantidad": 1,
                 "modelo": "account.move.line",
                 "dominio": [("account_id", "=", cuenta.id),
-                            ("parent_state", "=", "posted")],
+                            ("parent_state", "=", "posted"),
+                            ("company_id", "=", compania.id)],
             })
         return salida

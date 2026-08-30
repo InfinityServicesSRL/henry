@@ -134,7 +134,7 @@
         <field name="metodo_tecnico">_regla_sin_registro_merma</field>
         <field name="gravedad_base">danger</field>
         <field name="efecto">invalida</field>
-        <field name="por_compania" eval="False"/>
+        <field name="por_compania" eval="True"/>
         <field name="frecuencia">diaria</field>
         <field name="parametro_ids" eval="[(6, 0, [
             ref('param_merma_conversion'), ref('param_costo_conversion')])]"/>
