@@ -66,15 +66,32 @@ class AgsAuditor(models.AbstractModel):
             dominio.append(("frecuencia", "=", frecuencia))
         reglas = self.env["ags.regla"].search(dominio)
 
+        # DOS PASADAS, y el orden entre ellas es parte del contrato.
+        #
+        # La supresion por causa raiz consulta los hallazgos vivos en el
+        # momento de evaluar cada regla. Si las reglas se recorren en el orden
+        # del modelo, una regla de detalle que alfabeticamente vaya antes que
+        # su causa raiz se evalua cuando la raiz todavia no existe, y audita
+        # un terreno que un segundo despues queda suprimido. El resultado
+        # entonces depende del orden de los codigos y de cuantas veces se
+        # corrio, y una auditoria asi no vale: la cifra tiene que ser la misma
+        # siempre.
+        raiz = reglas.filtered("suprime_detalle")
+        resto = reglas - raiz
+
         resumen = {}
         fallidas = []
-        for regla in reglas:
+        for regla in list(raiz) + list(resto):
             if not hasattr(self, regla.metodo_tecnico or ""):
                 continue
             try:
                 with self.env.cr.savepoint():
                     resumen[regla.codigo] = self._evaluar_regla(regla)
                     regla.ultima_evaluacion = fields.Datetime.now()
+                    # El savepoint aisla los fallos, pero la pasada de causa
+                    # raiz tiene que quedar visible para las consultas de la
+                    # segunda: se vacia el cache de escrituras pendientes.
+                    self.env.flush_all()
             except Exception:
                 fallidas.append(regla.codigo)
                 _logger.exception(
