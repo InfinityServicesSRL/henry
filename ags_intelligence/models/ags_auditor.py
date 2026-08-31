@@ -109,8 +109,15 @@ class AgsAuditor(models.AbstractModel):
         Compania = self.env["res.company"]
         lotes = {}
 
+        suprimidas = () if regla.suprime_detalle else self._companias_suprimidas()
+
         if regla.por_compania:
             for compania in Compania.search([]):
+                if compania.id in suprimidas:
+                    # No se evalua, y al no aparecer en los lotes sus
+                    # hallazgos abiertos se cierran solos mas abajo. Es el
+                    # comportamiento correcto: dejaron de ser el problema.
+                    continue
                 # with_company() mueve la compania al frente de
                 # allowed_company_ids pero deja las demas dentro, y las reglas
                 # de registro multiempresa filtran por ESA lista: sin acotarla
@@ -241,6 +248,20 @@ class AgsAuditor(models.AbstractModel):
     # ==================================================================
     # Utilidades comunes
     # ==================================================================
+
+    @api.model
+    def _companias_suprimidas(self):
+        """Companias cuyo detalle no se audita porque hay una causa raiz.
+
+        Devuelve los ids de las companias con un hallazgo vivo de alguna
+        regla marcada suprime_detalle. Es un conjunto, no una lista de
+        codigos escritos en el codigo: manana otra regla puede necesitar lo
+        mismo y basta con marcarle la casilla.
+        """
+        return set(self.env["ags.hallazgo"].search([
+            ("vivo", "=", True),
+            ("regla_id.suprime_detalle", "=", True),
+        ]).mapped("compania_id").ids)
 
     @api.model
     def _cuentas_en_idioma(self, cuentas):
@@ -391,7 +412,13 @@ class AgsAuditor(models.AbstractModel):
         }
 
         salida = []
+        suprimidas = self._companias_suprimidas()
         for otra in self.env["res.company"].search([("id", "!=", principal.id)]):
+            # Si la compania comparte RNC, su configuracion divergente no es
+            # el hallazgo: el hallazgo es que exista. Senalarlo aqui tambien
+            # seria contar dos veces el mismo hecho.
+            if otra.id in suprimidas:
+                continue
             distintas = [
                 c for c in categorias.with_company(otra)
                 if base.get(c.id) != (c.property_valuation,
@@ -409,6 +436,51 @@ class AgsAuditor(models.AbstractModel):
                 "dominio": [("id", "in", [c.id for c in distintas])],
                 "compania_id": otra.id,
             })
+        return salida
+
+    @api.model
+    def _regla_compania_duplica_rnc(self, regla, compania):
+        """Companias que comparten RNC: no son entidades distintas.
+
+        Una compania de Odoo es una entidad legal. Usarla para separar una
+        localidad parte el libro mayor: los traslados entre plantas dejan de
+        ser movimientos internos y pasan a ser operaciones intercompania, el
+        inventario no consolida, y todo indicador calculado sobre la compania
+        activa excluye la otra en silencio.
+
+        AG Supply lo tiene asi por una decision de la primera fase de la
+        implementacion que despues se revirtio: SDQ quedo mejor como
+        localidad. Corregirlo es trabajo del proyecto de implementacion, no de
+        este modulo. Lo que le toca al modulo es que la cifra no se lea como
+        si fuera de toda la empresa sin decir que hay una parte afuera.
+
+        Se senala a la compania mas nueva del grupo, no a la principal: es la
+        que sobra.
+        """
+        grupos = {}
+        for c in self.env["res.company"].search([]):
+            clave = (c.vat or "").replace("-", "").replace(" ", "").upper()
+            if not clave:
+                continue
+            grupos.setdefault(clave, []).append(c)
+
+        salida = []
+        for clave, companias in grupos.items():
+            if len(companias) < 2:
+                continue
+            companias.sort(key=lambda c: c.id)
+            principal = companias[0]
+            for sobrante in companias[1:]:
+                salida.append({
+                    "clave": "%s:%s" % (regla.codigo, sobrante.id),
+                    "sujeto": "%s comparte el RNC %s con %s: es una "
+                              "localidad, no una entidad" % (
+                                  sobrante.name, clave, principal.name),
+                    "cantidad": 1,
+                    "modelo": "res.company",
+                    "dominio": [("id", "=", sobrante.id)],
+                    "compania_id": sobrante.id,
+                })
         return salida
 
     @api.model

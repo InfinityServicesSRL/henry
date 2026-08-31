@@ -71,6 +71,22 @@
             ref('param_dio'), ref('param_cuentas_inv_acreedoras')])]"/>
     </record>
 
+    <record id="regla_compania_duplica_rnc" model="ags.regla">
+        <field name="codigo">COMPANIA_DUPLICA_RNC</field>
+        <field name="name">Compania que no es una entidad legal distinta</field>
+        <field name="enunciado">Cada compania de Odoo corresponde a una entidad legal distinta, con su propio RNC.</field>
+        <field name="por_que_importa">Una compania de Odoo es una entidad legal. Usarla para separar una localidad parte el libro mayor: los traslados entre plantas dejan de ser movimientos internos y pasan a ser operaciones intercompania, el inventario no consolida, y todo indicador calculado sobre la compania activa excluye la otra en silencio. AG Supply lo tiene asi por una decision de la primera fase de la implementacion que despues se revirtio: SDQ quedo mejor como localidad. Corregirlo es trabajo del proyecto de implementacion de Odoo; lo que le toca a este modulo es que la cifra no se lea como si fuera de toda la empresa sin decir que hay una parte afuera.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_compania_duplica_rnc</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="False"/>
+        <field name="suprime_detalle" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dio'), ref('param_margen_bruto')])]"/>
+    </record>
+
     <record id="regla_compania_config_divergente" model="ags.regla">
         <field name="codigo">COMPANIA_CONFIG_DIVERGENTE</field>
         <field name="name">Companias con la valoracion configurada distinto</field>

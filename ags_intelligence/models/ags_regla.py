@@ -116,6 +116,14 @@ class AgsRegla(models.Model):
         help="Quien responde por corregirla. Los hallazgos sin responsable "
              "caen en Gerencia.",
     )
+    suprime_detalle = fields.Boolean(
+        string="Suprime el detalle de su compania", default=False,
+        help="Mientras esta regla tenga un hallazgo abierto en una compania, "
+             "las demas reglas por compania dejan de evaluarse ahi. Se usa "
+             "cuando el hallazgo es la causa raiz de todos los demas: repetir "
+             "veinte veces que nadie configuro una compania no lo hace mas "
+             "cierto, y una lista que se puede ignorar deja de leerse.",
+    )
     activa = fields.Boolean(string="Activa", default=True)
 
     hallazgo_ids = fields.One2many("ags.hallazgo", "regla_id", string="Hallazgos")
