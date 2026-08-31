@@ -289,8 +289,18 @@
                                     <t t-else="">Fuera</t>
                                 </span>
                             </div>
-                            <div class="o_ags_kpi_valor" t-att-class="{ 'o_ags_sin_dato': !t.hay_dato }"
+                            <div class="o_ags_kpi_valor"
+                                 t-att-class="{ 'o_ags_sin_dato': !t.hay_dato,
+                                                'o_ags_invalidado': t.confiabilidad === 'invalidado' }"
                                  t-esc="t.valor"/>
+                            <t t-set="selloT" t-value="selloConfiabilidad(t)"/>
+                            <div t-if="selloT" class="mt-1">
+                                <span class="o_ags_sello" t-att-class="selloT.clase"
+                                      t-on-click.stop="() => this.verHallazgos(t)"
+                                      t-esc="selloT.texto"/>
+                                <div class="o_ags_detalle o_ags_motivo mt-1"
+                                     t-esc="t.confiabilidad_detalle"/>
+                            </div>
 
                             <!-- Delta contra el mes anterior y contra el mismo mes
                                  del año pasado. Nunca contra el año completo: ocho
@@ -440,6 +450,7 @@
                                 <tr t-foreach="filasVisibles(b)" t-as="f" t-key="f.codigo"
                                     t-on-click="() => this.abrirParametro(f)">
                                     <t t-set="c" t-value="celda(f)"/>
+                                    <t t-set="sello" t-value="selloConfiabilidad(f)"/>
                                     <td>
                                         <span class="o_ags_punto"
                                               t-att-class="'o_ags_punto_' + c.semaforo"/>
@@ -454,9 +465,18 @@
                                               class="o_ags_sello ms-1">con reservas</span>
                                         <span t-if="f.tiene_ajuste" class="o_ags_sello o_ags_sello_ajuste ms-1"
                                               t-att-title="motivoAjuste(f)">ajustado</span>
+                                        <span t-if="sello" class="o_ags_sello ms-1"
+                                              t-att-class="sello.clase"
+                                              t-att-title="sello.titulo"
+                                              t-on-click.stop="() => this.verHallazgos(f)"
+                                              t-esc="sello.texto"/>
                                     </td>
                                     <td class="text-end">
-                                        <div class="fw-semibold" t-esc="c.valor"/>
+                                        <div class="fw-semibold"
+                                             t-att-class="{ 'o_ags_invalidado': f.confiabilidad === 'invalidado' }"
+                                             t-esc="c.valor"/>
+                                        <div t-if="sello" class="o_ags_detalle o_ags_motivo"
+                                             t-esc="f.confiabilidad_detalle"/>
                                         <div t-if="c.alterno" class="o_ags_detalle">
                                             <t t-esc="c.alternoEtiqueta"/>: <t t-esc="c.alterno"/>
                                         </div>

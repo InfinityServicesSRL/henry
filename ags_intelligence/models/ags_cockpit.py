@@ -597,6 +597,56 @@ class AgsCockpit(models.AbstractModel):
         return sorted(salida, key=lambda x: orden.get(x["gravedad"], 9))
 
     # ------------------------------------------------------------------
+    # Confiabilidad: que hallazgo invalida que indicador
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _mapa_confiabilidad(self):
+        """Un solo recorrido de hallazgos vivos para toda la pantalla.
+
+        Se resuelve una vez por peticion y no parametro a parametro: el
+        bloque ejecutivo y los comparativos preguntan por los mismos
+        indicadores, y recomputarlo en cada fila multiplicaria la misma
+        consulta por setenta.
+        """
+        vivos = self.env["ags.hallazgo"].search([
+            ("vivo", "=", True),
+            ("regla_id.efecto", "in", ["invalida", "degrada"]),
+        ])
+        mapa = {}
+        for h in vivos:
+            for p in h.regla_id.parametro_ids:
+                mapa.setdefault(p.id, []).append(h)
+
+        salida = {}
+        for pid, hallazgos in mapa.items():
+            invalidan = [h for h in hallazgos
+                         if h.regla_id.efecto == "invalida"]
+            citados = (invalidan or hallazgos)[:2]
+            texto = " · ".join(h.sujeto or h.codigo_regla for h in citados)
+            sobran = len(invalidan or hallazgos) - len(citados)
+            if sobran > 0:
+                texto += _(" (y %s mas)") % sobran
+            salida[pid] = {
+                "confiabilidad": "invalidado" if invalidan else "con_reserva",
+                "confiabilidad_detalle": texto,
+                "n_hallazgos": len(hallazgos),
+                "hallazgo_ids": [h.id for h in hallazgos],
+                "dias_abierto": max(h.dias_abierto for h in hallazgos),
+            }
+        return salida
+
+    @api.model
+    def _sin_hallazgos(self):
+        return {
+            "confiabilidad": "ok",
+            "confiabilidad_detalle": "",
+            "n_hallazgos": 0,
+            "hallazgo_ids": [],
+            "dias_abierto": 0,
+        }
+
+    # ------------------------------------------------------------------
     # Zona 2: bloque ejecutivo
     # ------------------------------------------------------------------
 
@@ -604,6 +654,7 @@ class AgsCockpit(models.AbstractModel):
     def _ejecutivo(self, cierre, previo, homologo):
         Param = self.env["ags.parametro"]
         Med = self.env["ags.medicion"]
+        confiabilidad = self._mapa_confiabilidad()
         tarjetas = []
         for codigo, etiqueta, eje in EJECUTIVO:
             p = Param.search([("codigo", "=", codigo)], limit=1)
@@ -631,6 +682,7 @@ class AgsCockpit(models.AbstractModel):
                 "atipico": bool(actual.periodo_atipico) if actual else False,
                 "hay_dato": bool(actual),
             }
+            t.update(confiabilidad.get(p.id) or self._sin_hallazgos())
             if not actual:
                 t.update({
                     "valor": "Sin dato",
@@ -702,6 +754,7 @@ class AgsCockpit(models.AbstractModel):
         }
         etiquetas = dict(
             self.env["ags.parametro"]._fields["seccion"].selection)
+        confiabilidad = self._mapa_confiabilidad()
 
         por_seccion = {}
         for m in mediciones:
@@ -740,6 +793,10 @@ class AgsCockpit(models.AbstractModel):
                            if m.tiene_ajuste else "",
                 "saneado_num": m.valor_saneado,
                 "semaforo_saneado": m.semaforo_saneado or "sin_dato",
+                # Que hallazgo abierto invalida o degrada este indicador. Es
+                # el pago de toda la capa de auditoria: la cifra deja de
+                # leerse sola y viaja con la razon por la que no vale.
+                **(confiabilidad.get(p.id) or self._sin_hallazgos()),
                 "delta_baseline_saneado": self._delta(
                     m.valor_saneado, m.valor_baseline, p.direccion, p.unidad)
                     if m.tiene_ajuste else {"hay_dato": False},
@@ -1124,4 +1181,8 @@ class AgsCockpit(models.AbstractModel):
         f = fecha or fields.Date.context_today(self)
         self.env["ags.calculador"].calcular_periodo(f)
         self.env["ags.rentabilidad"].calcular_periodo(f)
+        # La auditoria se reevalua con el mismo boton: si alguien acaba de
+        # corregir una categoria, el sello tiene que desaparecer en la misma
+        # pantalla y no al dia siguiente cuando corra el cron.
+        self.env["ags.auditor"].evaluar_reglas()
         return self.datos(fecha, filtros)

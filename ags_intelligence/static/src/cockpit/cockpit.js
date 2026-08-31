@@ -532,6 +532,45 @@ export class AgsCockpit extends Component {
         }[nivel] || "fa-check-circle";
     }
 
+    /**
+     * Sello de confiabilidad de un indicador.
+     *
+     * Devuelve null cuando no hay hallazgos: la ausencia de sello es la
+     * lectura normal y no merece un elemento en pantalla.
+     */
+    selloConfiabilidad(f) {
+        if (f.confiabilidad === "invalidado") {
+            return {
+                clase: "o_ags_sello_invalidado",
+                texto: "no confiable",
+                titulo: f.confiabilidad_detalle,
+            };
+        }
+        if (f.confiabilidad === "con_reserva") {
+            return {
+                clase: "o_ags_sello_reserva",
+                texto: "con reserva",
+                titulo: f.confiabilidad_detalle,
+            };
+        }
+        return null;
+    }
+
+    /** Abre el expediente de los hallazgos que tocan a este indicador. */
+    verHallazgos(f) {
+        if (!f.hallazgo_ids || !f.hallazgo_ids.length) {
+            return;
+        }
+        this.action.doAction({
+            type: "ir.actions.act_window",
+            name: "Hallazgos que afectan a " + (f.nombre || f.etiqueta),
+            res_model: "ags.hallazgo",
+            domain: [["id", "in", f.hallazgo_ids]],
+            views: [[false, "list"], [false, "form"]],
+            target: "current",
+        });
+    }
+
     claseSemaforo(s) {
         return {
             verde: "text-bg-success",

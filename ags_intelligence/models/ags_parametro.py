@@ -203,6 +203,32 @@ class AgsParametro(models.Model):
         string="Configuracion pendiente",
         help="Que falta declarar para que este parametro pueda calcularse",
     )
+    hallazgo_ids = fields.Many2many(
+        "ags.hallazgo",
+        string="Hallazgos que lo tocan",
+        compute="_compute_confiabilidad",
+        help="Hallazgos vivos de reglas que declaran a este indicador entre "
+             "los que invalidan o degradan.",
+    )
+    confiabilidad = fields.Selection(
+        [
+            ("ok", "Sin hallazgos"),
+            ("con_reserva", "Leer con reserva"),
+            ("invalidado", "No confiable"),
+        ],
+        string="Confiabilidad",
+        compute="_compute_confiabilidad",
+        help="Si el REGISTRO que alimenta este numero esta sano. No sustituye "
+             "a la madurez: aquella responde si llevo suficientes periodos "
+             "midiendo, esta responde si lo que mido esta bien registrado. Un "
+             "indicador puede tener 18 periodos limpios y estar invalidado "
+             "porque su categoria de producto lleva meses sin generar asiento "
+             "de costo de ventas.",
+    )
+    confiabilidad_detalle = fields.Char(
+        string="Por que no es confiable",
+        compute="_compute_confiabilidad",
+    )
     confidencial = fields.Boolean(
         string="Confidencial",
         default=False,
@@ -285,6 +311,58 @@ class AgsParametro(models.Model):
             else:
                 rec.madurez = "confiable"
                 rec.madurez_detalle = "%s periodos utiles" % n
+
+    def _compute_confiabilidad(self):
+        """Cruza los hallazgos vivos contra los indicadores que declaran tocar.
+
+        NO se almacena. Un campo store que dependa del estado de los hallazgos
+        quedaria desactualizado en cuanto el cron de auditoria cierre uno de
+        madrugada, que es el mismo defecto que ya arrastra
+        ags.benchmark.es_vigente. Son setenta parametros: calcularlo en cada
+        lectura es barato y siempre es cierto.
+
+        Se resuelve por busqueda y no declarando el many2many inverso de
+        ags.regla.parametro_ids: el nombre de la tabla intermedia lo genera
+        Odoo y depender de haberlo adivinado bien es fragil.
+        """
+        Hallazgo = self.env["ags.hallazgo"]
+        vivos = Hallazgo.search([
+            ("vivo", "=", True),
+            ("regla_id.efecto", "in", ["invalida", "degrada"]),
+        ])
+        por_parametro = {}
+        for h in vivos:
+            for p in h.regla_id.parametro_ids:
+                por_parametro.setdefault(p.id, []).append(h)
+
+        for rec in self:
+            suyos = por_parametro.get(rec.id, [])
+            rec.hallazgo_ids = [(6, 0, [h.id for h in suyos])]
+            if not suyos:
+                rec.confiabilidad = "ok"
+                rec.confiabilidad_detalle = False
+                continue
+            invalidan = [h for h in suyos if h.regla_id.efecto == "invalida"]
+            rec.confiabilidad = "invalidado" if invalidan else "con_reserva"
+            # Se citan los que mandan, no todos: una frase con nueve motivos
+            # no se lee, y el expediente completo esta a un clic.
+            citados = (invalidan or suyos)[:2]
+            texto = " · ".join(h.sujeto or h.codigo_regla for h in citados)
+            sobran = len(invalidan or suyos) - len(citados)
+            if sobran > 0:
+                texto += " (y %s mas)" % sobran
+            rec.confiabilidad_detalle = texto
+
+    def action_ver_hallazgos(self):
+        self.ensure_one()
+        return {
+            "type": "ir.actions.act_window",
+            "name": "Hallazgos que afectan a %s" % self.name,
+            "res_model": "ags.hallazgo",
+            "domain": [("id", "in", self.hallazgo_ids.ids)],
+            "view_mode": "list,form",
+            "target": "current",
+        }
 
     @api.model
     def recalcular_madurez(self):

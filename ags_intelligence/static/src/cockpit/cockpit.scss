@@ -528,6 +528,35 @@ $ags-sin-evidencia: if(variable-exists(o-gray-900), $o-gray-900, #212529);
         color: $ags-tenue;
     }
 
+    // Un indicador invalidado NO esconde su cifra. La tacha y la atenua,
+    // y le pone al lado el motivo. Esconderla obligaria a buscarla en otra
+    // pantalla, y ahi ya nadie ve la advertencia -- es el mismo criterio de
+    // D10 (el contable convive con el saneado) y D11 (el mes en curso se
+    // muestra, solo deja de presentarse como comparable).
+    .o_ags_invalidado {
+        color: $ags-debil;
+        text-decoration: line-through;
+        text-decoration-thickness: 1px;
+    }
+
+    .o_ags_sello_invalidado {
+        border-color: $ags-peligro;
+        color: $ags-peligro;
+        background-color: rgba($ags-peligro, 0.08);
+    }
+
+    // El motivo se corta a dos lineas: es una advertencia, no un informe.
+    // El expediente completo esta a un clic en el sello.
+    .o_ags_motivo {
+        max-width: 22rem;
+        line-height: 1.25;
+    }
+
+    .o_ags_sello_reserva {
+        border-color: $ags-tenue;
+        color: $ags-tenue;
+    }
+
     .o_ags_sello_ajuste {
         // Se distingue del sello de "atipico" porque no dice lo mismo: uno
         // advierte sobre el periodo, este sobre el calculo.
