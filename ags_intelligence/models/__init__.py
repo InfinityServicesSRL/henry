@@ -30,4 +30,6 @@ from . import ags_saneado
 # Fase 2E - Capa de auditoria (Etapa 8)
 from . import ags_regla
 from . import ags_hallazgo
+from . import ags_cuenta_puente
 from . import ags_auditor
+from . import ags_auditor_puente

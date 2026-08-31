@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Reglas sobre cuentas puente.
+
+     Una cuenta puente sostiene un importe mientras un circuito llega a su
+     otro extremo, y su proposito NO es acumular: cuando la secuencia termina
+     vuelve a cero. El saldo por si solo no dice si esta sana; lo que la
+     define es si oscila o si acumula.
+
+     noupdate="1" por lo mismo que el catalogo principal: estas reglas tienen
+     campos que se editan en la interfaz.
+-->
+<odoo noupdate="1">
+
+    <record id="regla_puente_no_corriente" model="ags.regla">
+        <field name="codigo">PUENTE_NO_CORRIENTE</field>
+        <field name="name">Cuenta puente tipificada fuera del corto plazo</field>
+        <field name="enunciado">Toda cuenta puente tiene un tipo contable de corto plazo, acorde con que se liquida en dias o semanas.</field>
+        <field name="por_que_importa">Caso real que motivo la regla: la cuenta 21021200 Bienes Recibidos no Facturados acumula RD$ 174,448,990.91 acreedor en 5,165 apuntes y esta tipificada como pasivo NO corriente. Como cuentas_pasivo_corriente() selecciona solo liability_payable y liability_current, esos 174 millones quedan fuera del pasivo corriente: la razon corriente, la prueba acida, la razon de efectivo y el capital de trabajo salen sobrestimados. Que una cuenta puente sea no corriente contradice su propio proposito.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_puente_no_corriente</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">invalida</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_razon_corriente'), ref('param_prueba_acida'),
+            ref('param_razon_efectivo'), ref('param_capital_trabajo')])]"/>
+    </record>
+
+    <record id="regla_puente_no_conciliable" model="ags.regla">
+        <field name="codigo">PUENTE_NO_CONCILIABLE</field>
+        <field name="name">Cuenta puente sin conciliacion permitida</field>
+        <field name="enunciado">Toda cuenta puente permite conciliacion, para que sus partidas puedan cruzarse entre si.</field>
+        <field name="por_que_importa">Sin la marca de conciliable el circuito no esta atascado: no tiene forma de cerrarse. Y cualquier medida de antiguedad sobre esa cuenta da un falso negativo, porque ninguna partida figura como saldada por la sencilla razon de que ninguna puede saldarse. Es la precondicion que hace significar algo a las reglas de antiguedad, por eso se comprueba aparte.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_puente_no_conciliable</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_tesoreria_sin_conciliar'),
+            ref('param_transferencias_abiertas')])]"/>
+    </record>
+
+    <record id="regla_puente_sin_declarar" model="ags.regla">
+        <field name="codigo">PUENTE_SIN_DECLARAR</field>
+        <field name="name">Cuenta que Odoo usa como puente y no esta declarada</field>
+        <field name="enunciado">Toda cuenta que la configuracion de Odoo usa como puente esta declarada en el inventario, con su proceso y su tolerancia.</field>
+        <field name="por_que_importa">Es la regla que impide que este bloque envejezca. El dia que alguien agregue un banco, un metodo de pago o una categoria de producto con cuentas propias, la cuenta nueva aparece aqui en vez de quedarse invisible para las otras cuatro reglas y producir un falso "todo limpio".</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_puente_sin_declarar</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">informa</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+    </record>
+
+    <record id="regla_puente_partidas_viejas" model="ags.regla">
+        <field name="codigo">PUENTE_PARTIDAS_VIEJAS</field>
+        <field name="name">Partidas atascadas en una cuenta puente</field>
+        <field name="enunciado">Ninguna partida sin conciliar permanece en una cuenta puente mas alla de la tolerancia de su proceso.</field>
+        <field name="por_que_importa">Es la regla accionable del bloque: no devuelve un indicador, devuelve la lista de apuntes que alguien puede abrir y trabajar hoy. Cada cuenta se juzga contra SU tolerancia, porque una transferencia entre bancos propios abierta quince dias es otra cosa que una recepcion de mercancia esperando su factura.</field>
+        <field name="familia">pendiente</field>
+        <field name="metodo_tecnico">_regla_puente_partidas_viejas</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_antiguedad_grni'), ref('param_dpo'),
+            ref('param_tesoreria_sin_conciliar')])]"/>
+    </record>
+
+    <record id="regla_puente_no_cierra" model="ags.regla">
+        <field name="codigo">PUENTE_NO_CIERRA</field>
+        <field name="name">Cuenta puente que nunca cruza cero</field>
+        <field name="enunciado">Toda cuenta puente cruza cero al menos una vez dentro de su ventana de ciclo.</field>
+        <field name="por_que_importa">La regla central del bloque. El saldo de una cuenta puente no dice nada por si solo: una que mueve veintiocho millones y los liquida cada semana esta sana. Lo que la define es si oscila o si acumula. Si en todos los cierres de la ventana el saldo mantuvo el mismo signo y en ninguno se acerco a cero, el circuito no esta cerrando, y lo que hay ahi no es un saldo: es sedimento. Es el caso de la cuenta de transferencia de liquidez, que deberia cerrar el mismo dia y arrastra saldo desde 2025.</field>
+        <field name="familia">pendiente</field>
+        <field name="metodo_tecnico">_regla_puente_no_cierra</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">mensual</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_razon_corriente'), ref('param_dpo'),
+            ref('param_tesoreria_sin_conciliar'),
+            ref('param_transferencias_abiertas')])]"/>
+    </record>
+
+</odoo>

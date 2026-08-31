@@ -33,3 +33,5 @@ access_ags_regla_manager,ags.regla.manager,model_ags_regla,ags_intelligence.grou
 access_ags_regla_delegado,ags.regla.delegado,model_ags_regla,ags_intelligence.group_ags_delegado,1,0,0,0
 access_ags_hallazgo_manager,ags.hallazgo.manager,model_ags_hallazgo,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_hallazgo_delegado,ags.hallazgo.delegado,model_ags_hallazgo,ags_intelligence.group_ags_delegado,1,1,0,0
+access_ags_cuenta_puente_manager,ags.cuenta.puente.manager,model_ags_cuenta_puente,ags_intelligence.group_ags_manager,1,1,1,1
+access_ags_cuenta_puente_delegado,ags.cuenta.puente.delegado,model_ags_cuenta_puente,ags_intelligence.group_ags_delegado,1,0,0,0
