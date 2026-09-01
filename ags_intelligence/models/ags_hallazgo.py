@@ -98,6 +98,12 @@ class AgsHallazgo(models.Model):
     ultima_deteccion = fields.Date(string="Visto por ultima vez")
     dias_abierto = fields.Integer(
         string="Dias abierto", compute="_compute_dias_abierto")
+    ultima_reincidencia = fields.Date(
+        string="Ultima reincidencia", readonly=True,
+        help="El dia en que volvio tras haberse cerrado. Sin esta fecha el "
+             "aviso diario no puede distinguir 'reincidio hoy' de "
+             "'reincidio en marzo y sigue abierto', y acabaria repitiendo "
+             "las mismas reincidencias todos los dias.")
     reincidencias = fields.Integer(
         string="Reincidencias", default=0,
         help="Veces que se cerro solo y volvio a aparecer. Una reincidencia "

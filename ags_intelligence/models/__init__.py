@@ -34,3 +34,4 @@ from . import ags_cuenta_puente
 from . import ags_auditor
 from . import ags_auditor_puente
 from . import ags_auditor_compras
+from . import ags_auditor_aviso

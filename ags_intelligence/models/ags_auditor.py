@@ -222,6 +222,7 @@ class AgsAuditor(models.AbstractModel):
                     reincidencias=previo.reincidencias + 1,
                     fecha_resolucion=False,
                     resuelto_por_id=False,
+                    ultima_reincidencia=hoy,
                 ))
                 previo.message_post(body=_(
                     "Vuelve a detectarse tras haberse cerrado. Reincidencia "
@@ -231,13 +232,21 @@ class AgsAuditor(models.AbstractModel):
                 res["vivos"] += 1
                 continue
 
-            Hallazgo.create(dict(
+            nuevo = Hallazgo.create(dict(
                 vals,
                 regla_id=regla.id,
                 compania_id=compania.id,
                 clave=clave,
                 primera_deteccion=hoy,
             ))
+            # El nacimiento se escribe en el expediente del propio hallazgo.
+            # El correo del dia habla de varios a la vez y no sirve como
+            # historia de este.
+            nuevo.message_post(body=_(
+                "Detectado por primera vez el %(fecha)s. Regla: %(regla)s. "
+                "Registros que incumplen: %(n)s.") % {
+                    "fecha": hoy, "regla": regla.codigo,
+                    "n": vals.get("cantidad", 0)})
             res["nuevos"] += 1
             res["vivos"] += 1
 
@@ -251,16 +260,8 @@ class AgsAuditor(models.AbstractModel):
             res["corregidos"] = len(corregidos)
         return res
 
-    @api.model
-    def cron_auditoria_diaria(self):
-        """Evalua las reglas diarias. NO notifica todavia.
-
-        Las notificaciones se encienden en 8.6.0, cuando exista la pantalla
-        donde cerrar hallazgos. Encender los correos antes de tener donde
-        atenderlos es la forma mas rapida de quemar la atencion de quien los
-        recibe, y esa atencion no se recupera.
-        """
-        return self.evaluar_reglas(frecuencia="diaria")
+    # cron_auditoria_diaria vive en ags_auditor_aviso.py desde 8.8.0:
+    # ahi evalua y ademas avisa lo que cambio.
 
     # ==================================================================
     # Utilidades comunes

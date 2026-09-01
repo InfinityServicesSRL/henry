@@ -89,6 +89,31 @@
                                 <field name="metodo_merma" widget="radio"/>
                             </group>
                         </page>
+                        <page string="Auditoria">
+                            <group string="Como se reconocen las cuentas">
+                                <field name="marcadores_puente"/>
+                                <field name="marcador_cuenta_prohibida"/>
+                            </group>
+                            <group string="Quien responde por cada familia de regla">
+                                <field name="responsable_configuracion_id"
+                                       widget="many2one_avatar_user"/>
+                                <field name="responsable_habito_id"
+                                       widget="many2one_avatar_user"/>
+                                <field name="responsable_pendiente_id"
+                                       widget="many2one_avatar_user"/>
+                                <field name="responsable_integridad_id"
+                                       widget="many2one_avatar_user"/>
+                                <button name="action_aplicar_responsables"
+                                        type="object" class="btn-secondary"
+                                        string="Asignar a las reglas sin dueno"/>
+                            </group>
+                            <group string="Aviso diario">
+                                <field name="auditoria_destinatario_ids"
+                                       widget="many2many_tags"/>
+                                <field name="auditoria_dias_vencido"/>
+                                <field name="auditoria_dia_resumen"/>
+                            </group>
+                        </page>
                         <page string="Notas">
                             <field name="notas" nolabel="1"/>
                         </page>

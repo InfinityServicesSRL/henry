@@ -2,12 +2,15 @@
 <odoo noupdate="1">
 
     <!--
-         Auditoria diaria. Detecta y reconcilia; NO notifica.
+         Auditoria diaria. Detecta, reconcilia y avisa lo que cambio.
 
-         Las notificaciones se encienden en la version 8.6.0, cuando exista la
-         pantalla donde cerrar hallazgos. Encender los correos antes de tener
-         donde atenderlos es la forma mas rapida de quemar la atencion de
-         quien los recibe, y esa atencion no se recupera despues.
+         El aviso se encendio en 8.8.0, junto con la pantalla donde cerrar
+         hallazgos. Encender los correos antes de tener donde atenderlos es
+         la forma mas rapida de quemar la atencion de quien los recibe.
+
+         El correo CALLA cuando no hubo nacimientos, reincidencias ni
+         correcciones, y se rompe el silencio un dia fijo a la semana para
+         que "no llego nada" no se confunda con "el cron esta caido".
 
          Corre de madrugada: las reglas de configuracion son consultas baratas
          sobre tablas pequenas, pero las de integridad barren quants y apuntes.

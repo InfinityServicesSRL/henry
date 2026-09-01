@@ -35,6 +35,31 @@
         <field name="comment">Acceso completo a AG Intelligence, incluida la informacion sensible.</field>
     </record>
 
+    <!--
+        AUDITOR EXTERNO (Etapa 8.8).
+
+        Un tercero que revisa y no opera. Ve el terreno completo, incluidos
+        los parametros marcados confidenciales (una auditoria a la que se le
+        esconden los margenes no es una auditoria), y no puede cambiar ni una
+        regla ni un ajuste de calculo.
+
+        Lo unico que escribe es el expediente del hallazgo: mail.thread exige
+        permiso de escritura para dejar un comentario, y un auditor que no
+        puede anotar en el expediente termina mandando sus observaciones por
+        WhatsApp, que es donde mueren.
+
+        NO implica al delegado. Implicarlo le daria de golpe todo lo que se le
+        agregue al delegado en el futuro, que es exactamente el descuido que
+        convierte un grupo de solo lectura en uno de escritura sin que nadie
+        lo decida. Los menus lo nombran explicitamente.
+    -->
+    <record id="group_ags_auditor" model="res.groups">
+        <field name="name">Auditor externo</field>
+        <field name="category_id" ref="module_category_ags"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Lectura completa del terreno auditado y anotacion en los hallazgos. No opera el modulo.</field>
+    </record>
+
     <!-- Auto-asignacion al administrador durante la instalacion.
          Sin esto, en cada instalacion limpia nadie ve el menu hasta que
          alguien asigna el grupo manualmente, y el modulo parece no haberse
@@ -107,6 +132,31 @@
         <field name="model_id" ref="model_ags_alerta"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="groups" eval="[(4, ref('group_ags_manager'))]"/>
+    </record>
+
+    <!-- El auditor no hereda del delegado, asi que sin estas reglas
+         permisivas no veria un solo parametro confidencial ni las alertas de
+         cliente, que es justo lo que viene a revisar. -->
+
+    <record id="rule_ags_parametro_auditor" model="ir.rule">
+        <field name="name">Parametros: el auditor ve todo</field>
+        <field name="model_id" ref="model_ags_parametro"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_auditor'))]"/>
+    </record>
+
+    <record id="rule_ags_medicion_auditor" model="ir.rule">
+        <field name="name">Mediciones: el auditor ve todas</field>
+        <field name="model_id" ref="model_ags_medicion"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_auditor'))]"/>
+    </record>
+
+    <record id="rule_ags_alerta_auditor" model="ir.rule">
+        <field name="name">Alertas: el auditor ve todas</field>
+        <field name="model_id" ref="model_ags_alerta"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_auditor'))]"/>
     </record>
 
 </odoo>

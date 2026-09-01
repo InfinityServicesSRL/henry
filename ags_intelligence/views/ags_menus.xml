@@ -8,7 +8,7 @@
             name="Inteligencia"
             sequence="90"
             web_icon="ags_intelligence,static/description/icon.png"
-            groups="ags_intelligence.group_ags_delegado"/>
+            groups="ags_intelligence.group_ags_delegado,ags_intelligence.group_ags_auditor"/>
 
     <!-- Pantalla de inicio -->
     <menuitem id="menu_ags_cockpit"
@@ -75,6 +75,39 @@
             parent="menu_ags_root"
             action="action_ags_alerta"
             sequence="5"/>
+
+    <!-- ============================================================
+         AUDITORIA (Etapa 8.8)
+
+         Va alto en el menu a proposito. Un hallazgo enterrado bajo
+         Configuracion es un hallazgo que nadie mira, y el modulo dejo de ser
+         solo un tablero de desempeno el dia que empezo a juzgar la calidad
+         de los registros de los que ese tablero se alimenta.
+         ============================================================ -->
+
+    <menuitem id="menu_ags_auditoria_root"
+            name="Auditoria"
+            parent="menu_ags_root"
+            sequence="7"/>
+
+    <menuitem id="menu_ags_hallazgo"
+            name="Hallazgos"
+            parent="menu_ags_auditoria_root"
+            action="action_ags_hallazgo"
+            sequence="10"/>
+
+    <menuitem id="menu_ags_regla"
+            name="Reglas"
+            parent="menu_ags_auditoria_root"
+            action="action_ags_regla"
+            sequence="20"/>
+
+    <menuitem id="menu_ags_cuenta_puente"
+            name="Cuentas puente"
+            parent="menu_ags_auditoria_root"
+            action="action_ags_cuenta_puente"
+            sequence="30"
+            groups="ags_intelligence.group_ags_manager,ags_intelligence.group_ags_auditor"/>
 
     <menuitem id="menu_ags_metas_root"
             name="Metas"

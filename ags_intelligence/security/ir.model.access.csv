@@ -35,3 +35,16 @@ access_ags_hallazgo_manager,ags.hallazgo.manager,model_ags_hallazgo,ags_intellig
 access_ags_hallazgo_delegado,ags.hallazgo.delegado,model_ags_hallazgo,ags_intelligence.group_ags_delegado,1,1,0,0
 access_ags_cuenta_puente_manager,ags.cuenta.puente.manager,model_ags_cuenta_puente,ags_intelligence.group_ags_manager,1,1,1,1
 access_ags_cuenta_puente_delegado,ags.cuenta.puente.delegado,model_ags_cuenta_puente,ags_intelligence.group_ags_delegado,1,0,0,0
+access_ags_hallazgo_auditor,ags.hallazgo.auditor,model_ags_hallazgo,ags_intelligence.group_ags_auditor,1,1,0,0
+access_ags_regla_auditor,ags.regla.auditor,model_ags_regla,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_cuenta_puente_auditor,ags.cuenta.puente.auditor,model_ags_cuenta_puente,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_parametro_auditor,ags.parametro.auditor,model_ags_parametro,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_medicion_auditor,ags.medicion.auditor,model_ags_medicion,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_benchmark_auditor,ags.benchmark.auditor,model_ags_benchmark,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_baseline_auditor,ags.baseline.auditor,model_ags_baseline,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_fuente_auditor,ags.fuente.auditor,model_ags_fuente,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_ajuste_auditor,ags.ajuste.auditor,model_ags_ajuste,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_componente_auditor,ags.componente.auditor,model_ags_componente,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_alerta_auditor,ags.alerta.auditor,model_ags_alerta,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_config_auditor,ags.config.auditor,model_ags_config,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_welcome_auditor,ags.welcome.auditor,model_ags_welcome,ags_intelligence.group_ags_auditor,1,0,0,0

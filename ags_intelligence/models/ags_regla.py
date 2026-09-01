@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from odoo import models, fields, api, _
-from odoo.exceptions import ValidationError
+from odoo.exceptions import ValidationError, UserError
 
 
 class AgsRegla(models.Model):
@@ -128,7 +128,8 @@ class AgsRegla(models.Model):
 
     hallazgo_ids = fields.One2many("ags.hallazgo", "regla_id", string="Hallazgos")
     n_abiertos = fields.Integer(
-        string="Abiertos", compute="_compute_n_abiertos")
+        string="Abiertos", compute="_compute_n_abiertos",
+        search="_search_n_abiertos")
     ultima_evaluacion = fields.Datetime(string="Evaluada por ultima vez", readonly=True)
 
     _sql_constraints = [
@@ -153,6 +154,31 @@ class AgsRegla(models.Model):
                       "imposible no tiene cantidad aceptable."))
 
     @api.depends("hallazgo_ids.estado")
+    def _search_n_abiertos(self, comparador, valor):
+        """Permite filtrar por el contador aunque no este almacenado.
+
+        Un compute sin search() no se puede poner en un dominio, y el filtro
+        "Con hallazgos abiertos" de la vista es precisamente un dominio. La
+        alternativa era almacenarlo, pero un contador almacenado que depende
+        del estado de otra tabla se queda desfasado en cuanto alguien cierra
+        un hallazgo desde el motor: mas vale contar en el momento sobre una
+        tabla de veintitantas filas.
+        """
+        import operator as _op
+        funciones = {
+            "=": _op.eq, "!=": _op.ne, "<": _op.lt,
+            "<=": _op.le, ">": _op.gt, ">=": _op.ge,
+        }
+        funcion = funciones.get(comparador)
+        if funcion is None:
+            raise UserError(_("Comparacion no soportada: %s") % comparador)
+        datos = self.env["ags.hallazgo"]._read_group(
+            [("vivo", "=", True)], groupby=["regla_id"], aggregates=["__count"])
+        conteo = {regla.id: n for regla, n in datos}
+        todas = self.with_context(active_test=False).search([])
+        ids = [r.id for r in todas if funcion(conteo.get(r.id, 0), valor)]
+        return [("id", "in", ids)]
+
     def _compute_n_abiertos(self):
         for rec in self:
             rec.n_abiertos = len(rec.hallazgo_ids.filtered(

@@ -324,6 +324,57 @@ class AgsConfig(models.Model):
              "Vaciarlo desactiva la regla CATEG_CUENTA_PROHIBIDA.",
     )
 
+    # ------------------------------------------------------------------
+    # Circuito de aviso de la auditoria (8.8.0)
+    # ------------------------------------------------------------------
+
+    auditoria_destinatario_ids = fields.Many2many(
+        "res.users", "ags_config_auditoria_users_rel", "config_id", "user_id",
+        string="Recibe el aviso de auditoria",
+        help="Quien recibe el resumen diario cuando hay novedad. Una regla "
+             "con responsable asignado le escribe a el; lo que no tiene "
+             "responsable cae aqui. Sin nadie en esta lista no se envia "
+             "nada: un aviso sin destinatario es ruido en el log.",
+    )
+
+    auditoria_dias_vencido = fields.Integer(
+        string="Dias para considerar vencido un hallazgo grave",
+        default=30,
+        help="Un hallazgo grave que lleva mas dias abiertos que este numero "
+             "se repite en el aviso aunque no haya cambiado. Es el unico "
+             "escalado del circuito y vive en configuracion, no en el "
+             "codigo: el dia que 30 sea mucho se cambia aqui.",
+    )
+
+    auditoria_dia_resumen = fields.Selection(
+        [("0", "Lunes"), ("1", "Martes"), ("2", "Miercoles"),
+         ("3", "Jueves"), ("4", "Viernes"), ("5", "Sabado"),
+         ("6", "Domingo"), ("", "Nunca")],
+        string="Dia del resumen sin novedad", default="0",
+        help="El aviso diario CALLA cuando no hubo nacimientos, "
+             "reincidencias ni correcciones: un correo que repite lo mismo "
+             "todos los dias deja de leerse en una semana. Este dia es la "
+             "excepcion, para que el silencio no se confunda con que el cron "
+             "dejo de correr.",
+    )
+
+    responsable_configuracion_id = fields.Many2one(
+        "res.users", string="Responsable de configuracion",
+        help="Quien responde por lo que esta mal declarado en Odoo: "
+             "categorias, cuentas, valoracion, politicas de control.")
+    responsable_habito_id = fields.Many2one(
+        "res.users", string="Responsable de habitos",
+        help="Quien responde por la forma de trabajar: recibir sin orden, "
+             "facturar sin orden, devolver por inventario.")
+    responsable_pendiente_id = fields.Many2one(
+        "res.users", string="Responsable de pendientes",
+        help="Quien responde por lo que quedo a medias: GRNI, cuentas "
+             "puente que no cierran, partidas sin conciliar.")
+    responsable_integridad_id = fields.Many2one(
+        "res.users", string="Responsable de integridad",
+        help="Quien responde por lo que el sistema no deberia poder "
+             "producir: inventario negativo, RNC duplicado.")
+
     notas = fields.Text(string="Notas de configuracion")
     active = fields.Boolean(default=True)
 
@@ -339,6 +390,46 @@ class AgsConfig(models.Model):
                 raise ValidationError(
                     _("La tasa de costo de capital debe estar entre 0 y 100.")
                 )
+
+    def action_aplicar_responsables(self):
+        """Reparte las reglas sin dueno segun la familia.
+
+        NO pisa lo ya asignado. Una regla que alguien reasigno caso por caso
+        expresa una decision, y un boton de configuracion que la borra en
+        silencio hace que nadie vuelva a confiar en el reparto.
+
+        El reparto vive en configuracion y no en el data file: los nombres de
+        las personas no pertenecen al codigo. El dia que Solanyi cambie de
+        puesto no debe hacer falta desplegar una version.
+        """
+        self.ensure_one()
+        mapa = {
+            "configuracion": self.responsable_configuracion_id,
+            "habito": self.responsable_habito_id,
+            "pendiente": self.responsable_pendiente_id,
+            "integridad": self.responsable_integridad_id,
+        }
+        tocadas = 0
+        for familia, usuario in mapa.items():
+            if not usuario:
+                continue
+            reglas = self.env["ags.regla"].search([
+                ("familia", "=", familia),
+                ("responsable_id", "=", False),
+            ])
+            if reglas:
+                reglas.responsable_id = usuario
+                tocadas += len(reglas)
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "type": "success" if tocadas else "warning",
+                "message": _("%s regla(s) sin dueno quedaron asignadas.")
+                           % tocadas,
+                "sticky": False,
+            },
+        }
 
     @api.model
     def get_config(self, company=None):
