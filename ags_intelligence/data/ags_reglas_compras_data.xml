@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Reglas del circuito de compras y de las cuentas puente improvisadas.
+
+     Nacen de la caracterizacion del 31 ago 2026. Ese mismo dia se corrigio
+     la POLITICA (las 220 fichas almacenables pasaron a facturar por cantidad
+     recibida), pero la politica no arregla el HABITO: una factura digitada
+     suelta sigue sin tener contra que casar aunque la ficha este perfecta.
+     Estas reglas miden el habito, que es lo unico que dira si el cambio pego.
+
+     noupdate="1" por lo mismo que los demas catalogos.
+-->
+<odoo noupdate="1">
+
+    <record id="regla_recepcion_sin_oc" model="ags.regla">
+        <field name="codigo">RECEPCION_SIN_OC</field>
+        <field name="name">Mercancia que entra sin orden de compra</field>
+        <field name="enunciado">Toda recepcion de mercancia nace de una orden de compra o de una devolucion.</field>
+        <field name="por_que_importa">Una recepcion suelta ingresa el inventario y acredita la cuenta de bienes recibidos, pero no queda ligada a nada: la factura que llegue despues no tiene contra que casar, y el saldo se queda ahi. Es el equivalente en compras de registrar una devolucion de cliente como entrada de inventario en vez de hacerla desde la entrega. En los 20 meses hasta agosto de 2026 hubo unas 306 entradas manuales que no eran ni compra ni devolucion.</field>
+        <field name="familia">habito</field>
+        <field name="metodo_tecnico">_regla_recepcion_sin_oc</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_antiguedad_grni'), ref('param_dio'),
+            ref('param_control_recepcion')])]"/>
+    </record>
+
+    <record id="regla_factura_sin_oc" model="ags.regla">
+        <field name="codigo">FACTURA_SIN_OC</field>
+        <field name="name">Factura de proveedor con mercancia y sin orden de compra</field>
+        <field name="enunciado">Toda factura de proveedor que incluya mercancia almacenable nace de una orden de compra.</field>
+        <field name="por_que_importa">Sin la orden detras no hay forma de que el sistema compare precio ni cantidad, y esa comparacion es la que protege a AG de pagar de mas. Hasta agosto de 2026, solo 359 de 3,579 facturas de proveedor (el 10%) se creaban desde una orden. El filtro por producto almacenable separa el hallazgo del ruido: una factura de combustible o mantenimiento sin orden es correcta, porque es un gasto y no hay recepcion contra la cual casarla.</field>
+        <field name="familia">habito</field>
+        <field name="metodo_tecnico">_regla_factura_sin_oc</field>
+        <field name="gravedad_base">danger</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_antiguedad_grni'), ref('param_dpo'),
+            ref('param_control_recepcion')])]"/>
+    </record>
+
+    <record id="regla_factura_prov_cuenta_impropia" model="ags.regla">
+        <field name="codigo">FACTURA_PROV_CUENTA_IMPROPIA</field>
+        <field name="name">Factura de proveedor que debita un pasivo</field>
+        <field name="enunciado">Las lineas de producto de una factura de proveedor debitan un activo o un gasto, no un pasivo.</field>
+        <field name="por_que_importa">Comprar algo debita un activo o un gasto. Pagar un prestamo, distribuir dividendos o liquidar nomina no son compras: registrarlos como factura de proveedor infla el volumen de compras, distorsiona los dias de pago y la proyeccion de cuentas por pagar, y mezcla financiamiento con operacion. En 2026 se registraron asi dividendos por 11.5 millones, prestamos bancarios por 10.3 y nominas por 5.75. La excepcion legitima son las cuentas puente declaradas: la de bienes recibidos no facturados es un pasivo y debitarla es justo lo que hace una factura bien registrada, por eso la regla se apoya en el inventario de puentes en vez de llevar su propia lista.</field>
+        <field name="familia">habito</field>
+        <field name="metodo_tecnico">_regla_factura_prov_cuenta_impropia</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">degrada</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+        <field name="parametro_ids" eval="[(6, 0, [
+            ref('param_dpo'), ref('param_cxp_comercial_vencida')])]"/>
+    </record>
+
+    <record id="regla_puente_improvisado" model="ags.regla">
+        <field name="codigo">PUENTE_IMPROVISADO</field>
+        <field name="name">Cuenta usada como puente sin estar declarada</field>
+        <field name="enunciado">Ninguna cuenta con nombre de cuenta puente se usa sin estar declarada en el inventario.</field>
+        <field name="por_que_importa">Cierra un limite del inventario automatico. descubrir() encuentra las cuentas que el SISTEMA usa como puente (metodos de pago, transitorias de diario, cuentas de categoria) pero no las que usa la GENTE, porque ninguna configuracion las referencia. Se descubrio de rebote analizando compras: 11050901 CUENTA PARA LIQUIDAR, con 110 lineas y 2,090,195.68 en 2026, y PUENTE_SIN_DECLARAR devolvia cero correctamente, porque nada apunta a ella. El nombre es el unico rastro que deja una puente improvisada.</field>
+        <field name="familia">configuracion</field>
+        <field name="metodo_tecnico">_regla_puente_improvisado</field>
+        <field name="gravedad_base">warning</field>
+        <field name="efecto">informa</field>
+        <field name="por_compania" eval="True"/>
+        <field name="frecuencia">diaria</field>
+    </record>
+
+</odoo>

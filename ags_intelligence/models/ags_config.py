@@ -301,6 +301,18 @@ class AgsConfig(models.Model):
              "captura toda la diferencia, incluida la no registrada.",
     )
 
+    marcadores_puente = fields.Char(
+        string="Palabras que delatan una cuenta puente",
+        default="transitoria,por liquidar,puente,pendiente,clearing,suspense,en transito",
+        help="Separadas por coma. El inventario de cuentas puente se descubre "
+             "desde la configuracion de Odoo, pero eso solo encuentra las que "
+             "el SISTEMA usa como puente. Las que la gente usa a mano no las "
+             "referencia ninguna configuracion y quedan invisibles: la cuenta "
+             "11050901 CUENTA PARA LIQUIDAR movio 110 lineas en 2026 sin "
+             "estar declarada. Estas palabras las delatan por su nombre, que "
+             "es lo unico que dejan como rastro.",
+    )
+
     marcador_cuenta_prohibida = fields.Char(
         string="Marca de cuenta prohibida",
         default="NO USAR",

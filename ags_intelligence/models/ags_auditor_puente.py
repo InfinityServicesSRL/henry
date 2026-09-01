@@ -125,6 +125,77 @@ class AgsAuditorPuente(models.AbstractModel):
             "dominio": [("id", "in", faltan.ids)],
         }]
 
+    @api.model
+    def _regla_puente_improvisado(self, regla, compania):
+        """Cuentas que se usan como puente sin que nadie las haya declarado.
+
+        LIMITE QUE ESTA REGLA CIERRA. El inventario se prepobla desde la
+        configuracion de Odoo, y eso encuentra las cuentas que el SISTEMA usa
+        como puente: metodos de pago, transitorias de diario, cuentas de
+        categoria. No encuentra las que usa la GENTE, porque ninguna
+        configuracion las referencia.
+
+        Se descubrio de rebote analizando compras: 11050901 CUENTA PARA
+        LIQUIDAR, con 110 lineas y 2,090,195.68 en 2026, y PUENTE_SIN_DECLARAR
+        devolvia cero -- correctamente, porque nada en la configuracion apunta
+        a ella. El nombre es el unico rastro que deja una puente improvisada,
+        y por eso esta regla busca por nombre.
+
+        Solo senala cuentas con movimiento: una cuenta que se llama
+        transitoria y nunca se uso es ruido del plan contable, no un hallazgo.
+        """
+        cfg = self.env["ags.config"].get_config(compania)
+        marcadores = [m.strip().upper()
+                      for m in (cfg.marcadores_puente or "").split(",")
+                      if m.strip()]
+        if not marcadores:
+            return []
+
+        declaradas = self.env["ags.cuenta.puente"].search([
+            ("company_id", "=", compania.id)]).mapped("cuenta_id").ids
+
+        # Se acumulan IDS y no recordsets: unir dos recordsets que llevan
+        # contextos distintos (uno con lang forzado, otro sin el) es fragil.
+        ids = []
+        for cuenta in self._cuentas_en_idioma(
+                self.env["account.account"].search(
+                    [("company_ids", "in", compania.id)])):
+            if cuenta.id in declaradas:
+                continue
+            nombre = (cuenta.name or "").upper()
+            if any(m in nombre for m in marcadores):
+                ids.append(cuenta.id)
+        if not ids:
+            return []
+        sospechosas = self.env["account.account"].browse(ids)
+
+        # Solo las que se movieron: el plan contable de cualquier empresa
+        # tiene cuentas con nombres asi que nadie usa nunca.
+        grupos = self.env["account.move.line"]._read_group(
+            [("account_id", "in", sospechosas.ids),
+             ("parent_state", "=", "posted"),
+             ("company_id", "=", compania.id)],
+            ["account_id"], ["balance:sum", "__count"])
+
+        salida = []
+        for cuenta, balance, cantidad in grupos:
+            if not cantidad:
+                continue
+            nombre = self._cuentas_en_idioma(cuenta).name or cuenta.code
+            salida.append({
+                "clave": "%s:%s" % (regla.codigo, cuenta.id),
+                "sujeto": "%s %s se usa como puente sin estar declarada: "
+                          "%s apuntes, saldo %s" % (
+                              cuenta.code, nombre, cantidad,
+                              "{:,.2f}".format(balance or 0.0)),
+                "cantidad": cantidad,
+                "modelo": "account.move.line",
+                "dominio": [("account_id", "=", cuenta.id),
+                            ("parent_state", "=", "posted"),
+                            ("company_id", "=", compania.id)],
+            })
+        return salida
+
     # ------------------------------------------------------------------
     # Comportamiento de la cuenta
     # ------------------------------------------------------------------
