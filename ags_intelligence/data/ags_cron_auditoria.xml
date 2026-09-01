@@ -32,7 +32,18 @@
         <field name="code">env["ags.auditor"].cron_auditoria_diaria()</field>
         <field name="interval_number">1</field>
         <field name="interval_type">days</field>
-        <field name="active" eval="True"/>
+        <!--
+             NACE APAGADO, como los otros tres crones del modulo.
+
+             Una instalacion nueva en produccion no debe empezar a barrer
+             quants y apuntes ni a mandar correos por su cuenta la madrugada
+             siguiente. Se enciende a mano, despues de haber corrido la
+             evaluacion una vez y visto cuanto tarda y que devuelve.
+
+             El data file trae noupdate="1", asi que esto NO apaga el cron
+             donde ya esta encendido: solo decide como nace.
+        -->
+        <field name="active" eval="False"/>
     </record>
 
 </odoo>
