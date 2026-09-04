@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ================================================================
+         BENCHMARKS DE RATIOS FINANCIEROS
+
+         A diferencia de los indicadores operativos, estos SI tienen
+         referencias externas publicadas. Son estandar contable con
+         bandas ampliamente aceptadas en analisis de credito.
+         ================================================================ -->
+
+    <record id="fuente_analisis_financiero" model="ags.fuente">
+        <field name="name">Estandar de analisis financiero</field>
+        <field name="documento">Bandas convencionales de analisis de credito y solvencia</field>
+        <field name="fecha_publicacion">2026-08-01</field>
+        <field name="tipo">industria</field>
+        <field name="confiabilidad">media</field>
+        <field name="notas">Bandas de uso general en analisis de credito bancario y evaluacion de solvencia. No provienen de una publicacion unica sino del consenso de la practica financiera. Deben ajustarse a la realidad de AG Supply una vez se acumulen seis meses de medicion propia.</field>
+    </record>
+
+    <record id="bm_razon_corriente_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_razon_corriente"/>
+        <field name="valor_minimo">1.0</field>
+        <field name="valor_objetivo">1.5</field>
+        <field name="valor_clase_mundial">2.0</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="fuente_detalle">Banda convencional de analisis de liquidez</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Por debajo de 1.0 el activo circulante no cubre las obligaciones de corto plazo. Por encima de 2.5 conviene revisar si hay inventario excesivo o cartera lenta: liquidez alta tambien puede significar capital ocioso.</field>
+    </record>
+
+    <record id="bm_prueba_acida_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_prueba_acida"/>
+        <field name="valor_minimo">0.7</field>
+        <field name="valor_objetivo">1.0</field>
+        <field name="valor_clase_mundial">1.3</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">El objetivo de 1.0 significa poder cubrir las obligaciones de corto plazo sin depender de vender inventario. Relevante para un convertidor, donde buena parte del inventario es bobina importada que tarda en convertirse en efectivo.</field>
+    </record>
+
+    <record id="bm_endeudamiento_total_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_endeudamiento_total"/>
+        <field name="valor_minimo">70.0</field>
+        <field name="valor_objetivo">55.0</field>
+        <field name="valor_clase_mundial">40.0</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Por encima de 70% la estructura se considera agresiva y suele limitar el acceso a credito nuevo.</field>
+    </record>
+
+    <record id="bm_pasivo_patrimonio_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_pasivo_patrimonio"/>
+        <field name="valor_minimo">2.5</field>
+        <field name="valor_objetivo">1.5</field>
+        <field name="valor_clase_mundial">0.8</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_patrimonio_activo_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_patrimonio_activo"/>
+        <field name="valor_minimo">30.0</field>
+        <field name="valor_objetivo">45.0</field>
+        <field name="valor_clase_mundial">60.0</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_deuda_patrimonio_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_deuda_patrimonio"/>
+        <field name="valor_minimo">1.5</field>
+        <field name="valor_objetivo">1.0</field>
+        <field name="valor_clase_mundial">0.5</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_cobertura_intereses_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_cobertura_intereses"/>
+        <field name="valor_minimo">2.0</field>
+        <field name="valor_objetivo">4.0</field>
+        <field name="valor_clase_mundial">8.0</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Por debajo de 2 veces la operacion apenas cubre el costo de la deuda y cualquier caida de resultado compromete el servicio. Es el ratio que un banco revisa primero.</field>
+    </record>
+
+    <record id="bm_deuda_ebitda_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_deuda_ebitda"/>
+        <field name="valor_minimo">4.0</field>
+        <field name="valor_objetivo">3.0</field>
+        <field name="valor_clase_mundial">1.5</field>
+        <field name="fuente_id" ref="fuente_analisis_financiero"/>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Por debajo de 3x se considera manejable, entre 3x y 4x exige atencion, por encima de 4x suele restringir credito nuevo. Estimacion preliminar de AG Supply en agosto 2026: cercana a 2.8x.</field>
+    </record>
+
+    <record id="bm_margen_operacional_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_margen_operacional"/>
+        <field name="valor_minimo">6.0</field>
+        <field name="valor_objetivo">11.0</field>
+        <field name="valor_clase_mundial">16.0</field>
+        <field name="fuente_id" ref="fuente_industria_papel"/>
+        <field name="fuente_detalle">Derivado del EBITDA de industria menos depreciacion tipica</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">Medicion de AG Supply enero-junio 2026: 12.48%, ya dentro de la banda objetivo.</field>
+    </record>
+
+    <record id="bm_margen_neto_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_margen_neto"/>
+        <field name="valor_minimo">1.3</field>
+        <field name="valor_objetivo">4.0</field>
+        <field name="valor_clase_mundial">7.0</field>
+        <field name="fuente_id" ref="fuente_industria_papel"/>
+        <field name="fuente_detalle">Industria papel y productos de papel, margen neto 1.31% (1T2026)</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">El minimo aceptable coincide con el promedio de la industria: en papel el margen neto de un digito bajo es lo normal. Superarlo de forma sostenida es lo que distingue a un operador eficiente.</field>
+    </record>
+
+    <record id="bm_roa_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_roa"/>
+        <field name="valor_minimo">3.0</field>
+        <field name="valor_objetivo">8.0</field>
+        <field name="valor_clase_mundial">15.0</field>
+        <field name="fuente_id" ref="fuente_kimber"/>
+        <field name="fuente_detalle">Kimberly-Clark Mexico ROA 15.0% FY2024; CMPC consolidado 2.88%</field>
+        <field name="ajuste_aplicado">Las dos referencias marcan los extremos del sector: un lider integrado con marcas premium (15%) y un grupo con fuerte inversion forestal y en celulosa (2.9%). Un convertidor deberia ubicarse entre ambos, mas cerca del medio, porque no inmoviliza capital en maquina papelera pero tampoco captura margen de marca.</field>
+        <field name="vigente_desde">2026-08-01</field>
+    </record>
+
+    <record id="bm_roe_v1" model="ags.benchmark">
+        <field name="parametro_id" ref="param_roe"/>
+        <field name="valor_minimo">3.0</field>
+        <field name="valor_objetivo">12.0</field>
+        <field name="valor_clase_mundial">20.0</field>
+        <field name="fuente_id" ref="fuente_industria_papel"/>
+        <field name="fuente_detalle">Industria papel y productos de papel, ROE 2.97% (1T2026)</field>
+        <field name="vigente_desde">2026-08-01</field>
+        <field name="notas">SALVEDAD DE LECTURA: un ROE alto acompañado de endeudamiento alto no es merito operativo sino apalancamiento. Leer siempre junto con ENDEUDAMIENTO_TOTAL y DEUDA_EBITDA.</field>
+    </record>
+
+</odoo>

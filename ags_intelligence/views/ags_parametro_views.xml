@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ==================== PARAMETRO ==================== -->
+
+    <record id="view_ags_parametro_list" model="ir.ui.view">
+        <field name="name">ags.parametro.list</field>
+        <field name="model">ags.parametro</field>
+        <field name="arch" type="xml">
+            <list string="Parametros"
+                  decoration-danger="semaforo in ['rojo', 'sin_evidencia']"
+                  decoration-bf="semaforo == 'sin_evidencia'"
+                  decoration-warning="semaforo == 'amarillo'"
+                  decoration-success="semaforo == 'verde'"
+                  decoration-muted="semaforo == 'sin_dato'">
+                <field name="codigo"/>
+                <field name="name"/>
+                <field name="seccion"/>
+                <field name="unidad"/>
+                <field name="direccion" optional="hide"/>
+                <field name="tipo_benchmark"/>
+                <field name="valor_actual"/>
+                <field name="madurez" widget="badge"
+                       decoration-success="madurez == 'confiable'"
+                       decoration-warning="madurez == 'con_reservas'"
+                       decoration-danger="madurez == 'no_medible'"/>
+                <field name="semaforo" widget="badge"
+                       decoration-success="semaforo == 'verde'"
+                       decoration-warning="semaforo == 'amarillo'"
+                       decoration-danger="semaforo in ['rojo', 'sin_evidencia']"/>
+                <field name="frecuencia" optional="hide"/>
+                <field name="responsable_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_parametro_form" model="ir.ui.view">
+        <field name="name">ags.parametro.form</field>
+        <field name="model">ags.parametro</field>
+        <field name="arch" type="xml">
+            <form string="Parametro">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Nombre del parametro"/></h1>
+                        <h3><field name="codigo" placeholder="CODIGO_TECNICO"/></h3>
+                    </div>
+                    <group>
+                        <group string="Clasificacion">
+                            <field name="seccion"/>
+                            <field name="secuencia"/>
+                            <field name="unidad"/>
+                            <field name="direccion"/>
+                            <field name="tipo_benchmark"/>
+                            <field name="confidencial"/>
+                        </group>
+                        <group string="Operacion">
+                            <field name="captura"/>
+                            <field name="frecuencia"/>
+                            <field name="responsable_id"/>
+                            <field name="aplica_estacionalidad"/>
+                            <field name="requiere_config"/>
+                            <field name="config_faltante" invisible="not requiere_config"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Estado actual">
+                        <group>
+                            <field name="valor_actual"/>
+                            <field name="semaforo" widget="badge"/>
+                            <field name="madurez" widget="badge"/>
+                            <field name="madurez_detalle"/>
+                            <field name="periodos_validos"/>
+                        </group>
+                        <group>
+                            <field name="baseline_vigente_id"/>
+                            <field name="benchmark_vigente_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Definicion">
+                            <group>
+                                <field name="descripcion" placeholder="Que representa este numero en lenguaje llano"/>
+                                <field name="metodo_calculo" placeholder="Como se obtiene desde los datos de Odoo"/>
+                                <field name="metodo_tecnico" placeholder="_calc_nombre_metodo"/>
+                                <field name="notas" placeholder="Salvedades de interpretacion"/>
+                            </group>
+                        </page>
+                        <page string="Baselines">
+                            <field name="baseline_ids">
+                                <list>
+                                    <field name="version"/>
+                                    <field name="valor"/>
+                                    <field name="periodo_desde"/>
+                                    <field name="periodo_hasta"/>
+                                    <field name="calidad_dato"/>
+                                    <field name="congelado" widget="boolean_toggle"/>
+                                    <field name="vigente" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Benchmarks">
+                            <field name="benchmark_ids">
+                                <list>
+                                    <field name="version"/>
+                                    <field name="valor_minimo"/>
+                                    <field name="valor_objetivo"/>
+                                    <field name="valor_clase_mundial"/>
+                                    <field name="fuente_id"/>
+                                    <field name="vigente_desde"/>
+                                    <field name="vigente_hasta"/>
+                                    <field name="es_vigente" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Mediciones">
+                            <field name="medicion_ids">
+                                <list>
+                                    <field name="fecha_periodo"/>
+                                    <field name="valor"/>
+                                    <field name="semaforo" widget="badge"/>
+                                    <field name="variacion_baseline"/>
+                                    <field name="tendencia_baseline"/>
+                                    <field name="origen"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Estacionalidad" invisible="not aplica_estacionalidad">
+                            <field name="estacionalidad_ids">
+                                <list editable="bottom">
+                                    <field name="mes"/>
+                                    <field name="categoria_id"/>
+                                    <field name="factor"/>
+                                    <field name="anios_base"/>
+                                    <field name="n_observaciones"/>
+                                    <field name="confiabilidad"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_parametro_search" model="ir.ui.view">
+        <field name="name">ags.parametro.search</field>
+        <field name="model">ags.parametro</field>
+        <field name="arch" type="xml">
+            <search string="Buscar parametros">
+                <field name="codigo"/>
+                <field name="name"/>
+                <filter name="f_sin_benchmark" string="Sin benchmark externo"
+                        domain="[('tipo_benchmark','=','c')]"/>
+                <filter name="f_no_confiable" string="Dato no confiable aun"
+                        domain="[('madurez','!=','confiable')]"/>
+                <filter name="f_falta_config" string="Falta configurar"
+                        domain="[('requiere_config','=',True)]"/>
+                <separator/>
+                <filter name="f_salud" string="Salud del ERP" domain="[('seccion','=','salud_erp')]"/>
+                <filter name="f_costos" string="Costos" domain="[('seccion','=','costos')]"/>
+                <filter name="f_financiero" string="Financiero" domain="[('seccion','=','financiero')]"/>
+                <group expand="1" string="Agrupar por">
+                    <filter name="g_seccion" string="Seccion" context="{'group_by':'seccion'}"/>
+                    <filter name="g_tipo" string="Tipo de benchmark" context="{'group_by':'tipo_benchmark'}"/>
+                    <filter name="g_madurez" string="Madurez del dato" context="{'group_by':'madurez'}"/>
+                    <filter name="g_responsable" string="Responsable" context="{'group_by':'responsable_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_parametro" model="ir.actions.act_window">
+        <field name="name">Parametros</field>
+        <field name="res_model">ags.parametro</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_g_seccion': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Catalogo de parametros de gestion</p>
+            <p>Define QUE se mide. Los valores viven en baselines, benchmarks y mediciones.</p>
+        </field>
+    </record>
+
+    <!-- ==================== FUENTE ==================== -->
+
+    <record id="view_ags_fuente_list" model="ir.ui.view">
+        <field name="name">ags.fuente.list</field>
+        <field name="model">ags.fuente</field>
+        <field name="arch" type="xml">
+            <list string="Fuentes">
+                <field name="name"/>
+                <field name="documento"/>
+                <field name="tipo"/>
+                <field name="confiabilidad" widget="badge"
+                       decoration-success="confiabilidad == 'alta'"
+                       decoration-warning="confiabilidad == 'media'"
+                       decoration-danger="confiabilidad == 'baja'"/>
+                <field name="fecha_publicacion"/>
+                <field name="benchmark_count"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_fuente_form" model="ir.ui.view">
+        <field name="name">ags.fuente.form</field>
+        <field name="model">ags.fuente</field>
+        <field name="arch" type="xml">
+            <form string="Fuente">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="documento"/>
+                            <field name="url" widget="url"/>
+                            <field name="tipo"/>
+                        </group>
+                        <group>
+                            <field name="fecha_publicacion"/>
+                            <field name="fecha_consulta"/>
+                            <field name="confiabilidad"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Salvedades de interpretacion">
+                        <field name="notas" nolabel="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Benchmarks derivados">
+                            <field name="benchmark_ids">
+                                <list>
+                                    <field name="parametro_id"/>
+                                    <field name="valor_objetivo"/>
+                                    <field name="vigente_desde"/>
+                                    <field name="es_vigente" widget="boolean_toggle"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_fuente" model="ir.actions.act_window">
+        <field name="name">Fuentes de investigacion</field>
+        <field name="res_model">ags.fuente</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+
+    <!-- ==================== REGIMEN DE DATOS ==================== -->
+
+    <record id="view_ags_regimen_list" model="ir.ui.view">
+        <field name="name">ags.regimen.list</field>
+        <field name="model">ags.regimen</field>
+        <field name="arch" type="xml">
+            <list string="Regimenes">
+                <field name="name"/>
+                <field name="tipo"/>
+                <field name="fecha_inicio"/>
+                <field name="fecha_fin"/>
+                <field name="meses_maduracion"/>
+                <field name="afecta_todos" widget="boolean_toggle"/>
+                <field name="datos_previos_validos" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_regimen_form" model="ir.ui.view">
+        <field name="name">ags.regimen.form</field>
+        <field name="model">ags.regimen</field>
+        <field name="arch" type="xml">
+            <form string="Regimen de datos">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Un mes atipico se marca en la medicion. Un REGIMEN es distinto:
+                        parte el historico en dos mundos que no son comparables. Antes
+                        del corte, el dato existe pero no significa lo mismo.
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Que cambio"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="tipo"/>
+                            <field name="fecha_inicio"/>
+                            <field name="fecha_fin"/>
+                        </group>
+                        <group>
+                            <field name="meses_maduracion"/>
+                            <field name="datos_previos_validos"/>
+                            <field name="afecta_todos"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <group string="Que cambio">
+                        <field name="descripcion" nolabel="1"/>
+                    </group>
+                    <group string="Parametros afectados" invisible="afecta_todos">
+                        <field name="parametro_ids" widget="many2many_tags" nolabel="1"/>
+                    </group>
+                    <group string="Evidencia y notas">
+                        <field name="notas" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_regimen" model="ir.actions.act_window">
+        <field name="name">Regimenes de datos</field>
+        <field name="res_model">ags.regimen</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

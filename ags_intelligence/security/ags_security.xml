@@ -7,11 +7,156 @@
         <field name="sequence">20</field>
     </record>
 
+    <!--
+        DOS NIVELES DE ACCESO.
+
+        Delegado: opera con el cockpit y responde por sus indicadores, pero no
+        ve margenes por cliente, cuentas por pagar, P&L ni costos unitarios.
+
+        Gerencia: ve todo. Implica al delegado, asi que basta un grupo por
+        persona en lugar de dos casillas que alguien puede dejar a medias.
+
+        Que es sensible NO se decide aqui: se decide en el campo
+        ags.parametro.confidencial. Este archivo solo declara quien puede ver
+        lo marcado, no que esta marcado.
+    -->
+
+    <record id="group_ags_delegado" model="res.groups">
+        <field name="name">Delegado</field>
+        <field name="category_id" ref="module_category_ags"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Cockpit y seguimiento de indicadores, sin informacion financiera sensible.</field>
+    </record>
+
     <record id="group_ags_manager" model="res.groups">
         <field name="name">Gerencia / Contabilidad</field>
         <field name="category_id" ref="module_category_ags"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user')), (4, ref('ags_intelligence.group_ags_delegado'))]"/>
+        <field name="comment">Acceso completo a AG Intelligence, incluida la informacion sensible.</field>
+    </record>
+
+    <!--
+        AUDITOR EXTERNO (Etapa 8.8).
+
+        Un tercero que revisa y no opera. Ve el terreno completo, incluidos
+        los parametros marcados confidenciales (una auditoria a la que se le
+        esconden los margenes no es una auditoria), y no puede cambiar ni una
+        regla ni un ajuste de calculo.
+
+        Lo unico que escribe es el expediente del hallazgo: mail.thread exige
+        permiso de escritura para dejar un comentario, y un auditor que no
+        puede anotar en el expediente termina mandando sus observaciones por
+        WhatsApp, que es donde mueren.
+
+        NO implica al delegado. Implicarlo le daria de golpe todo lo que se le
+        agregue al delegado en el futuro, que es exactamente el descuido que
+        convierte un grupo de solo lectura en uno de escritura sin que nadie
+        lo decida. Los menus lo nombran explicitamente.
+    -->
+    <record id="group_ags_auditor" model="res.groups">
+        <field name="name">Auditor externo</field>
+        <field name="category_id" ref="module_category_ags"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">Acceso completo a AG Intelligence. Informacion sensible restringida a Gerencia y Contabilidad.</field>
+        <field name="comment">Lectura completa del terreno auditado y anotacion en los hallazgos. No opera el modulo.</field>
+    </record>
+
+    <!-- Auto-asignacion al administrador durante la instalacion.
+         Sin esto, en cada instalacion limpia nadie ve el menu hasta que
+         alguien asigna el grupo manualmente, y el modulo parece no haberse
+         instalado. Se detecto en las pruebas de la Fase 1. -->
+    <record id="base.user_admin" model="res.users">
+        <field name="groups_id" eval="[(4, ref('ags_intelligence.group_ags_manager'))]"/>
+    </record>
+
+    <!-- ============================================================
+         REGLAS DE REGISTRO
+
+         Odoo une con OR las reglas de grupos distintos. Como Gerencia implica
+         Delegado, hace falta una regla permisiva explicita para Gerencia:
+         sin ella, la regla restrictiva del delegado tambien la alcanzaria.
+         ============================================================ -->
+
+    <record id="rule_ags_parametro_delegado" model="ir.rule">
+        <field name="name">Parametros: el delegado no ve los confidenciales</field>
+        <field name="model_id" ref="model_ags_parametro"/>
+        <field name="domain_force">[('confidencial', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_delegado'))]"/>
+    </record>
+
+    <record id="rule_ags_parametro_gerencia" model="ir.rule">
+        <field name="name">Parametros: Gerencia ve todo</field>
+        <field name="model_id" ref="model_ags_parametro"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_manager'))]"/>
+    </record>
+
+    <record id="rule_ags_medicion_delegado" model="ir.rule">
+        <field name="name">Mediciones: el delegado no ve las confidenciales</field>
+        <field name="model_id" ref="model_ags_medicion"/>
+        <field name="domain_force">[('confidencial', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_delegado'))]"/>
+    </record>
+
+    <record id="rule_ags_medicion_gerencia" model="ir.rule">
+        <field name="name">Mediciones: Gerencia ve todo</field>
+        <field name="model_id" ref="model_ags_medicion"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_manager'))]"/>
+    </record>
+
+    <record id="rule_ags_meta_delegado" model="ir.rule">
+        <field name="name">Metas: el delegado ve las suyas</field>
+        <field name="model_id" ref="model_ags_meta"/>
+        <field name="domain_force">[('vendedor_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_delegado'))]"/>
+    </record>
+
+    <record id="rule_ags_meta_gerencia" model="ir.rule">
+        <field name="name">Metas: Gerencia ve todas</field>
+        <field name="model_id" ref="model_ags_meta"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_manager'))]"/>
+    </record>
+
+    <!-- Las alertas de clientes exponen quien destruye valor y cuanto: es
+         justamente el dato que la separacion de grupos protege. -->
+    <record id="rule_ags_alerta_delegado" model="ir.rule">
+        <field name="name">Alertas: sin clientes ni parametros confidenciales</field>
+        <field name="model_id" ref="model_ags_alerta"/>
+        <field name="domain_force">['&amp;', ('tipo', '!=', 'cliente'), '|', ('parametro_id', '=', False), ('parametro_id.confidencial', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_delegado'))]"/>
+    </record>
+
+    <record id="rule_ags_alerta_gerencia" model="ir.rule">
+        <field name="name">Alertas: Gerencia ve todas</field>
+        <field name="model_id" ref="model_ags_alerta"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_manager'))]"/>
+    </record>
+
+    <!-- El auditor no hereda del delegado, asi que sin estas reglas
+         permisivas no veria un solo parametro confidencial ni las alertas de
+         cliente, que es justo lo que viene a revisar. -->
+
+    <record id="rule_ags_parametro_auditor" model="ir.rule">
+        <field name="name">Parametros: el auditor ve todo</field>
+        <field name="model_id" ref="model_ags_parametro"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_auditor'))]"/>
+    </record>
+
+    <record id="rule_ags_medicion_auditor" model="ir.rule">
+        <field name="name">Mediciones: el auditor ve todas</field>
+        <field name="model_id" ref="model_ags_medicion"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_auditor'))]"/>
+    </record>
+
+    <record id="rule_ags_alerta_auditor" model="ir.rule">
+        <field name="name">Alertas: el auditor ve todas</field>
+        <field name="model_id" ref="model_ags_alerta"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_ags_auditor'))]"/>
     </record>
 
 </odoo>

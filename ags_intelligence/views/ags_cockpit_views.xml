@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="action_ags_cockpit" model="ir.actions.client">
+        <field name="name">Cockpit de Gerencia</field>
+        <field name="tag">ags_cockpit</field>
+    </record>
+
+</odoo>

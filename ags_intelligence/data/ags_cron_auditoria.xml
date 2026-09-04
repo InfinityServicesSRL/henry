@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!--
+         Auditoria diaria. Detecta, reconcilia y avisa lo que cambio.
+
+         El aviso se encendio en 8.8.0, junto con la pantalla donde cerrar
+         hallazgos. Encender los correos antes de tener donde atenderlos es
+         la forma mas rapida de quemar la atencion de quien los recibe.
+
+         El correo CALLA cuando no hubo nacimientos, reincidencias ni
+         correcciones, y se rompe el silencio un dia fijo a la semana para
+         que "no llego nada" no se confunda con "el cron esta caido".
+
+         Corre de madrugada: las reglas de configuracion son consultas baratas
+         sobre tablas pequenas, pero las de integridad barren quants y apuntes.
+    -->
+    <record id="cron_ags_auditoria_diaria" model="ir.cron">
+        <field name="name">AG Intelligence: auditoria diaria de reglas</field>
+        <!--
+             model_id apunta a ags.regla y no a ags.auditor, que es el que
+             hace el trabajo: ags.auditor es un AbstractModel, no tiene tabla,
+             y en Odoo 18 ir.cron hereda de ir.actions.server, donde apuntar a
+             un modelo sin tabla es terreno resbaladizo. El motor se invoca
+             por env[], que siempre esta en el contexto de evaluacion.
+
+             Tampoco se declara numbercall: el campo desaparecio de ir.cron en
+             Odoo 17 y ags_cron.xml, que ya funciona, tampoco lo trae.
+        -->
+        <field name="model_id" ref="model_ags_regla"/>
+        <field name="state">code</field>
+        <field name="code">env["ags.auditor"].cron_auditoria_diaria()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <!--
+             NACE APAGADO, como los otros tres crones del modulo.
+
+             Una instalacion nueva en produccion no debe empezar a barrer
+             quants y apuntes ni a mandar correos por su cuenta la madrugada
+             siguiente. Se enciende a mano, despues de haber corrido la
+             evaluacion una vez y visto cuanto tarda y que devuelve.
+
+             El data file trae noupdate="1", asi que esto NO apaga el cron
+             donde ya esta encendido: solo decide como nace.
+        -->
+        <field name="active" eval="False"/>
+    </record>
+
+</odoo>

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         AJUSTES DE CALCULO
+
+         La pantalla se disena para que el motivo sea lo primero que se
+         lee. Un ajuste que no se puede justificar no deberia poder
+         crearse comodamente.
+         ============================================================ -->
+
+    <record id="view_ags_ajuste_list" model="ir.ui.view">
+        <field name="name">ags.ajuste.list</field>
+        <field name="model">ags.ajuste</field>
+        <field name="arch" type="xml">
+            <list string="Ajustes de calculo"
+                  decoration-muted="estado == 'resuelto'"
+                  decoration-bf="estado == 'vigente'">
+                <field name="name"/>
+                <field name="estado" widget="badge"
+                       decoration-success="estado == 'vigente'"
+                       decoration-info="estado == 'borrador'"/>
+                <field name="cuentas_codigos" string="Cuentas excluidas"/>
+                <field name="n_parametros" string="Indicadores"/>
+                <field name="fecha_desde"/>
+                <field name="fecha_hasta"/>
+                <field name="autorizado_por_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_ajuste_form" model="ir.ui.view">
+        <field name="name">ags.ajuste.form</field>
+        <field name="model">ags.ajuste</field>
+        <field name="arch" type="xml">
+            <form string="Ajuste de calculo">
+                <header>
+                    <button name="action_activar" type="object"
+                            string="Poner en vigor" class="btn-primary"
+                            invisible="estado != 'borrador'"/>
+                    <button name="action_resolver" type="object"
+                            string="Marcar resuelto"
+                            invisible="estado != 'vigente'"
+                            confirm="Al resolver el ajuste, los indicadores vuelven a mostrarse solo con su valor contable. Continuar?"/>
+                    <button name="action_volver_borrador" type="object"
+                            string="Volver a propuesto"
+                            invisible="estado == 'borrador'"/>
+                    <field name="estado" widget="statusbar"
+                           statusbar_visible="borrador,vigente,resuelto"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="p. ej. Bienes recibidos no facturados sin depurar"/></h1>
+                    </div>
+
+                    <group>
+                        <group string="Vigencia">
+                            <field name="fecha_desde"/>
+                            <field name="fecha_hasta"
+                                   placeholder="Vacio = sigue vigente"/>
+                            <field name="tipo"/>
+                        </group>
+                        <group string="Autorizacion">
+                            <field name="autorizado_por_id"/>
+                            <field name="fecha_autorizacion"/>
+                        </group>
+                    </group>
+
+                    <group string="Motivo">
+                        <field name="motivo" nolabel="1"
+                               placeholder="Por que estas cuentas distorsionan el indicador. Es lo que va a leer el auditor."/>
+                    </group>
+
+                    <notebook>
+                        <page string="Cuentas excluidas" name="cuentas">
+                            <field name="cuenta_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"/>
+                        </page>
+                        <page string="Indicadores afectados" name="parametros">
+                            <div class="text-muted mb-2">
+                                Dejar vacio aplica el ajuste a todo indicador que
+                                toque estas cuentas, y obliga a recalcular el
+                                catalogo completo en cada corrida. Nombrarlos es
+                                mas rapido y mas facil de defender.
+                            </div>
+                            <field name="parametro_ids" widget="many2many_tags"
+                                   options="{'no_create': True}"/>
+                        </page>
+                        <page string="Resolucion" name="resolucion"
+                              invisible="estado != 'resuelto'">
+                            <field name="resolucion" nolabel="1"
+                                   placeholder="Que decidieron el auditor y contabilidad"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_ajuste_search" model="ir.ui.view">
+        <field name="name">ags.ajuste.search</field>
+        <field name="model">ags.ajuste</field>
+        <field name="arch" type="xml">
+            <search string="Ajustes">
+                <field name="name"/>
+                <field name="cuenta_ids"/>
+                <field name="parametro_ids"/>
+                <filter name="f_vigente" string="Vigentes"
+                        domain="[('estado','=','vigente')]"/>
+                <filter name="f_borrador" string="Propuestos"
+                        domain="[('estado','=','borrador')]"/>
+                <filter name="f_resuelto" string="Resueltos"
+                        domain="[('estado','=','resuelto')]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="g_estado" string="Estado"
+                            context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_ajuste" model="ir.actions.act_window">
+        <field name="name">Ajustes de calculo</field>
+        <field name="res_model">ags.ajuste</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_f_vigente': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Ningun ajuste registrado</p>
+            <p>
+                Un ajuste aisla temporalmente cuentas que distorsionan un
+                indicador — cuentas puente sin depurar, transitorias de la
+                implementacion — sin alterar la contabilidad ni el valor
+                calculado. El indicador pasa a mostrar dos lecturas: la
+                contable y la saneada.
+            </p>
+        </field>
+    </record>
+
+    <!-- Los ajustes aplicados, visibles desde la propia medicion -->
+    <record id="view_ags_medicion_form_ajustes" model="ir.ui.view">
+        <field name="name">ags.medicion.form.ajustes</field>
+        <field name="model">ags.medicion</field>
+        <field name="inherit_id" ref="ags_intelligence.view_ags_medicion_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="Saneado" invisible="not tiene_ajuste">
+                    <field name="tiene_ajuste" invisible="1"/>
+                    <field name="valor_saneado"/>
+                    <field name="semaforo_saneado"/>
+                    <field name="notas_saneado"/>
+                    <field name="ajuste_ids" widget="many2many_tags" readonly="1"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

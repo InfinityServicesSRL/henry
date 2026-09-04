@@ -1,0 +1,404 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!--
+        EXPEDIENTE DE AUDITORIA (Etapa 8.8)
+
+        La pantalla no es un adorno del motor: es la condicion para encender
+        los avisos. Un correo que senala 33 hallazgos sin un lugar donde
+        cerrarlos, aceptarlos o discutirlos entrena a quien lo recibe a
+        archivarlo sin abrirlo.
+
+        Tres decisiones de presentacion:
+
+        1. LA LISTA ABRE EN VIVOS, no en todos. Lo cerrado es historia y la
+           historia se consulta a proposito; lo abierto es trabajo.
+        2. LA GRAVEDAD SE PINTA CON DECORACIONES, no con colores escritos a
+           mano (D7). Odoo ya sabe que danger es rojo.
+        3. LA COLUMNA QUE MANDA ES "DIAS ABIERTO". Cuantos registros
+           incumplen dice el tamano; desde cuando se sabe dice si alguien
+           esta haciendo algo.
+    -->
+
+    <!-- ============================================================
+         REGLAS
+         ============================================================ -->
+
+    <record id="view_ags_regla_list" model="ir.ui.view">
+        <field name="name">ags.regla.list</field>
+        <field name="model">ags.regla</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="not activa"
+                  decoration-danger="gravedad_base == 'danger' and n_abiertos &gt; 0"
+                  decoration-warning="gravedad_base == 'warning' and n_abiertos &gt; 0">
+                <field name="codigo"/>
+                <field name="name"/>
+                <field name="familia"/>
+                <field name="gravedad_base"/>
+                <field name="efecto"/>
+                <field name="frecuencia"/>
+                <field name="tolerancia"/>
+                <field name="n_abiertos" string="Abiertos"/>
+                <field name="responsable_id" widget="many2one_avatar_user"/>
+                <field name="ultima_evaluacion"/>
+                <field name="suprime_detalle" string="Causa raiz" optional="hide"/>
+                <field name="por_compania" optional="hide"/>
+                <field name="metodo_tecnico" optional="hide"/>
+                <field name="activa" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_regla_form" model="ir.ui.view">
+        <field name="name">ags.regla.form</field>
+        <field name="model">ags.regla</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_evaluar" type="object"
+                            string="Evaluar ahora" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_ver_hallazgos" type="object"
+                                class="oe_stat_button" icon="fa-exclamation-triangle">
+                            <field name="n_abiertos" widget="statinfo"
+                                   string="Abiertos"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Inactiva" bg_color="text-bg-danger"
+                            invisible="activa"/>
+                    <div class="oe_title">
+                        <label for="codigo"/>
+                        <h1><field name="codigo" placeholder="CODIGO_DE_LA_REGLA"/></h1>
+                        <h2><field name="name" placeholder="Nombre legible"/></h2>
+                    </div>
+                    <group>
+                        <group string="Que deberia ser cierto">
+                            <field name="enunciado" nolabel="1" colspan="2"/>
+                        </group>
+                        <group string="Por que importa">
+                            <field name="por_que_importa" nolabel="1" colspan="2"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Clasificacion">
+                            <field name="familia"/>
+                            <field name="gravedad_base"/>
+                            <field name="efecto"/>
+                            <field name="suprime_detalle"/>
+                        </group>
+                        <group string="Ejecucion">
+                            <field name="metodo_tecnico"/>
+                            <field name="frecuencia"/>
+                            <field name="tolerancia"/>
+                            <field name="por_compania"/>
+                            <field name="responsable_id" widget="many2one_avatar_user"/>
+                            <field name="ultima_evaluacion"/>
+                            <field name="activa"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Indicadores que toca">
+                            <field name="parametro_ids" widget="many2many_tags"/>
+                        </page>
+                        <page string="Hallazgos">
+                            <field name="hallazgo_ids" readonly="1">
+                                <list decoration-danger="gravedad == 'danger' and vivo"
+                                      decoration-warning="gravedad == 'warning' and vivo"
+                                      decoration-muted="not vivo">
+                                    <field name="sujeto"/>
+                                    <field name="compania_id"/>
+                                    <field name="cantidad"/>
+                                    <field name="primera_deteccion"/>
+                                    <field name="dias_abierto"/>
+                                    <field name="estado"/>
+                                    <field name="gravedad" column_invisible="1"/>
+                                    <field name="vivo" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_regla_search" model="ir.ui.view">
+        <field name="name">ags.regla.search</field>
+        <field name="model">ags.regla</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="codigo"/>
+                <field name="name"/>
+                <field name="responsable_id"/>
+                <filter name="con_abiertos" string="Con hallazgos abiertos"
+                        domain="[('n_abiertos', '&gt;', 0)]"/>
+                <filter name="graves" string="Graves"
+                        domain="[('gravedad_base', '=', 'danger')]"/>
+                <separator/>
+                <filter name="activas" string="Activas" domain="[('activa', '=', True)]"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="g_familia" string="Familia" context="{'group_by': 'familia'}"/>
+                    <filter name="g_gravedad" string="Gravedad" context="{'group_by': 'gravedad_base'}"/>
+                    <filter name="g_responsable" string="Responsable" context="{'group_by': 'responsable_id'}"/>
+                    <filter name="g_frecuencia" string="Frecuencia" context="{'group_by': 'frecuencia'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_regla" model="ir.actions.act_window">
+        <field name="name">Reglas de auditoria</field>
+        <field name="res_model">ags.regla</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_ags_regla_search"/>
+        <field name="context">{'search_default_activas': 1, 'search_default_g_familia': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavia no hay reglas</p>
+            <p>Una regla dice que deberia ser cierto en los registros, no que
+               esta mal. El hallazgo es lo que aparece cuando deja de serlo.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         HALLAZGOS
+         ============================================================ -->
+
+    <record id="view_ags_hallazgo_list" model="ir.ui.view">
+        <field name="name">ags.hallazgo.list</field>
+        <field name="model">ags.hallazgo</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="gravedad == 'danger' and vivo"
+                  decoration-warning="gravedad == 'warning' and vivo"
+                  decoration-muted="not vivo">
+                <field name="codigo_regla"/>
+                <field name="sujeto"/>
+                <field name="compania_id"/>
+                <field name="familia"/>
+                <field name="gravedad"/>
+                <field name="cantidad" sum="Registros"/>
+                <field name="primera_deteccion"/>
+                <field name="dias_abierto"/>
+                <field name="reincidencias"/>
+                <field name="responsable_id" widget="many2one_avatar_user"/>
+                <field name="estado"/>
+                <field name="efecto" optional="hide"/>
+                <field name="ultima_deteccion" optional="hide"/>
+                <field name="vivo" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_hallazgo_form" model="ir.ui.view">
+        <field name="name">ags.hallazgo.form</field>
+        <field name="model">ags.hallazgo</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_en_curso" type="object"
+                            string="Estoy corrigiendolo"
+                            invisible="estado != 'abierto'"/>
+                    <button name="action_resuelto" type="object"
+                            string="Corregido" class="btn-primary"
+                            invisible="estado in ('resuelto', 'cerrado_auto', 'aceptado')"/>
+                    <button name="action_aceptar" type="object"
+                            string="Aceptar el riesgo"
+                            confirm="Aceptar el riesgo deja el hallazgo cerrado con tu nombre y tu motivo. Se registra."
+                            invisible="estado in ('aceptado', 'resuelto', 'cerrado_auto')"/>
+                    <button name="action_reabrir" type="object" string="Reabrir"
+                            invisible="estado in ('abierto', 'en_curso')"/>
+                    <button name="action_ver_origen" type="object"
+                            string="Ver los registros" class="btn-secondary"
+                            invisible="not modelo"/>
+                    <field name="estado" widget="statusbar"
+                           statusbar_visible="abierto,en_curso,resuelto"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Cerrado solo" bg_color="text-bg-success"
+                            invisible="estado != 'cerrado_auto'"/>
+                    <widget name="web_ribbon" title="Riesgo aceptado" bg_color="text-bg-warning"
+                            invisible="estado != 'aceptado'"/>
+                    <div class="oe_title">
+                        <h1><field name="sujeto" readonly="1"/></h1>
+                        <h3><field name="codigo_regla" readonly="1"/></h3>
+                    </div>
+                    <group>
+                        <group string="Que deberia ser cierto">
+                            <field name="enunciado" nolabel="1" colspan="2" readonly="1"/>
+                            <field name="por_que_importa" nolabel="1" colspan="2" readonly="1"/>
+                        </group>
+                        <group string="Situacion">
+                            <field name="compania_id" readonly="1"/>
+                            <field name="gravedad" readonly="1"/>
+                            <field name="efecto" readonly="1"/>
+                            <field name="cantidad" readonly="1"/>
+                            <field name="responsable_id" widget="many2one_avatar_user"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Historia">
+                            <field name="primera_deteccion"/>
+                            <field name="ultima_deteccion" readonly="1"/>
+                            <field name="dias_abierto"/>
+                            <field name="reincidencias"/>
+                            <field name="ultima_reincidencia"
+                                   invisible="reincidencias == 0"/>
+                        </group>
+                        <group string="Cierre">
+                            <field name="fecha_resolucion"/>
+                            <field name="resuelto_por_id"/>
+                            <field name="ajuste_id"/>
+                        </group>
+                    </group>
+                    <group string="Motivo de la aceptacion"
+                           invisible="estado not in ('aceptado',) and not motivo_aceptacion">
+                        <field name="motivo_aceptacion" nolabel="1"
+                               placeholder="Por que se convive con esto y hasta cuando."/>
+                    </group>
+                    <group string="Nota de cierre" invisible="not nota_cierre">
+                        <field name="nota_cierre" nolabel="1" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Origen del dato">
+                            <group>
+                                <field name="regla_id" readonly="1"/>
+                                <field name="clave" readonly="1"/>
+                                <field name="modelo" readonly="1"/>
+                                <field name="dominio" readonly="1"/>
+                            </group>
+                        </page>
+                        <page string="Indicadores que toca">
+                            <field name="parametro_ids" widget="many2many_tags" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ags_hallazgo_search" model="ir.ui.view">
+        <field name="name">ags.hallazgo.search</field>
+        <field name="model">ags.hallazgo</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="sujeto"/>
+                <field name="codigo_regla"/>
+                <field name="regla_id"/>
+                <field name="responsable_id"/>
+                <field name="compania_id"/>
+                <filter name="vivos" string="Abiertos" domain="[('vivo', '=', True)]"/>
+                <filter name="mios" string="Mios"
+                        domain="[('responsable_id', '=', uid)]"/>
+                <separator/>
+                <filter name="graves" string="Graves" domain="[('gravedad', '=', 'danger')]"/>
+                <filter name="invalidan" string="Invalidan un indicador"
+                        domain="[('efecto', '=', 'invalida')]"/>
+                <filter name="reincidentes" string="Reincidentes"
+                        domain="[('reincidencias', '&gt;', 0)]"/>
+                <separator/>
+                <filter name="nuevos_hoy" string="Aparecieron hoy"
+                        domain="[('primera_deteccion', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter name="f_deteccion" string="Fecha de deteccion"
+                        date="primera_deteccion"/>
+                <group expand="0" string="Agrupar por">
+                    <filter name="g_familia" string="Familia" context="{'group_by': 'familia'}"/>
+                    <filter name="g_gravedad" string="Gravedad" context="{'group_by': 'gravedad'}"/>
+                    <filter name="g_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                    <filter name="g_regla" string="Regla" context="{'group_by': 'regla_id'}"/>
+                    <filter name="g_compania" string="Compania" context="{'group_by': 'compania_id'}"/>
+                    <filter name="g_responsable" string="Responsable" context="{'group_by': 'responsable_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ags_hallazgo" model="ir.actions.act_window">
+        <field name="name">Hallazgos</field>
+        <field name="res_model">ags.hallazgo</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_ags_hallazgo_search"/>
+        <field name="context">{'search_default_vivos': 1, 'search_default_g_familia': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Ningun hallazgo abierto</p>
+            <p>La lista abre solo con lo vivo. Lo cerrado no se borra: quita
+               el filtro "Abiertos" para ver la historia completa.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         CUENTAS PUENTE
+         ============================================================ -->
+
+    <record id="view_ags_cuenta_puente_list" model="ir.ui.view">
+        <field name="name">ags.cuenta.puente.list</field>
+        <field name="model">ags.cuenta.puente</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="not activa"
+                  decoration-warning="partidas_abiertas &gt; 0">
+                <field name="cuenta_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="proceso"/>
+                <field name="cierre_esperado"/>
+                <field name="dias_tolerancia"/>
+                <field name="meses_ciclo" optional="hide"/>
+                <field name="saldo" sum="Saldo"/>
+                <field name="partidas_abiertas" sum="Partidas"/>
+                <field name="origen"/>
+                <field name="responsable_id" widget="many2one_avatar_user" optional="hide"/>
+                <field name="activa" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_cuenta_puente_form" model="ir.ui.view">
+        <field name="name">ags.cuenta.puente.form</field>
+        <field name="model">ags.cuenta.puente</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_ver_partidas" type="object"
+                            string="Ver partidas sin conciliar" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="cuenta_id"/></h1>
+                    </div>
+                    <group>
+                        <group string="Que es">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="proceso"/>
+                            <field name="origen"/>
+                            <field name="responsable_id" widget="many2one_avatar_user"/>
+                            <field name="activa"/>
+                        </group>
+                        <group string="Como se juzga">
+                            <field name="cierre_esperado"/>
+                            <field name="dias_tolerancia"/>
+                            <field name="meses_ciclo"/>
+                            <field name="saldo"/>
+                            <field name="partidas_abiertas"/>
+                        </group>
+                    </group>
+                    <group string="Notas">
+                        <field name="notas" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_cuenta_puente" model="ir.actions.act_window">
+        <field name="name">Cuentas puente</field>
+        <field name="res_model">ags.cuenta.puente</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Inventario vacio</p>
+            <p>Una cuenta puente se juzga por si oscila y vuelve a cero, no
+               por el saldo que tenga hoy. Ejecuta el descubrimiento para
+               prepoblarlo desde la configuracion real de Odoo.</p>
+        </field>
+    </record>
+
+</odoo>

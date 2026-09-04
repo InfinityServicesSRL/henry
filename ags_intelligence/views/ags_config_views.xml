@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ==================== CONFIGURACION ==================== -->
+
+    <record id="view_ags_config_form" model="ir.ui.view">
+        <field name="name">ags.config.form</field>
+        <field name="model">ags.config</field>
+        <field name="arch" type="xml">
+            <form string="Configuracion">
+                <header>
+                    <button name="action_autoconfigurar" type="object"
+                            string="Autoconfigurar cuentas" class="btn-primary"/>
+                    <button name="action_validar" type="object"
+                            string="Validar configuracion"/>
+                    <button name="action_diagnosticar_traducciones" type="object"
+                            string="Revisar nombres de cuentas"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="company_id" options="{'no_create': True}"/></h1>
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        El plan de cuentas de cada empresa es distinto. Calcular margen
+                        asumiendo codigos de cuenta seria adivinar: aqui se declara
+                        explicitamente que cuentas alimentan cada calculo.
+                    </div>
+                    <notebook>
+                        <page string="Cuentas">
+                            <group>
+                                <field name="metodo_cuentas" widget="radio"/>
+                            </group>
+                            <group invisible="metodo_cuentas != 'explicito'">
+                                <field name="cuenta_ingreso_ids" widget="many2many_tags"/>
+                                <field name="cuenta_costo_venta_ids" widget="many2many_tags"/>
+                                <field name="cuenta_gasto_operativo_ids" widget="many2many_tags"/>
+                            </group>
+                            <group string="Exclusiones del EBITDA">
+                                <field name="cuenta_excluir_ebitda_ids" widget="many2many_tags"
+                                       nolabel="1"/>
+                            </group>
+                        </page>
+                        <page string="Balance">
+                            <div class="alert alert-info" role="alert">
+                                Estas cuentas alimentan los ratios de liquidez, solvencia y
+                                rentabilidad del marco de analisis financiero. Son saldos
+                                acumulados a una fecha, no movimientos del periodo.
+                            </div>
+                            <group>
+                                <field name="cuenta_inventario_ids" widget="many2many_tags"/>
+                                <field name="cuenta_efectivo_ids" widget="many2many_tags"/>
+                                <field name="cuenta_deuda_financiera_ids" widget="many2many_tags"/>
+                                <field name="cuenta_gasto_financiero_ids" widget="many2many_tags"/>
+                                <field name="cuenta_depreciacion_ids" widget="many2many_tags"/>
+                            </group>
+                            <div class="text-muted">
+                                Si la deuda financiera se deja vacia, se deriva de los terceros
+                                marcados como acreedor financiero en el contacto.
+                            </div>
+                        </page>
+                        <page string="Categorias de producto">
+                            <group>
+                                <field name="categoria_mp_ids" widget="many2many_tags"/>
+                                <field name="categoria_empaque_ids" widget="many2many_tags"/>
+                                <field name="categoria_pt_ids" widget="many2many_tags"/>
+                            </group>
+                        </page>
+                        <page string="Costo de capital">
+                            <group>
+                                <field name="tasa_costo_capital"/>
+                                <field name="dias_base_anio"/>
+                            </group>
+                            <div class="alert alert-secondary" role="alert">
+                                Esta tasa valora el costo de financiar cuentas por cobrar
+                                y alimenta el margen economico. El 12.3% por defecto es el
+                                promedio del sector industrial dominicano en moneda nacional
+                                (Superintendencia de Bancos, dic. 2025). Si conocen su tasa
+                                real, reemplacenla.
+                            </div>
+                        </page>
+                        <page string="Energia">
+                            <group>
+                                <field name="proveedor_energia_id"/>
+                                <field name="energia_mes_anterior"/>
+                            </group>
+                        </page>
+                        <page string="Merma">
+                            <group>
+                                <field name="metodo_merma" widget="radio"/>
+                            </group>
+                        </page>
+                        <page string="Auditoria">
+                            <group string="Como se reconocen las cuentas">
+                                <field name="marcadores_puente"/>
+                                <field name="marcador_cuenta_prohibida"/>
+                            </group>
+                            <group string="Quien responde por cada familia de regla">
+                                <field name="responsable_configuracion_id"
+                                       widget="many2one_avatar_user"/>
+                                <field name="responsable_habito_id"
+                                       widget="many2one_avatar_user"/>
+                                <field name="responsable_pendiente_id"
+                                       widget="many2one_avatar_user"/>
+                                <field name="responsable_integridad_id"
+                                       widget="many2one_avatar_user"/>
+                                <button name="action_aplicar_responsables"
+                                        type="object" class="btn-secondary"
+                                        string="Asignar a las reglas sin dueno"/>
+                            </group>
+                            <group string="Aviso diario">
+                                <field name="auditoria_destinatario_ids"
+                                       widget="many2many_tags"/>
+                                <field name="auditoria_dias_vencido"/>
+                                <field name="auditoria_dia_resumen"/>
+                            </group>
+                        </page>
+                        <page string="Notas">
+                            <field name="notas" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_config" model="ir.actions.act_window">
+        <field name="name">Configuracion contable</field>
+        <field name="res_model">ags.config</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{'form_view_initial_mode': 'edit'}</field>
+    </record>
+
+    <!-- ==================== FACTURA: CAMPO kWh ==================== -->
+
+    <record id="view_move_form_ags_nc" model="ir.ui.view">
+        <field name="name">account.move.form.ags.nc</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="invoice_date" position="after">
+                <field name="ags_motivo_nc"
+                       invisible="move_type != 'out_refund'"
+                       required="move_type == 'out_refund'"/>
+                <field name="ags_motivo_sugerido"
+                       invisible="move_type != 'out_refund' or not ags_motivo_sugerido"/>
+                <field name="ags_dias_hasta_nc"
+                       invisible="move_type != 'out_refund'"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_move_form_ags_energia" model="ir.ui.view">
+        <field name="name">account.move.form.ags.energia</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="invoice_date" position="after">
+                <field name="ags_es_factura_energia" invisible="1"/>
+                <field name="ags_kwh_consumidos"
+                       invisible="not ags_es_factura_energia"/>
+                <field name="ags_costo_kwh"
+                       invisible="not ags_es_factura_energia or ags_kwh_consumidos == 0"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

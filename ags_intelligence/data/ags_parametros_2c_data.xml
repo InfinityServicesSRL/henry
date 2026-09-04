@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         FASE 2C - PARAMETROS DERIVADOS DEL ANALISIS DE FEB-JUL 2026
+
+         Cada uno nace de un hallazgo concreto sobre datos reales, no de
+         una lista teorica de indicadores.
+         ================================================================ -->
+
+    <record id="param_desviacion_plazo" model="ags.parametro">
+        <field name="codigo">DESVIACION_PLAZO</field>
+        <field name="name">Desviacion de plazo de cobro</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">15</field>
+        <field name="descripcion">Dias reales de cobro menos dias pactados, ponderado por monto. Es mas util que el DSO absoluto: 45 dias es excelente si el canal pacta 60 y pesimo si pacta 30. Lo accionable es la desviacion contra el compromiso, no el nivel.</field>
+        <field name="unidad">dias</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_desviacion_plazo</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Medicion feb-jul 2026: desviacion ponderada cercana a +10 dias. Los terminos de 30 dias se cobran a 39, los de 45 a 57. Sobre 90 millones de ventas semestrales, 10 dias equivalen a unos 5 millones inmovilizados de forma permanente.</field>
+    </record>
+
+    <record id="param_pct_pronto_pago" model="ags.parametro">
+        <field name="codigo">PCT_PRONTO_PAGO</field>
+        <field name="name">Costo del programa de pronto pago</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">15</field>
+        <field name="descripcion">Descuentos por pago anticipado sobre ventas netas. Es un costo financiero deliberado, no una perdida operativa: el precio de cobrar antes.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_pronto_pago</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Direccion neutra a proposito: no es un costo a minimizar sin mas. Un 2% que compra 30 dias de adelanto en un canal que pacta 60 puede ser buen negocio; el mismo 2% sobre un cobro que igual llegaba a tiempo es margen regalado. Lo que decide es CUMPLIMIENTO_PRONTO_PAGO.</field>
+    </record>
+
+    <record id="param_cumplimiento_pronto_pago" model="ags.parametro">
+        <field name="codigo">CUMPLIMIENTO_PRONTO_PAGO</field>
+        <field name="name">Cumplimiento del pronto pago</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">16</field>
+        <field name="descripcion">Porcentaje de descuentos otorgados donde el pago efectivamente llego dentro del plazo. El descuento solo tiene sentido si compra dias: si se otorga sobre facturas cobradas fuera de plazo, se paga por un adelanto que no ocurrio.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">mayor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_cumplimiento_pronto_pago</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Hallazgo feb-jul 2026: el termino "Pronto Pago" pacta 15 dias y se cobra a 27. El descuento se esta otorgando sin verificar que el pago llego en el plazo prometido. Este es el indicador de control de esa politica.</field>
+    </record>
+
+    <record id="param_pct_devoluciones" model="ags.parametro">
+        <field name="codigo">PCT_DEVOLUCIONES</field>
+        <field name="name">Devoluciones reales sobre ventas</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">25</field>
+        <field name="descripcion">Devoluciones de mercancia sobre ventas netas. Excluye las anulaciones por refacturacion: en factura electronica una factura emitida no se modifica, se anula con NC completa y se rehace. Esas correcciones administrativas no son fallas de producto.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_devoluciones</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Requiere que las notas de credito esten clasificadas por motivo. Sin clasificacion, este indicador y PCT_PRONTO_PAGO devuelven cero.</field>
+    </record>
+
+    <record id="param_ventas_sin_termino" model="ags.parametro">
+        <field name="codigo">VENTAS_SIN_TERMINO</field>
+        <field name="name">Ventas sin termino de pago pactado</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">50</field>
+        <field name="descripcion">Porcentaje de ventas facturadas sin termino de pago. Sin termino la factura nace vencida el mismo dia: para una venta de contado eso es correcto, para un cliente a credito significa facturar sin marco de credito definido.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_ventas_sin_termino</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Medicion feb-jul 2026: 233 facturas por 9 millones, 11% de las ventas. La mitad se cobra en 5 dias o menos (ventas de contado), pero aparecieron clientes recurrentes facturando sin condiciones pactadas. Regla sugerida: mas de dos facturas sin termino en un mes deberia disparar revision de credito.</field>
+    </record>
+
+    <record id="param_costo_conversion" model="ags.parametro">
+        <field name="codigo">COSTO_CONVERSION</field>
+        <field name="name">Costo de conversion (MOD sobre ventas)</field>
+        <field name="seccion">costos</field>
+        <field name="secuencia">45</field>
+        <field name="descripcion">Mano de obra directa sobre ventas netas. Es la diferencia entre el margen sobre materiales y el margen bruto contable: cuanto cuesta transformar bobina en producto terminado.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_costo_conversion</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Medicion feb-jul 2026: promedio 8.95%, rango 8.05% a 10.28%. Sube cuando baja el volumen, comportamiento esperado de un costo semi-fijo: la nomina de planta no escala proporcionalmente con la produccion.</field>
+    </record>
+
+    <!-- Asignacion de calculador al DSO, que ya existia sin implementar -->
+    <record id="param_dso" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_dso</field>
+        <field name="metodo_calculo">(CxC pendiente al cierre / ventas netas del periodo) x dias del periodo. Se usa la formula de balance y no el promedio de dias de cobro porque esta ultima solo mira facturas ya cobradas: los clientes lentos, que son el problema, quedan fuera del promedio hasta que pagan.</field>
+    </record>
+
+    <!-- Salvedad sobre el margen bruto, descubierta al validar contra el P&amp;L -->
+    <record id="param_margen_bruto" model="ags.parametro">
+        <field name="notas">SALVEDAD DE COMPARABILIDAD: en AG Supply los costos indirectos de fabricacion (energia de planta, mantenimiento, depreciacion de maquinaria) se registran como gasto operativo, no como costo de ventas. Los benchmarks externos provienen de estados auditados donde el costo de ventas SI los incluye. Por eso el margen bruto de AG Supply resulta estructuralmente mas alto y NO es directamente comparable. El indicador comparable es MARGEN_EBITDA, donde todo el costo queda adentro sin importar su clasificacion. Validacion ene-jun 2026: modulo 34.24% vs P&amp;L 34.47%.</field>
+    </record>
+
+    <record id="param_pct_errores_facturacion" model="ags.parametro">
+        <field name="codigo">PCT_ERRORES_FACTURACION</field>
+        <field name="name">Correcciones administrativas de facturacion</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">60</field>
+        <field name="descripcion">Notas de credito por error de precio, refacturacion e-CF, consumo interno mal facturado y datos fiscales incorrectos, sobre ventas netas. No son devoluciones ni cuestan producto, pero cada una consume tiempo de facturacion, contabilidad y relacion con el cliente.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_errores_facturacion</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Hallazgo feb-jul 2026: al menos 25 de 155 notas de credito decian "DIFERENCIA EN PRECIO" o "PRECIO MAL FACTURADO". Uno de cada seis documentos salia mal facturado de precio. Son montos individualmente pequenos pero constantes, y cada uno obliga a anular y rehacer.</field>
+    </record>
+
+    <record id="param_nc_sin_clasificar" model="ags.parametro">
+        <field name="codigo">NC_SIN_CLASIFICAR</field>
+        <field name="name">Notas de credito sin motivo asignado</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">70</field>
+        <field name="descripcion">Porcentaje de notas de credito sin motivo. Es un indicador de calidad del propio sistema de medicion: mientras sea alto, los indicadores de devoluciones y de errores estan incompletos y no deben leerse como definitivos.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_nc_sin_clasificar</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+    </record>
+
+    <record id="param_pct_garantia_comercial" model="ags.parametro">
+        <field name="codigo">PCT_GARANTIA_COMERCIAL</field>
+        <field name="name">Costo de la garantia comercial</field>
+        <field name="seccion">comercial</field>
+        <field name="secuencia">18</field>
+        <field name="descripcion">Devoluciones por garantia de recompra y descuentos comerciales acordados, sobre ventas netas. AG Supply recibe de vuelta la mercancia que el cliente no logro vender, haya pagado o no: es un argumento de venta que baja la barrera de entrada al distribuidor.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_garantia_comercial</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Direccion neutra: es el precio de una politica elegida, no una falla a minimizar. Si el indicador sube, la pregunta no es quien se equivoco sino que producto no esta rotando en el punto de venta. Esa lectura lo convierte en informacion comercial, no en un reproche operativo. Se separa deliberadamente de PCT_DEVOLUCIONES, que si mide error evitable.</field>
+    </record>
+
+    <record id="param_pct_devoluciones" model="ags.parametro">
+        <field name="descripcion">Devoluciones por FALLA OPERATIVA sobre ventas netas: rechazo en entrega, producto defectuoso, producto equivocado y faltante en despacho. Excluye la garantia comercial de recompra, que es politica deliberada, y las correcciones administrativas de facturacion.</field>
+        <field name="notas">Es el indicador de error evitable. Cada devolucion de este tipo cuesta el flete de ida, el de vuelta, el reproceso y credibilidad con el cliente. Requiere que las notas de credito esten clasificadas por motivo.</field>
+    </record>
+
+</odoo>

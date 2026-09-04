@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <!-- ================================================================
+         AUTOCONFIGURACION DE CUENTAS
+
+         Se ejecuta al instalar y asigna las cuentas conocidas del plan de
+         AG Supply buscandolas POR CODIGO, no por identificador interno:
+         los IDs cambian entre bases de datos, el codigo contable no.
+
+         Es idempotente y se puede volver a ejecutar desde el boton
+         "Autoconfigurar cuentas" de la Configuracion contable.
+         ================================================================ -->
+
+    <function model="ags.config" name="_autoconfigurar_al_instalar"/>
+
+</odoo>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ================================================================
+         EXPOSICION CAMBIARIA
+
+         AG Supply compra bobina en dolares y vende en pesos. Cada movimiento
+         del tipo de cambio le mueve el valor de la deuda sin que nadie haya
+         comprado ni pagado nada.
+
+         Hallazgo que origina estos indicadores: al revisar el saldo de Hans
+         Andersson Paper (RD$ 6,797,862) resulto que las facturas estaban en
+         USD: 98,166 dolares pendientes. Lo mismo con Central National
+         (6.8M) y Vipa Greece (6.5M). Una parte importante de la CxP es en
+         moneda extranjera y se revaloriza sola.
+         ================================================================ -->
+
+    <record id="param_exposicion_usd" model="ags.parametro">
+        <field name="metodo_tecnico">_calc_exposicion_usd</field>
+        <field name="metodo_calculo">Saldo abierto de cuentas por pagar en USD menos saldo abierto de cuentas por cobrar en USD, tomando el importe en moneda original y no la conversion. Un valor positivo significa que se debe mas de lo que se tiene por cobrar en dolares.</field>
+        <field name="notas">Se mide en USD a proposito, no en pesos: convertir a DOP mezcla el efecto de la operacion con el del tipo de cambio, y entonces el indicador se mueve sin que nada haya pasado. La conversion aparece en la nota de cada medicion como referencia.
+
+Con el peso apreciandose de RD$63.51 a RD$58.23 durante 2026, la deuda en dolares valia menos en pesos cada mes. Ese efecto favorable no es merito operativo y no deberia leerse como tal.</field>
+    </record>
+
+    <record id="param_sensibilidad_cambiaria" model="ags.parametro">
+        <field name="codigo">SENSIBILIDAD_CAMBIARIA</field>
+        <field name="name">Sensibilidad al tipo de cambio</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">72</field>
+        <field name="descripcion">Impacto en pesos sobre el resultado por cada RD$1.00 de depreciacion del peso frente al dolar. Traduce la exposicion en bruto a lo que realmente importa: cuanto cuesta un movimiento cambiario.</field>
+        <field name="unidad">dop</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_sensibilidad_cambiaria</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Es el indicador que convierte el riesgo cambiario en una cifra accionable. Si la sensibilidad es de RD$ 300,000 por peso de depreciacion, un movimiento de RD$3.00 -- que en 2026 ocurrio en pocos meses -- representa casi un millon de impacto.
+
+Sirve para decidir si conviene cubrir la posicion, negociar plazos mas cortos con proveedores internacionales, o simplemente saber a que se esta expuesto.</field>
+    </record>
+
+    <record id="param_pct_cxp_usd" model="ags.parametro">
+        <field name="codigo">PCT_CXP_USD</field>
+        <field name="name">CxP en moneda extranjera</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">74</field>
+        <field name="descripcion">Porcentaje de las cuentas por pagar denominadas en moneda distinta al peso. La nota de cada medicion desglosa el saldo por moneda en su importe original.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">neutro</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_pct_cxp_usd</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Direccion neutra: comprar en dolares no es bueno ni malo en si mismo, es la condicion del negocio. Lo que importa es conocer la magnitud y su tendencia. Un aumento sostenido significa mayor exposicion aunque el saldo total no cambie.</field>
+    </record>
+
+</odoo>

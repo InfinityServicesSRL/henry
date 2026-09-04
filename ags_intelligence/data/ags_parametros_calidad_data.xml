@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+
+        <!-- ============================================================
+             CALIDAD DEL REGISTRO
+
+             La seccion de Salud del ERP cuenta pendientes acumulados.
+             Estos parametros miden si la configuracion y el habito que los
+             previenen estan en su sitio: un pendiente se resuelve
+             trabajando, una configuracion incorrecta vuelve a generar
+             pendientes indefinidamente.
+
+             Las bandas de estos benchmarks NO son referencias de mercado:
+             son metas internas de gobierno del dato. Se documentan como
+             tales para no confundirlas con las referencias externas del
+             resto del modulo.
+             ============================================================ -->
+
+        <record id="fuente_politica_dato" model="ags.fuente">
+            <field name="name">Politica interna de calidad del dato</field>
+            <field name="tipo">interno</field>
+            <field name="confiabilidad">alta</field>
+            <field name="notas">Metas de gobierno del dato acordadas por Gerencia a partir del diagnostico de agosto 2026 y de las practicas documentadas por Odoo para conciliacion a tres bandas, valoracion de inventario y costeo de produccion. No son referencias de mercado.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_control_recepcion" model="ags.parametro">
+            <field name="codigo">PCT_CONTROL_RECEPCION</field>
+            <field name="name">Productos facturados contra recepcion</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">100</field>
+            <field name="descripcion">Proporcion de productos comprables cuya factura se controla contra la cantidad recibida y no contra la cantidad pedida. Con la politica en cantidades pedidas, el sistema permite facturar lo que aun no ha llegado y la conciliacion a tres bandas no se activa.</field>
+            <field name="unidad">pct</field>
+            <field name="direccion">mayor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">product.template con purchase_ok verdadero y purchase_method igual a receive, sobre el total de comprables.</field>
+            <field name="metodo_tecnico">_calc_control_recepcion</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_control_recepcion" model="ags.benchmark">
+            <field name="parametro_id" ref="param_control_recepcion"/>
+            <field name="valor_minimo">80</field>
+            <field name="valor_objetivo">95</field>
+            <field name="valor_clase_mundial">100</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">Meta interna. Se admite un margen bajo el 100% para productos de servicio o gasto donde el control por recepcion no aplica.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_antiguedad_grni" model="ags.parametro">
+            <field name="codigo">ANTIGUEDAD_GRNI</field>
+            <field name="name">Antiguedad de bienes recibidos no facturados</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">110</field>
+            <field name="descripcion">Antiguedad promedio, ponderada por importe, del saldo de la cuenta puente de compras. Un saldo alto y reciente es normal: son facturas en transito. Lo que delata un circuito roto es la antiguedad.</field>
+            <field name="unidad">dias</field>
+            <field name="direccion">menor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">Promedio de dias transcurridos desde la fecha de cada apunte en las cuentas de entrada de mercancia declaradas en las categorias de producto, ponderado por el importe absoluto.</field>
+            <field name="metodo_tecnico">_calc_antiguedad_grni</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_antiguedad_grni" model="ags.benchmark">
+            <field name="parametro_id" ref="param_antiguedad_grni"/>
+            <field name="valor_minimo">60</field>
+            <field name="valor_objetivo">30</field>
+            <field name="valor_clase_mundial">15</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">Meta interna alineada al plazo de credito habitual de proveedores del exterior.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_cuentas_inv_acreedoras" model="ags.parametro">
+            <field name="codigo">CUENTAS_INV_ACREEDORAS</field>
+            <field name="name">Cuentas de inventario con saldo acreedor</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">120</field>
+            <field name="descripcion">Numero de cuentas de inventario con saldo acreedor al cierre. Implica haber dado salida a existencias que nunca ingresaron. No admite tolerancia: cualquier cantidad distinta de cero invalida el costo del periodo.</field>
+            <field name="unidad">cantidad</field>
+            <field name="direccion">menor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">Cuentas declaradas en la configuracion contable como cuentas de inventario cuyo saldo acumulado al cierre es negativo.</field>
+            <field name="metodo_tecnico">_calc_cuentas_inventario_acreedoras</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_cuentas_inv_acreedoras" model="ags.benchmark">
+            <field name="parametro_id" ref="param_cuentas_inv_acreedoras"/>
+            <field name="valor_minimo">2</field>
+            <field name="valor_objetivo">1</field>
+            <field name="valor_clase_mundial">0</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">El objetivo real es cero. La banda intermedia reconoce el periodo de saneamiento en curso.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_bancos_acreedores" model="ags.parametro">
+            <field name="codigo">BANCOS_ACREEDORES</field>
+            <field name="name">Cuentas de tesoreria con saldo acreedor</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">130</field>
+            <field name="descripcion">Numero de cuentas de banco, efectivo o tarjeta con saldo acreedor. Salvo sobregiro formalmente contratado, implica haber girado fondos que nunca ingresaron o registrar en la cuenta operaciones que no son movimientos de banco.</field>
+            <field name="unidad">cantidad</field>
+            <field name="direccion">menor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">Cuentas de tipo efectivo o tarjeta de credito cuyo saldo acumulado al cierre es negativo.</field>
+            <field name="metodo_tecnico">_calc_bancos_acreedores</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_bancos_acreedores" model="ags.benchmark">
+            <field name="parametro_id" ref="param_bancos_acreedores"/>
+            <field name="valor_minimo">2</field>
+            <field name="valor_objetivo">1</field>
+            <field name="valor_clase_mundial">0</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">El objetivo real es cero. La banda intermedia reconoce el periodo de saneamiento en curso.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_tesoreria_sin_conciliar" model="ags.parametro">
+            <field name="codigo">TESORERIA_SIN_CONCILIAR</field>
+            <field name="name">Importe en cuentas transitorias de tesoreria</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">140</field>
+            <field name="descripcion">Cobros y pagos registrados que nunca se contrastaron contra el extracto bancario. Se mide en valor absoluto porque recibos y pagos pendientes tienen signo opuesto y compensarlos escondería el problema.</field>
+            <field name="unidad">dop</field>
+            <field name="direccion">menor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">Suma del valor absoluto del saldo de las cuentas pendientes declaradas en los metodos de pago y de las cuentas transitorias de los diarios de banco y efectivo.</field>
+            <field name="metodo_tecnico">_calc_tesoreria_sin_conciliar</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_tesoreria_sin_conciliar" model="ags.benchmark">
+            <field name="parametro_id" ref="param_tesoreria_sin_conciliar"/>
+            <field name="valor_minimo">5000000</field>
+            <field name="valor_objetivo">1000000</field>
+            <field name="valor_clase_mundial">0</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">Con conciliacion al dia el saldo tiende a cero. Las bandas reconocen el volumen operativo y el saneamiento en curso.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_transferencias_abiertas" model="ags.parametro">
+            <field name="codigo">TRANSFERENCIAS_ABIERTAS</field>
+            <field name="name">Saldo en la cuenta de traspasos internos</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">150</field>
+            <field name="descripcion">Todo lo que sale de una cuenta propia entra a otra, de modo que esta cuenta puente debe quedar en cero. Un saldo distinto de cero senala traspasos con un solo extremo registrado, o registrados en direccion equivocada.</field>
+            <field name="unidad">dop</field>
+            <field name="direccion">menor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">Valor absoluto del saldo acumulado de la cuenta de transferencia interna declarada en la compania.</field>
+            <field name="metodo_tecnico">_calc_transferencias_abiertas</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_transferencias_abiertas" model="ags.benchmark">
+            <field name="parametro_id" ref="param_transferencias_abiertas"/>
+            <field name="valor_minimo">500000</field>
+            <field name="valor_objetivo">100000</field>
+            <field name="valor_clase_mundial">0</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">El saldo esperado es cero. Las bandas reconocen traspasos en transito de fin de mes.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_centros_con_costo" model="ags.parametro">
+            <field name="codigo">PCT_CENTROS_CON_COSTO</field>
+            <field name="name">Centros de trabajo con costo por hora</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">160</field>
+            <field name="descripcion">Sin costo por hora configurado, el costo de una orden de produccion solo incluye materiales y toda la mano de obra de conversion queda fuera. El margen resultante se ve mejor de lo que es.</field>
+            <field name="unidad">pct</field>
+            <field name="direccion">mayor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">Centros de trabajo con costo por hora mayor que cero sobre el total de centros de trabajo.</field>
+            <field name="metodo_tecnico">_calc_centros_con_costo</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_centros_con_costo" model="ags.benchmark">
+            <field name="parametro_id" ref="param_centros_con_costo"/>
+            <field name="valor_minimo">60</field>
+            <field name="valor_objetivo">100</field>
+            <field name="valor_clase_mundial">100</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">Meta interna. Todo centro de trabajo activo deberia tener costo por hora.</field>
+        </record>
+
+        <!-- ============================================ -->
+
+        <record id="param_bom_con_tolerancia" model="ags.parametro">
+            <field name="codigo">PCT_BOM_CONTROLADAS</field>
+            <field name="name">Listas de materiales con control de consumo</field>
+            <field name="seccion">salud_erp</field>
+            <field name="secuencia">170</field>
+            <field name="descripcion">Con el consumo libre, un operador puede consumir de mas sin dejar constancia y la merma termina diluida en el costo del producto en lugar de aparecer como partida analizable. Cuentan como controladas las listas configuradas con aviso o con bloqueo.</field>
+            <field name="unidad">pct</field>
+            <field name="direccion">mayor_mejor</field>
+            <field name="tipo_benchmark">c</field>
+            <field name="metodo_calculo">Listas de materiales con consumo configurado en aviso o bloqueo, sobre el total de listas.</field>
+            <field name="metodo_tecnico">_calc_bom_con_tolerancia</field>
+            <field name="captura">auto</field>
+            <field name="frecuencia">mensual</field>
+        </record>
+
+        <record id="bench_bom_con_tolerancia" model="ags.benchmark">
+            <field name="parametro_id" ref="param_bom_con_tolerancia"/>
+            <field name="valor_minimo">50</field>
+            <field name="valor_objetivo">90</field>
+            <field name="valor_clase_mundial">100</field>
+            <field name="fuente_id" ref="fuente_politica_dato"/>
+            <field name="ajuste_aplicado">Meta interna. Se prioriza el control en las listas que consumen bobina madre.</field>
+        </record>
+
+    </data>
+</odoo>

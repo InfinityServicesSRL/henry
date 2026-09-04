@@ -1,0 +1,588 @@
+// Cockpit de Gerencia
+//
+// TOKENS DEL TEMA
+//
+// Ningun color se escribe a mano en este archivo. Todos salen de las
+// variables de Odoo, con el valor anterior como red de seguridad por si una
+// version futura renombra alguna: un SCSS que no compila tumba el bundle
+// entero del backend, y eso no puede depender de que una variable siga
+// existiendo.
+//
+// Tomarlos del tema resuelve tres cosas de golpe: la paleta deja de ser la
+// de Bootstrap y pasa a ser la de Odoo, el modo oscuro funciona solo, y un
+// cambio de tema se propaga sin tocar el modulo.
+
+$ags-fondo:        if(variable-exists(o-view-background-color), $o-view-background-color, #ffffff);
+$ags-lienzo:       if(variable-exists(o-gray-100), $o-gray-100, #f9fafb);
+$ags-borde:        if(variable-exists(o-gray-300), $o-gray-300, #dee2e6);
+$ags-borde-suave:  if(variable-exists(o-gray-200), $o-gray-200, #f1f3f5);
+$ags-debil:        if(variable-exists(o-gray-500), $o-gray-500, #adb5bd);
+$ags-tenue:        if(variable-exists(o-gray-600), $o-gray-600, #6c757d);
+$ags-texto-suave:  if(variable-exists(o-gray-700), $o-gray-700, #495057);
+$ags-texto:        if(variable-exists(o-main-text-color), $o-main-text-color, #212529);
+
+// El acento de Odoo Enterprise es el teal de los titulos y enlaces de los
+// modulos nativos, no el azul de Bootstrap.
+$ags-acento:       if(variable-exists(o-enterprise-action-color), $o-enterprise-action-color, #017e84);
+
+$ags-exito:        if(variable-exists(success), $success, #28a745);
+$ags-peligro:      if(variable-exists(danger), $danger, #dc3545);
+$ags-aviso:        if(variable-exists(warning), $warning, #ffc107);
+$ags-info:         if(variable-exists(info), $info, #17a2b8);
+
+// D14: el estado "sin evidencia" se pinta MAS grave que el rojo. Un rojo es
+// un problema conocido; esto es un problema que no se ve. No hay color de
+// estado que pese mas que el rojo, asi que se usa el gris mas oscuro del
+// tema: en una pagina clara, el negro pesa mas que cualquier color.
+$ags-sin-evidencia: if(variable-exists(o-gray-900), $o-gray-900, #212529);
+
+.o_ags_cockpit {
+    background-color: $ags-lienzo;
+    overflow: auto;
+
+    .o_ags_periodo {
+        font-size: 0.8125rem;
+        color: $ags-tenue;
+        text-transform: capitalize;
+    }
+
+    // Los modulos nativos titulan en teal y a tamano de lectura. Las
+    // versalitas grises son un recurso de dashboards SaaS y era una de las
+    // cosas que hacian que el cockpit se leyera como ajeno a Odoo.
+    .o_ags_titulo_zona {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        letter-spacing: 0;
+        text-transform: none;
+        color: $ags-acento;
+    }
+
+    .o_ags_detalle {
+        font-size: 0.8125rem;
+        color: $ags-tenue;
+    }
+
+    // ---------- Excepciones ----------
+
+    .o_ags_todo_bien {
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-left: 3px solid $ags-exito;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: $ags-texto-suave;
+
+        i { color: $ags-exito; }
+    }
+
+    .o_ags_excepcion {
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.12s ease;
+
+        &:hover {
+            background-color: $ags-borde-suave;
+
+            .o_ags_flecha { opacity: 1; }
+        }
+
+        .o_ags_marca {
+            width: 3px;
+            align-self: stretch;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .o_ags_flecha {
+            color: $ags-debil;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            align-self: center;
+        }
+
+        &.o_ags_danger .o_ags_marca { background-color: $ags-peligro; }
+        &.o_ags_warning .o_ags_marca { background-color: $ags-aviso; }
+        &.o_ags_info .o_ags_marca { background-color: $ags-info; }
+    }
+
+    // ---------- Tarjetas ----------
+
+    .o_ags_tarjeta {
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-radius: 4px;
+    }
+
+    .o_ags_cifra_grande {
+        font-size: 1.375rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: $ags-texto;
+    }
+
+    .o_ags_tabla {
+        font-size: 0.875rem;
+
+        td {
+            padding: 0.3rem 0.5rem;
+            border-color: $ags-borde-suave;
+            font-variant-numeric: tabular-nums;
+        }
+
+        tr:last-child td { border-bottom: 0; }
+    }
+
+    // ---------- Indicadores ----------
+
+    .o_ags_kpi {
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+        &:hover {
+            border-color: $ags-debil;
+            box-shadow: 0 1px 3px rgba($ags-texto, 0.10);
+        }
+    }
+
+    .o_ags_kpi_etiqueta {
+        font-size: 0.8125rem;
+        color: $ags-texto-suave;
+        line-height: 1.2;
+    }
+
+    .o_ags_kpi_valor {
+        font-size: 1.5rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+        color: $ags-texto;
+
+        &.o_ags_sin_dato {
+            font-size: 1rem;
+            font-weight: 400;
+            color: $ags-debil;
+        }
+    }
+
+    // Badge del estado sin evidencia. No usa las clases text-bg-* de
+    // Bootstrap a proposito: ninguna de ellas pesa mas que el rojo, y este
+    // estado tiene que pesar mas.
+    .o_ags_badge_sin_evidencia {
+        background-color: $ags-sin-evidencia;
+        color: $ags-fondo;
+    }
+
+    .o_ags_aviso {
+        font-size: 0.75rem;
+        color: darken($ags-aviso, 28%);
+        background-color: rgba($ags-aviso, 0.14);
+        border-radius: 3px;
+        padding: 0.2rem 0.4rem;
+    }
+
+    // ---------- Banda de confianza ----------
+    //
+    // Ocupa el ancho completo y va sobre todo lo demas. El color no es
+    // decorativo: en nivel alerta el gerente debe registrar la advertencia
+    // antes de fijar la vista en cualquier cifra de la pantalla. Aun asi se
+    // mantiene como franja y no como modal, porque una advertencia que
+    // obliga a hacer clic para seguir trabajando se despacha sin leerla.
+
+    .o_ags_banda {
+        border-radius: 4px;
+        border: 1px solid $ags-borde;
+        font-size: 0.875rem;
+
+        .o_ags_banda_titular {
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        &.o_ags_banda_alerta {
+            background-color: rgba($ags-peligro, 0.06);
+            border-color: rgba($ags-peligro, 0.35);
+            border-left: 3px solid $ags-peligro;
+
+            > div > i { color: $ags-peligro; }
+            .o_ags_banda_titular { color: darken($ags-peligro, 18%); }
+        }
+
+        &.o_ags_banda_aviso {
+            background-color: rgba($ags-aviso, 0.08);
+            border-color: rgba($ags-aviso, 0.45);
+            border-left: 3px solid $ags-aviso;
+
+            > div > i { color: darken($ags-aviso, 22%); }
+            .o_ags_banda_titular { color: darken($ags-aviso, 32%); }
+        }
+
+        &.o_ags_banda_ok {
+            background-color: $ags-fondo;
+            border-left: 3px solid $ags-exito;
+
+            > div > i { color: $ags-exito; }
+            .o_ags_banda_titular { color: $ags-texto-suave; font-weight: 400; }
+        }
+    }
+
+    .o_ags_hallazgo {
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8125rem;
+        color: $ags-texto-suave;
+        transition: border-color 0.12s ease;
+
+        &:hover {
+            border-color: $ags-debil;
+
+            .o_ags_flecha { opacity: 1; }
+        }
+
+        .o_ags_hallazgo_cifra {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            min-width: 2.25rem;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .o_ags_flecha {
+            color: $ags-debil;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+        }
+
+        &.o_ags_danger .o_ags_hallazgo_cifra { color: $ags-peligro; }
+        &.o_ags_warning .o_ags_hallazgo_cifra { color: darken($ags-aviso, 22%); }
+    }
+
+    // ---------- Deltas de las tarjetas ----------
+
+    .o_ags_deltas {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+    }
+
+    .o_ags_kpi_refs {
+        font-size: 0.75rem;
+        color: $ags-debil;
+        font-variant-numeric: tabular-nums;
+    }
+
+    // ---------- Filtros ----------
+
+    .o_ags_filtros {
+        background-color: $ags-fondo;
+        border-bottom: 1px solid $ags-borde;
+    }
+
+    .o_ags_filtro_label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: $ags-tenue;
+        margin-bottom: 0.15rem;
+    }
+
+    .o_ags_chip {
+        display: inline-flex;
+        align-items: center;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-debil;
+        border-radius: 999px;
+        padding: 0.1rem 0.6rem;
+        font-size: 0.8125rem;
+        color: $ags-texto-suave;
+        cursor: pointer;
+
+        &:hover {
+            border-color: $ags-peligro;
+            color: $ags-peligro;
+        }
+    }
+
+    // El sello de alcance. Discreto pero permanente: su trabajo es impedir
+    // que alguien lea una cifra de empresa como si fuera de un vendedor,
+    // no llamar la atencion sobre si mismo.
+    .o_ags_sello {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.6875rem;
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: 0;
+        color: $ags-tenue;
+        background-color: $ags-borde-suave;
+        border: 1px solid $ags-borde;
+        border-radius: 3px;
+        padding: 0.05rem 0.35rem;
+    }
+
+    // ---------- Bloques comparativos ----------
+
+    .o_ags_bloque {
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .o_ags_bloque_cabecera {
+        cursor: pointer;
+        font-size: 0.875rem;
+        color: $ags-texto;
+        user-select: none;
+
+        &:hover { background-color: $ags-lienzo; }
+
+        i { color: $ags-debil; width: 0.75rem; }
+    }
+
+    .o_ags_comparativo {
+        font-size: 0.8125rem;
+        margin-bottom: 0;
+
+        thead th {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            color: $ags-tenue;
+            border-top: 1px solid $ags-borde-suave;
+            border-bottom: 1px solid $ags-borde;
+            padding: 0.35rem 0.5rem;
+            white-space: nowrap;
+        }
+
+        tbody td {
+            padding: 0.35rem 0.5rem;
+            border-color: $ags-borde-suave;
+            font-variant-numeric: tabular-nums;
+            vertical-align: middle;
+        }
+
+        tbody tr {
+            cursor: pointer;
+
+            &:hover { background-color: $ags-lienzo; }
+        }
+
+        tbody tr:last-child td { border-bottom: 0; }
+    }
+
+    // El punto de color reemplaza a la etiqueta de texto en las filas: con
+    // veintitres indicadores en un bloque, veintitres badges compiten entre
+    // si y ninguno resalta.
+    .o_ags_punto {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+        vertical-align: middle;
+        background-color: $ags-borde;
+
+        &.o_ags_punto_verde { background-color: $ags-exito; }
+        &.o_ags_punto_amarillo { background-color: $ags-aviso; }
+        &.o_ags_punto_rojo { background-color: $ags-peligro; }
+        &.o_ags_punto_sin_evidencia { background-color: $ags-sin-evidencia; }
+    }
+
+    // ---------- Serie temporal ----------
+
+    .o_ags_btn_serie {
+        color: $ags-debil;
+        line-height: 1;
+
+        &:hover { color: $ags-texto-suave; }
+    }
+
+    .o_ags_grafico {
+        width: 100%;
+        height: 160px;
+        display: block;
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde-suave;
+        border-radius: 3px;
+
+        .o_ags_zona_buena { fill: $ags-exito; opacity: 0.10; }
+        .o_ags_zona_tolerable { fill: $ags-aviso; opacity: 0.10; }
+
+        .o_ags_linea_objetivo {
+            stroke: $ags-exito;
+            stroke-width: 1;
+            stroke-dasharray: 4 3;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .o_ags_linea_baseline {
+            stroke: $ags-debil;
+            stroke-width: 1;
+            stroke-dasharray: 2 3;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .o_ags_linea_serie {
+            fill: none;
+            stroke: $ags-texto;
+            stroke-width: 1.5;
+            stroke-linejoin: round;
+            vector-effect: non-scaling-stroke;
+        }
+
+        circle {
+            stroke: $ags-fondo;
+            stroke-width: 1;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .o_ags_marca_verde { fill: $ags-exito; }
+        .o_ags_marca_amarilla { fill: $ags-aviso; }
+        .o_ags_marca_roja { fill: $ags-peligro; }
+        .o_ags_marca_sin_evidencia { fill: $ags-sin-evidencia; }
+        .o_ags_marca_neutra { fill: $ags-tenue; }
+        // Los periodos atipicos se dibujan huecos: siguen siendo datos
+        // reales, pero no representan la operacion normal.
+        .o_ags_marca_atipica { fill: $ags-fondo; stroke: $ags-tenue; }
+    }
+
+    .o_ags_leyenda {
+        font-size: 0.75rem;
+        color: $ags-tenue;
+    }
+
+    .o_ags_muestra {
+        display: inline-block;
+        width: 10px;
+        height: 8px;
+        border-radius: 2px;
+        margin-right: 0.25rem;
+        vertical-align: middle;
+
+        &.o_ags_muestra_buena { background-color: rgba(40, 167, 69, 0.25); }
+        &.o_ags_muestra_baseline { background-color: $ags-debil; height: 2px; }
+    }
+
+    // ---------- Alertas ----------
+
+    .o_ags_alerta {
+        background-color: $ags-fondo;
+        border: 1px solid $ags-borde;
+        border-radius: 4px;
+
+        > div:first-of-type { cursor: pointer; }
+
+        .o_ags_marca {
+            width: 3px;
+            align-self: stretch;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        &.o_ags_danger .o_ags_marca { background-color: $ags-peligro; }
+        &.o_ags_warning .o_ags_marca { background-color: $ags-aviso; }
+        &.o_ags_info .o_ags_marca { background-color: $ags-info; }
+    }
+
+    // La recomendacion se distingue del detalle a proposito: una describe el
+    // problema y la otra dice que hacer, y mezclarlas hace que la segunda se
+    // lea como mas texto en lugar de como una instruccion.
+    .o_ags_recomendacion {
+        font-size: 0.8125rem;
+        color: $ags-acento;
+        margin-top: 0.15rem;
+    }
+
+    // ---------- Desglose del calculo ----------
+
+    .o_ags_btn_origen {
+        color: $ags-debil;
+        line-height: 1;
+
+        &:hover { color: $ags-acento; }
+    }
+
+    .o_ags_parcial {
+        background-color: $ags-lienzo;
+        border: 1px solid $ags-borde;
+        border-radius: 0.5rem;
+        color: $ags-texto;
+
+        // El amarillo de warning no contrasta sobre el lienzo claro, y de
+        // todos modos esto no es una alarma: es una advertencia de metodo
+        // sobre como leer las cifras. Info y texto tenue lo dicen mejor.
+        > .fa { color: $ags-info; }
+    }
+
+    .o_ags_sello_parcial {
+        border-color: $ags-tenue;
+        color: $ags-tenue;
+    }
+
+    // Un indicador invalidado NO esconde su cifra. La tacha y la atenua,
+    // y le pone al lado el motivo. Esconderla obligaria a buscarla en otra
+    // pantalla, y ahi ya nadie ve la advertencia -- es el mismo criterio de
+    // D10 (el contable convive con el saneado) y D11 (el mes en curso se
+    // muestra, solo deja de presentarse como comparable).
+    .o_ags_invalidado {
+        color: $ags-debil;
+        text-decoration: line-through;
+        text-decoration-thickness: 1px;
+    }
+
+    .o_ags_sello_invalidado {
+        border-color: $ags-peligro;
+        color: $ags-peligro;
+        background-color: rgba($ags-peligro, 0.08);
+    }
+
+    // El motivo se corta a dos lineas: es una advertencia, no un informe.
+    // El expediente completo esta a un clic en el sello.
+    .o_ags_motivo {
+        max-width: 22rem;
+        line-height: 1.25;
+    }
+
+    .o_ags_sello_reserva {
+        border-color: $ags-tenue;
+        color: $ags-tenue;
+    }
+
+    .o_ags_sello_ajuste {
+        // Se distingue del sello de "atipico" porque no dice lo mismo: uno
+        // advierte sobre el periodo, este sobre el calculo.
+        border-color: $ags-acento;
+        color: $ags-acento;
+    }
+
+    .o_ags_alternador .btn {
+        font-size: 0.75rem;
+    }
+
+    .o_ags_cuentas {
+        // El detalle completo vive en el tooltip; aqui manda la legibilidad
+        // de la fila.
+        max-width: 22rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .o_ags_desglose {
+        background-color: $ags-lienzo;
+        border-top: 1px solid $ags-borde;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_ags_cockpit * { transition: none !important; }
+}

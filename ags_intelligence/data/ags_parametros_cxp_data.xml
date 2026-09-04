@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="param_compras_sin_termino" model="ags.parametro">
+        <field name="codigo">COMPRAS_SIN_TERMINO</field>
+        <field name="name">Compras sin termino de pago pactado</field>
+        <field name="seccion">salud_erp</field>
+        <field name="secuencia">55</field>
+        <field name="descripcion">Porcentaje de facturas de compra registradas sin termino de pago. Sin termino la factura nace vencida el mismo dia, y el aging la clasifica como tal desde el primer momento.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_compras_sin_termino</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="notas">Medicion feb-jul 2026: 880 de 1,417 facturas sin termino (62%), por RD$ 25.8 millones. Es peor que en ventas, donde el mismo indicador daba 11%. Parte del "vencido" que muestra el aging de CxP es artefacto de esto, no atraso real de pago.</field>
+    </record>
+
+    <record id="param_cxp_comercial_vencida" model="ags.parametro">
+        <field name="codigo">CXP_COMERCIAL_VENCIDA</field>
+        <field name="name">CxP comercial vencida</field>
+        <field name="seccion">financiero</field>
+        <field name="secuencia">35</field>
+        <field name="descripcion">Porcentaje vencido de la cartera de proveedores comerciales, excluyendo acreedores financieros. Mide disciplina de pago a proveedores, que es distinto del servicio de la deuda.</field>
+        <field name="unidad">pct</field>
+        <field name="direccion">menor_mejor</field>
+        <field name="tipo_benchmark">c</field>
+        <field name="metodo_tecnico">_calc_cxp_comercial_vencida</field>
+        <field name="captura">auto</field>
+        <field name="frecuencia">mensual</field>
+        <field name="requiere_config">True</field>
+        <field name="config_faltante">Clasificar los acreedores financieros en el campo Tipo de acreedor del contacto</field>
+        <field name="notas">HALLAZGO QUE ORIGINA ESTE INDICADOR: el aging de CxP al 31-jul-2026 mostraba 78.2% vencido sobre RD$ 93.5 millones. Al separar por tipo de acreedor resulto que RD$ 62.3 millones eran prestamos personales, cooperativas y bancos, todos al 100% vencido por definicion. La CxP comercial real era de 31.2 millones, y los proveedores de bobina -- Central National, Vipa, SOIC, Bridge View -- estaban al 0% vencido.
+
+Mezclar deuda financiera con credito de proveedores produce un numero que asusta y no significa nada.</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ============================================================
+         DESGLOSE DEL CALCULO
+
+         La vista existe para responder una sola pregunta: de donde salio
+         este numero. Por eso la columna de accion no es un detalle
+         opcional sino la razon de ser de la pantalla.
+         ============================================================ -->
+
+    <record id="view_ags_componente_list" model="ir.ui.view">
+        <field name="name">ags.componente.list</field>
+        <field name="model">ags.componente</field>
+        <field name="arch" type="xml">
+            <list string="Desglose" create="false" edit="false">
+                <field name="secuencia" column_invisible="1"/>
+                <field name="rol"/>
+                <field name="tipo"/>
+                <field name="cuentas_resumen" optional="show"/>
+                <field name="cuentas_codigos" optional="hide"/>
+                <field name="fecha_desde" optional="hide"/>
+                <field name="fecha_hasta" optional="show"/>
+                <field name="valor" sum="Total"/>
+                <field name="notas" optional="hide"/>
+                <button name="action_ver_origen" type="object"
+                        string="Ver origen" icon="fa-external-link"
+                        class="btn-link"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ags_componente_form" model="ir.ui.view">
+        <field name="name">ags.componente.form</field>
+        <field name="model">ags.componente</field>
+        <field name="arch" type="xml">
+            <form string="Componente" create="false" edit="false">
+                <header>
+                    <button name="action_ver_origen" type="object"
+                            string="Ver los registros de origen"
+                            class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Componente">
+                            <field name="rol"/>
+                            <field name="tipo"/>
+                            <field name="valor"/>
+                        </group>
+                        <group string="Medicion">
+                            <field name="medicion_id"/>
+                            <field name="parametro_id"/>
+                            <field name="fecha_periodo"/>
+                        </group>
+                    </group>
+                    <group string="Origen consultado">
+                        <field name="cuenta_ids" widget="many2many_tags"
+                               invisible="tipo != 'contable'"/>
+                        <field name="fecha_desde"/>
+                        <field name="fecha_hasta"/>
+                        <field name="modelo" invisible="tipo == 'contable'"/>
+                        <field name="dominio" invisible="tipo == 'contable'"/>
+                        <field name="notas"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_ags_componente" model="ir.actions.act_window">
+        <field name="name">Desglose de calculos</field>
+        <field name="res_model">ags.componente</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_group_parametro': 1}</field>
+    </record>
+
+    <!-- Pestaña de desglose dentro de la medicion -->
+    <record id="view_ags_medicion_form_componentes" model="ir.ui.view">
+        <field name="name">ags.medicion.form.componentes</field>
+        <field name="model">ags.medicion</field>
+        <field name="inherit_id" ref="ags_intelligence.view_ags_medicion_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <notebook>
+                    <page string="Desglose del calculo" name="componentes">
+                        <div class="text-muted mb-2">
+                            Piezas que forman este valor, tal como se consultaron
+                            el dia del calculo. El boton de cada linea abre los
+                            registros de origen.
+                        </div>
+                        <field name="componente_ids" readonly="1">
+                            <list create="false" edit="false">
+                                <field name="rol"/>
+                                <field name="tipo"/>
+                                <field name="cuentas_resumen"/>
+                                <field name="fecha_hasta"/>
+                                <field name="valor" sum="Total"/>
+                                <button name="action_ver_origen" type="object"
+                                        string="Ver origen" icon="fa-external-link"
+                                        class="btn-link"/>
+                            </list>
+                        </field>
+                    </page>
+                </notebook>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

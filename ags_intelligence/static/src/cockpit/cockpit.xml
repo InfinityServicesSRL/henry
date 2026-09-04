@@ -1,0 +1,574 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="ags_intelligence.Cockpit">
+    <Layout className="'o_ags_cockpit h-100'" display="{ controlPanel: {} }">
+
+        <t t-set-slot="layout-buttons">
+            <span class="o_ags_periodo me-3" t-if="state.datos">
+                <t t-esc="state.datos.periodo"/>
+                <span t-if="parcial" class="o_ags_sello o_ags_sello_parcial ms-1"
+                      t-att-title="parcial.texto">en curso</span>
+            </span>
+            <button class="btn btn-sm" t-on-click="() => state.mostrarFiltros = !state.mostrarFiltros"
+                    t-att-class="hayFiltro ? 'btn-primary' : 'btn-secondary'"
+                    title="Filtros">
+                <i class="fa fa-filter"/>
+                <span t-if="hayFiltro" class="ms-1" t-esc="Object.keys(state.filtros).length"/>
+            </button>
+            <button class="btn btn-sm btn-secondary ms-2" t-on-click="() => this.mover(1)"
+                    title="Mes anterior">
+                <i class="fa fa-chevron-left"/>
+            </button>
+            <button class="btn btn-sm btn-secondary" t-on-click="() => this.mover(-1)"
+                    t-att-disabled="state.mes === 0" title="Mes siguiente">
+                <i class="fa fa-chevron-right"/>
+            </button>
+            <button class="btn btn-sm btn-primary ms-2" t-on-click="recalcular"
+                    t-att-disabled="state.recalculando">
+                <i class="fa fa-refresh me-1" t-att-class="{ 'fa-spin': state.recalculando }"/>
+                Recalcular
+            </button>
+        </t>
+
+        <!-- Cargando -->
+        <div t-if="state.cargando" class="d-flex justify-content-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando</span>
+            </div>
+        </div>
+
+        <div t-else="" class="p-4">
+
+            <!-- Filtros activos -->
+            <div t-if="state.datos.hay_filtro" class="d-flex align-items-center gap-2 flex-wrap mb-3">
+                <span class="o_ags_titulo_zona">Filtrando por</span>
+                <span t-foreach="state.datos.filtros_activos" t-as="f" t-key="f.clave"
+                      class="o_ags_chip" t-on-click="() => this.quitarFiltro(f.clave)">
+                    <t t-esc="f.campo"/>: <strong t-esc="f.valor"/>
+                    <i class="fa fa-times ms-2"/>
+                </span>
+                <button class="btn btn-sm btn-link p-0" t-on-click="limpiarFiltros">Limpiar</button>
+            </div>
+
+            <!-- PERIODO EN CURSO
+                 Va antes que la banda de confianza porque cambia como se lee
+                 TODO lo que viene despues, incluida la propia banda. -->
+            <div t-if="parcial" class="o_ags_parcial d-flex align-items-start gap-3 px-3 py-2 mb-4">
+                <i class="fa fa-hourglass-half mt-1"/>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">
+                        Mes en curso: <t t-esc="parcial.dias"/> de
+                        <t t-esc="parcial.dias_totales"/> dias cerrados
+                    </div>
+                    <div class="o_ags_detalle">
+                        Los indicadores que acumulan movimiento del periodo —costo
+                        de ventas, consumo, ventas— solo tienen parte del mes,
+                        mientras los de saldo estan completos. Los ratios que
+                        combinan ambos, como dias de inventario, salen exagerados.
+                        Para comparar, usa el mes anterior.
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-secondary flex-shrink-0"
+                        t-on-click="() => this.mover(1)">
+                    Ver mes cerrado
+                </button>
+            </div>
+
+            <!-- ZONA 0 · BANDA DE CONFIANZA
+                 Va antes que cualquier cifra. Si el ERP tiene pendientes que
+                 distorsionan los numeros, el gerente se entera antes de leer
+                 el primero, no despues de tomar una decision con el. -->
+            <div t-if="confianza" class="o_ags_banda mb-4"
+                 t-att-class="claseBanda(confianza.nivel)">
+                <div class="d-flex align-items-start gap-3 px-3 py-2">
+                    <i class="fa mt-1" t-att-class="iconoBanda(confianza.nivel)"/>
+                    <div class="flex-grow-1">
+                        <div class="o_ags_banda_titular" t-esc="confianza.titular"/>
+                        <div t-if="confianza.nivel !== 'ok'" class="o_ags_detalle mt-1">
+                            Las cifras de este periodo se calcularon con estos pendientes abiertos.
+                        </div>
+                    </div>
+                    <button t-if="confianza.nivel !== 'ok'" class="btn btn-sm btn-link p-0 flex-shrink-0"
+                            t-on-click="() => state.mostrarBanda = !state.mostrarBanda">
+                        <t t-if="state.mostrarBanda">Ocultar detalle</t>
+                        <t t-else="">Ver detalle</t>
+                    </button>
+                </div>
+
+                <div t-if="state.mostrarBanda and confianza.nivel !== 'ok'"
+                     class="o_ags_banda_detalle px-3 pb-3">
+                    <div class="row g-2">
+                        <div t-foreach="hallazgosSucios" t-as="h" t-key="h.clave"
+                             class="col-12 col-sm-6 col-lg-4">
+                            <div class="o_ags_hallazgo d-flex align-items-center gap-2 px-2 py-2"
+                                 t-att-class="'o_ags_' + h.gravedad"
+                                 t-on-click="() => this.abrirHallazgo(h)">
+                                <span class="o_ags_hallazgo_cifra" t-esc="h.cantidad"/>
+                                <span class="flex-grow-1">
+                                    <t t-esc="h.etiqueta"/>
+                                    <span t-if="h.es_global and state.filtros.almacen_id"
+                                          class="o_ags_sello ms-1">toda la empresa</span>
+                                </span>
+                                <i class="fa fa-angle-right o_ags_flecha"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZONA 1 · EXCEPCIONES -->
+            <div class="o_ags_excepciones mb-4">
+                <div t-if="!state.datos.excepciones.length"
+                     class="o_ags_todo_bien d-flex align-items-center gap-2 px-3 py-2">
+                    <i class="fa fa-check-circle"/>
+                    <span>Sin excepciones este periodo. Todos los indicadores dentro de rango.</span>
+                </div>
+
+                <div t-else="">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="o_ags_titulo_zona">Requiere atencion</span>
+                            <span class="badge text-bg-danger" t-esc="state.datos.n_excepciones"/>
+                        </div>
+                        <button class="btn btn-sm btn-link p-0"
+                                t-on-click="() => state.mostrarExcepciones = !state.mostrarExcepciones">
+                            <t t-if="state.mostrarExcepciones">Ocultar</t>
+                            <t t-else="">Mostrar</t>
+                        </button>
+                    </div>
+
+                    <div t-if="state.mostrarExcepciones" class="d-flex flex-column gap-1">
+                        <div t-foreach="state.datos.excepciones" t-as="e" t-key="e_index"
+                             class="o_ags_excepcion d-flex align-items-start gap-3 px-3 py-2"
+                             t-att-class="'o_ags_' + e.gravedad"
+                             t-on-click="() => this.abrir(e)">
+                            <span class="o_ags_marca"/>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold" t-esc="e.titulo"/>
+                                <div class="o_ags_detalle" t-esc="e.detalle"/>
+                            </div>
+                            <i class="fa fa-angle-right o_ags_flecha"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZONA 1B · ALERTAS DEL PERIODO
+                 Las excepciones dicen que esta fuera de rango hoy. Las alertas
+                 anaden la dimension que falta: cuantos periodos lleva asi y
+                 que hacer al respecto. Se cierran desde aqui porque una lista
+                 que cuesta mantener limpia deja de leerse. -->
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="o_ags_titulo_zona">Alertas del periodo</span>
+                        <span t-if="state.datos.alertas.length" class="badge text-bg-secondary"
+                              t-esc="state.datos.alertas.length"/>
+                    </div>
+                    <button class="btn btn-sm btn-link p-0" t-on-click="generarAlertas"
+                            t-att-disabled="state.generandoAlertas">
+                        <i class="fa fa-search me-1" t-att-class="{ 'fa-spin': state.generandoAlertas }"/>
+                        Detectar
+                    </button>
+                </div>
+
+                <div t-if="!state.datos.alertas.length" class="o_ags_detalle">
+                    Sin alertas vivas en este periodo.
+                </div>
+
+                <div t-else="" class="d-flex flex-column gap-1">
+                    <div t-foreach="state.datos.alertas" t-as="a" t-key="a.id"
+                         class="o_ags_alerta d-flex align-items-start gap-3 px-3 py-2"
+                         t-att-class="clasePrioridad(a.prioridad)">
+                        <span class="o_ags_marca"/>
+                        <div class="flex-grow-1" t-on-click="() => this.abrirDestinoAlerta(a)">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-semibold" t-esc="a.titulo"/>
+                                <span t-if="a.periodos_seguidos > 1" class="o_ags_sello">
+                                    <t t-esc="a.periodos_seguidos"/> periodos
+                                </span>
+                                <span class="o_ags_sello" t-esc="a.tipo_nombre"/>
+                            </div>
+                            <div t-if="a.detalle" class="o_ags_detalle" t-esc="a.detalle"/>
+                            <div t-if="a.recomendacion" class="o_ags_recomendacion">
+                                <i class="fa fa-arrow-right me-1"/><t t-esc="a.recomendacion"/>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                            <button class="btn btn-sm btn-light" title="Marcar atendida"
+                                    t-on-click.stop="() => this.cerrarAlerta(a, 'atendida')">
+                                <i class="fa fa-check"/>
+                            </button>
+                            <button class="btn btn-sm btn-light" title="Descartar"
+                                    t-on-click.stop="() => this.cerrarAlerta(a, 'descartada')">
+                                <i class="fa fa-times"/>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ZONA 2 · VENTAS DEL MES -->
+            <div class="o_ags_tarjeta mb-4 p-3">
+                <div class="d-flex align-items-baseline justify-content-between mb-3">
+                    <span class="o_ags_titulo_zona">Ventas del mes</span>
+                    <div class="text-end">
+                        <span class="o_ags_cifra_grande" t-esc="state.datos.ventas.real"/>
+                        <span t-if="state.datos.ventas.hay_meta" class="o_ags_detalle ms-2">
+                            de <t t-esc="state.datos.ventas.meta"/>
+                            · <t t-esc="state.datos.ventas.cumplimiento"/>%
+                        </span>
+                    </div>
+                </div>
+                <div t-if="!state.datos.ventas.hay_meta" class="o_ags_detalle mb-2">
+                    Sin metas aprobadas para este periodo.
+                </div>
+                <table class="table table-sm mb-0 o_ags_tabla">
+                    <tbody>
+                        <tr t-foreach="state.datos.ventas.por_vendedor" t-as="v" t-key="v_index">
+                            <td t-esc="v.nombre"/>
+                            <td class="text-end" t-esc="v.real"/>
+                            <td class="text-end o_ags_detalle" t-esc="v.meta"/>
+                            <td class="text-end" style="width: 90px">
+                                <span t-if="v.meta_num" class="badge"
+                                      t-att-class="v.cumplimiento >= 100 ? 'text-bg-success' : (v.cumplimiento >= 80 ? 'text-bg-warning' : 'text-bg-danger')">
+                                    <t t-esc="v.cumplimiento"/>%
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ZONA 3 · BLOQUE EJECUTIVO
+                 Sale de mediciones agregadas de empresa. Cuando hay un filtro
+                 activo se sella para que nadie lea estas cifras como si
+                 pertenecieran al vendedor o mercado elegido. -->
+            <div t-foreach="porEje" t-as="g" t-key="g.eje" class="mb-4">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="o_ags_titulo_zona" t-esc="g.nombre"/>
+                    <span t-if="state.datos.hay_filtro" class="o_ags_sello">
+                        <i class="fa fa-globe me-1"/>Toda la empresa
+                    </span>
+
+                    <!-- DOBLE LECTURA
+                         Solo aparece si hay ajustes vigentes. La contable es
+                         el dato oficial; la saneada es la operacion sin el
+                         ruido de las cuentas que el auditor esta revisando. -->
+                    <div t-if="hayAjustes" class="btn-group btn-group-sm ms-auto o_ags_alternador"
+                         role="group">
+                        <button class="btn"
+                                t-att-class="state.verSaneado ? 'btn-secondary' : 'btn-outline-secondary'"
+                                t-on-click="() => state.verSaneado = true">
+                            Saneado
+                        </button>
+                        <button class="btn"
+                                t-att-class="!state.verSaneado ? 'btn-secondary' : 'btn-outline-secondary'"
+                                t-on-click="() => state.verSaneado = false">
+                            Contable
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div t-foreach="g.tarjetas" t-as="t" t-key="t.codigo"
+                         class="col-12 col-sm-6 col-lg-3">
+                        <div class="o_ags_kpi h-100 p-3" t-on-click="() => this.abrirParametro(t)">
+                            <div class="d-flex align-items-start justify-content-between mb-2">
+                                <span class="o_ags_kpi_etiqueta" t-esc="t.etiqueta"/>
+                                <button class="btn btn-sm btn-link p-0 me-1 o_ags_btn_serie"
+                                        t-on-click.stop="() => this.alternarSerie(t.codigo)"
+                                        title="Ver historia">
+                                    <i class="fa fa-line-chart"/>
+                                </button>
+                                <span class="badge" t-att-class="claseSemaforo(t.semaforo)"
+                                      t-if="t.semaforo !== 'sin_dato'">
+                                    <t t-if="t.semaforo === 'verde'">En rango</t>
+                                    <t t-elif="t.semaforo === 'amarillo'">Atencion</t>
+                                    <t t-elif="t.semaforo === 'sin_evidencia'">Sin registro</t>
+                                    <t t-else="">Fuera</t>
+                                </span>
+                            </div>
+                            <div class="o_ags_kpi_valor"
+                                 t-att-class="{ 'o_ags_sin_dato': !t.hay_dato,
+                                                'o_ags_invalidado': t.confiabilidad === 'invalidado' }"
+                                 t-esc="t.valor"/>
+                            <t t-set="selloT" t-value="selloConfiabilidad(t)"/>
+                            <div t-if="selloT" class="mt-1">
+                                <span class="o_ags_sello" t-att-class="selloT.clase"
+                                      t-on-click.stop="() => this.verHallazgos(t)"
+                                      t-esc="selloT.texto"/>
+                                <div class="o_ags_detalle o_ags_motivo mt-1"
+                                     t-esc="t.confiabilidad_detalle"/>
+                            </div>
+
+                            <!-- Delta contra el mes anterior y contra el mismo mes
+                                 del año pasado. Nunca contra el año completo: ocho
+                                 meses no se comparan con doce. -->
+                            <div t-if="t.hay_dato" class="o_ags_deltas mt-2">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="o_ags_detalle" t-att-class="claseTendencia(t.delta_mes.sentido)">
+                                        <i class="fa" t-att-class="iconoTendencia(t.delta_mes.sentido)"/>
+                                        <t t-if="t.delta_mes.hay_dato">
+                                            <t t-esc="Math.abs(t.delta_mes.pct)"/>%
+                                        </t>
+                                        <t t-else="">sin previo</t>
+                                    </span>
+                                    <span class="o_ags_detalle">vs mes anterior</span>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span class="o_ags_detalle"
+                                          t-att-class="claseTendencia(t.delta_homologo.sentido)">
+                                        <t t-if="t.delta_homologo.hay_dato">
+                                            <i class="fa" t-att-class="iconoTendencia(t.delta_homologo.sentido)"/>
+                                            <t t-esc="Math.abs(t.delta_homologo.pct)"/>%
+                                        </t>
+                                        <t t-else="">sin comparable</t>
+                                    </span>
+                                    <span class="o_ags_detalle">
+                                        vs <t t-esc="state.datos.homologo_label"/>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Referencias: de donde arranco y a donde debe llegar -->
+                            <div t-if="t.baseline or t.objetivo" class="o_ags_kpi_refs mt-2">
+                                <span t-if="t.baseline">base <t t-esc="t.baseline"/></span>
+                                <span t-if="t.baseline and t.objetivo"> · </span>
+                                <span t-if="t.objetivo">meta <t t-esc="t.objetivo"/></span>
+                            </div>
+
+                            <div t-if="t.atipico" class="o_ags_aviso mt-2">
+                                <i class="fa fa-exclamation-triangle me-1"/>Periodo atipico
+                            </div>
+                            <div t-elif="t.madurez === 'con_reservas'" class="o_ags_aviso mt-2">
+                                <i class="fa fa-info-circle me-1"/>Dato con reservas
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- SERIE DEL INDICADOR
+                     Se abre bajo demanda desde cualquier tarjeta. La banda del
+                     benchmark va de fondo: la pregunta no es cuanto vale el
+                     objetivo, sino si la serie vive dentro o fuera de el. -->
+                <div t-if="serieActual and serieEnEje(g)" class="o_ags_serie o_ags_tarjeta mb-4 p-3">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div>
+                            <span class="fw-semibold" t-esc="serieActual.nombre"/>
+                            <span class="o_ags_detalle ms-2">
+                                ultimos <t t-esc="serieActual.n_puntos"/> periodos
+                            </span>
+                        </div>
+                        <button class="btn btn-sm btn-link p-0"
+                                t-on-click="() => state.serieAbierta = false">Cerrar</button>
+                    </div>
+
+                    <t t-set="geo" t-value="geometriaSerie(serieActual)"/>
+                    <div t-if="!geo" class="o_ags_detalle">Sin mediciones en el rango.</div>
+                    <div t-else="">
+                        <svg class="o_ags_grafico" t-att-viewBox="'0 0 ' + geo.ancho + ' ' + geo.alto"
+                             preserveAspectRatio="none" role="img">
+                            <rect t-if="geo.zonaTolerable" x="0" t-att-y="geo.zonaTolerable.y"
+                                  t-att-width="geo.ancho" t-att-height="geo.zonaTolerable.alto"
+                                  class="o_ags_zona_tolerable"/>
+                            <rect t-if="geo.zonaBuena" x="0" t-att-y="geo.zonaBuena.y"
+                                  t-att-width="geo.ancho" t-att-height="geo.zonaBuena.alto"
+                                  class="o_ags_zona_buena"/>
+                            <line t-if="geo.yObjetivo" x1="0" t-att-y1="geo.yObjetivo"
+                                  t-att-x2="geo.ancho" t-att-y2="geo.yObjetivo"
+                                  class="o_ags_linea_objetivo"/>
+                            <line t-if="geo.yBaseline" x1="0" t-att-y1="geo.yBaseline"
+                                  t-att-x2="geo.ancho" t-att-y2="geo.yBaseline"
+                                  class="o_ags_linea_baseline"/>
+                            <polyline t-att-points="geo.linea" class="o_ags_linea_serie"/>
+                            <circle t-foreach="geo.marcas" t-as="m" t-key="m_index"
+                                    t-att-cx="m.cx" t-att-cy="m.cy" r="3"
+                                    t-att-class="claseMarca(m)">
+                                <title><t t-esc="m.label"/>: <t t-esc="m.texto"/></title>
+                            </circle>
+                        </svg>
+                        <div class="d-flex justify-content-between o_ags_detalle mt-1">
+                            <span t-esc="geo.primerLabel"/>
+                            <span class="o_ags_leyenda">
+                                <span t-if="serieActual.banda.hay_dato">
+                                    <span class="o_ags_muestra o_ags_muestra_buena"/> dentro de objetivo
+                                    (<t t-esc="serieActual.banda.objetivo_texto"/>)
+                                </span>
+                                <span t-if="serieActual.baseline.hay_dato" class="ms-3">
+                                    <span class="o_ags_muestra o_ags_muestra_baseline"/> baseline
+                                    (<t t-esc="serieActual.baseline.texto"/>)
+                                </span>
+                            </span>
+                            <span t-esc="geo.ultimoLabel"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- ZONA 4 · BLOQUES COMPARATIVOS
+                 Las dos preguntas que importan, una al lado de la otra:
+                 mejore respecto a donde arranque (delta vs baseline) y donde
+                 estoy frente al mercado (delta vs objetivo). Un solo numero
+                 no responde ninguna de las dos. -->
+            <div t-if="state.datos.bloques.length" class="mb-4">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="o_ags_titulo_zona">Comparativo por eje</span>
+                    <span t-if="state.datos.hay_filtro" class="o_ags_sello">
+                        <i class="fa fa-globe me-1"/>Toda la empresa
+                    </span>
+                </div>
+
+                <div t-foreach="state.datos.bloques" t-as="b" t-key="b.eje"
+                     class="o_ags_bloque mb-2">
+                    <div class="o_ags_bloque_cabecera d-flex align-items-center gap-2 px-3 py-2"
+                         t-on-click="() => this.alternarBloque(b.eje)">
+                        <i class="fa" t-att-class="estaAbierto(b.eje) ? 'fa-caret-down' : 'fa-caret-right'"/>
+                        <span class="fw-semibold" t-esc="b.nombre"/>
+                        <span t-if="b.n_rojos" class="badge text-bg-danger" t-esc="b.n_rojos"/>
+                        <span t-if="b.n_sin_evidencia"
+                              class="badge o_ags_badge_sin_evidencia ms-1"
+                              t-esc="b.n_sin_evidencia"/>
+                        <span class="o_ags_detalle ms-auto">
+                            <t t-esc="b.filas.length"/> indicadores
+                        </span>
+                    </div>
+
+                    <div t-if="filasVisibles(b).length" class="table-responsive">
+                        <table class="table table-sm mb-0 o_ags_comparativo">
+                            <thead>
+                                <tr>
+                                    <th>Indicador</th>
+                                    <th class="text-end">Actual</th>
+                                    <th class="text-end">Baseline</th>
+                                    <th class="text-end">Objetivo</th>
+                                    <th class="text-end">Δ baseline</th>
+                                    <th class="text-end">Δ objetivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="filasVisibles(b)" t-as="f" t-key="f.codigo"
+                                    t-on-click="() => this.abrirParametro(f)">
+                                    <t t-set="c" t-value="celda(f)"/>
+                                    <t t-set="sello" t-value="selloConfiabilidad(f)"/>
+                                    <td>
+                                        <span class="o_ags_punto"
+                                              t-att-class="'o_ags_punto_' + c.semaforo"/>
+                                        <t t-esc="f.nombre"/>
+                                        <button class="btn btn-sm btn-link p-0 ms-2 o_ags_btn_origen"
+                                                t-on-click.stop="() => this.alternarDesglose(f.codigo)"
+                                                title="De donde sale este numero">
+                                            <i class="fa fa-sitemap"/>
+                                        </button>
+                                        <span t-if="f.atipico" class="o_ags_sello ms-1">atipico</span>
+                                        <span t-elif="f.madurez === 'con_reservas'"
+                                              class="o_ags_sello ms-1">con reservas</span>
+                                        <span t-if="f.tiene_ajuste" class="o_ags_sello o_ags_sello_ajuste ms-1"
+                                              t-att-title="motivoAjuste(f)">ajustado</span>
+                                        <span t-if="sello" class="o_ags_sello ms-1"
+                                              t-att-class="sello.clase"
+                                              t-att-title="sello.titulo"
+                                              t-on-click.stop="() => this.verHallazgos(f)"
+                                              t-esc="sello.texto"/>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="fw-semibold"
+                                             t-att-class="{ 'o_ags_invalidado': f.confiabilidad === 'invalidado' }"
+                                             t-esc="c.valor"/>
+                                        <div t-if="sello" class="o_ags_detalle o_ags_motivo"
+                                             t-esc="f.confiabilidad_detalle"/>
+                                        <div t-if="c.alterno" class="o_ags_detalle">
+                                            <t t-esc="c.alternoEtiqueta"/>: <t t-esc="c.alterno"/>
+                                        </div>
+                                    </td>
+                                    <td class="text-end o_ags_detalle">
+                                        <t t-if="f.baseline" t-esc="f.baseline"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end o_ags_detalle">
+                                        <t t-if="f.objetivo" t-esc="f.objetivo"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end" t-att-class="claseDelta(c.deltaBaseline)">
+                                        <t t-if="c.deltaBaseline.hay_dato" t-esc="c.deltaBaseline.texto"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                    <td class="text-end" t-att-class="claseDelta(c.deltaObjetivo)">
+                                        <t t-if="c.deltaObjetivo.hay_dato" t-esc="c.deltaObjetivo.texto"/>
+                                        <t t-else="">—</t>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div t-elif="!estaAbierto(b.eje)" class="o_ags_detalle px-3 pb-2">
+                        Sin indicadores fuera de rango en este eje.
+                    </div>
+
+                    <!-- DESGLOSE DEL CALCULO
+                         La trazabilidad que pidio el auditor: cada pieza con
+                         sus cuentas, y de ahi a los apuntes que la forman. -->
+                    <div t-if="desgloseActual and desgloseActual.hay_dato and b.filas.some(f => f.codigo === state.desgloseAbierto)"
+                         class="o_ags_desglose px-3 py-3">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div>
+                                <span class="fw-semibold" t-esc="desgloseActual.nombre"/>
+                                <span class="o_ags_detalle ms-2">
+                                    valor calculado: <t t-esc="desgloseActual.valor"/>
+                                </span>
+                            </div>
+                            <button class="btn btn-sm btn-link p-0"
+                                    t-on-click="() => state.desgloseAbierto = false">Cerrar</button>
+                        </div>
+
+                        <div t-if="desgloseActual.metodo" class="o_ags_detalle mb-2"
+                             t-esc="desgloseActual.metodo"/>
+
+                        <div t-if="!desgloseActual.componentes.length" class="o_ags_aviso">
+                            <i class="fa fa-info-circle me-1"/>
+                            Este periodo se calculo antes de activarse la trazabilidad.
+                            Al recalcular el periodo, el desglose queda registrado.
+                        </div>
+
+                        <table t-else="" class="table table-sm mb-0 o_ags_comparativo">
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th>Cuentas</th>
+                                    <th>Hasta</th>
+                                    <th class="text-end">Valor</th>
+                                    <th class="text-end">Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="desgloseActual.componentes" t-as="c" t-key="c.id">
+                                    <td>
+                                        <t t-esc="c.rol"/>
+                                        <div t-if="c.notas" class="o_ags_detalle" t-esc="c.notas"/>
+                                    </td>
+                                    <td class="o_ags_detalle o_ags_cuentas"
+                                        t-att-title="c.cuentas_detalle"
+                                        t-esc="c.cuentas"/>
+                                    <td class="o_ags_detalle" t-esc="c.hasta"/>
+                                    <td class="text-end fw-semibold" t-esc="c.valor"/>
+                                    <td class="text-end">
+                                        <button t-if="c.tiene_origen"
+                                                class="btn btn-sm btn-link p-0"
+                                                t-on-click="() => this.abrirOrigen(c)">
+                                            Ver apuntes
+                                        </button>
+                                        <span t-else="" class="o_ags_detalle">derivado</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </Layout>
+</t>
+
+</templates>
