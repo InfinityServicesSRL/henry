@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "AG Intelligence",
-    "version": "18.0.8.8.1",
+    "version": "18.0.8.8.2",
     "category": "Productivity",
     "summary": "Analisis financiero, proyeccion de demanda e inteligencia comercial para AG Supply",
     "description": """
