@@ -37,7 +37,14 @@ TENDENCIAS = [
     ("estable", "► Estable"),
     ("baja", "▼ Deterioro"),
     ("baja_fuerte", "▼▼ Deterioro grave"),
-    ("divergente", "⚠ Divergente"),
+    # Las dos señales se contradicen. No es un diagnóstico, es un caso que
+    # pide mirada humana — y se parte en dos porque «repunta después de caer»
+    # y «se enfría después de subir» piden acciones opuestas.
+    ("divergente_sube", "⚠▲ Repunte a revisar"),
+    ("divergente_baja", "⚠▼ Enfriamiento a revisar"),
+    # Valor anterior a la división. El cálculo ya no lo produce; sobrevive en
+    # los cortes mensuales que se guardaron antes del cambio.
+    ("divergente", "⚠ Divergente (histórico)"),
     ("sin_historia", "· Sin historia"),
 ]
 # Tramos de recencia. `ag_dias_sin_comprar` es un entero suelto: agrupar un
@@ -62,18 +69,45 @@ class ResPartner(models.Model):
     # Evaluación
     # ------------------------------------------------------------------
     ag_desemp_score = fields.Float("Score", digits=(16, 1), readonly=True, index=True)
-    ag_desemp_grado = fields.Selection(GRADOS, "Grado", readonly=True, index=True)
+    ag_desemp_grado = fields.Selection(
+        GRADOS, "Grado", readonly=True, index=True,
+        help="Posición del cliente dentro de SU segmento, no contra toda la "
+             "cartera: un almacenista se compara contra almacenistas. "
+             "A = lo mejor del grupo · B = sólido · C = el centro · "
+             "D = la cola. No es una nota escolar: siempre habrá clientes en "
+             "cada letra, aunque la cartera entera mejore.")
+    ag_grado_lectura = fields.Text(
+        "Lectura del grado", readonly=True,
+        help="Qué significa la letra para este cliente en concreto: contra "
+             "quién se comparó, qué eje lo sostiene y cuál lo arrastra.")
     ag_desemp_tendencia = fields.Selection(TENDENCIAS, "Tendencia", readonly=True)
     ag_desemp_fecha = fields.Datetime("Último cálculo", readonly=True)
     ag_desemp_evaluable = fields.Boolean(
         "Evaluable", readonly=True,
         help="Cliente comercial con historia suficiente para recibir grado.")
 
-    ag_sc_valor = fields.Float("Sub-score valor", digits=(16, 1), readonly=True)
-    ag_sc_rentabilidad = fields.Float("Sub-score rentabilidad", digits=(16, 1), readonly=True)
-    ag_sc_pago = fields.Float("Sub-score pago", digits=(16, 1), readonly=True)
-    ag_sc_consistencia = fields.Float("Sub-score consistencia", digits=(16, 1), readonly=True)
-    ag_sc_operativo = fields.Float("Sub-score operativo", digits=(16, 1), readonly=True)
+    _AYUDA_SUBSCORE = (
+        "Percentil dentro de su segmento, de 0 a 100 — no una nota absoluta. "
+        "50 significa que está justo en el medio de sus pares. El peso de "
+        "este eje en el score se configura en Desempeño → Configuración."
+    )
+    ag_sc_valor = fields.Float(
+        "Valor", digits=(16, 1), readonly=True,
+        help="Cuánto factura contra sus pares. " + _AYUDA_SUBSCORE)
+    ag_sc_rentabilidad = fields.Float(
+        "Rentabilidad", digits=(16, 1), readonly=True,
+        help="Margen porcentual contra sus pares. " + _AYUDA_SUBSCORE)
+    ag_sc_pago = fields.Float(
+        "Pago", digits=(16, 1), readonly=True,
+        help="Mezcla de desviación contra los días pactados, porcentaje de "
+             "facturas a tiempo y saldo vencido. " + _AYUDA_SUBSCORE)
+    ag_sc_consistencia = fields.Float(
+        "Consistencia", digits=(16, 1), readonly=True,
+        help="Meses activos, regularidad de la compra y recencia. Premia al "
+             "cliente predecible. " + _AYUDA_SUBSCORE)
+    ag_sc_operativo = fields.Float(
+        "Calidad operativa", digits=(16, 1), readonly=True,
+        help="Devoluciones y entregas completas. " + _AYUDA_SUBSCORE)
 
     # ------------------------------------------------------------------
     # Compras
@@ -730,7 +764,7 @@ class ResPartner(models.Model):
         rápido. Dirección es la pendiente de la regresión sobre la ventana
         completa, normalizada contra el promedio mensual — dice hacia dónde va
         la relación entera. Cuando ambas discrepan, el caso merece mirada
-        humana, y por eso existe el estado 'divergente'.
+        humana, y por eso existen los dos estados 'divergente_*'.
         """
         reciente, anterior = self._ag_bloques(serie, n)
         velocidad = ((reciente - anterior) / anterior * 100.0) if anterior else (
@@ -856,6 +890,19 @@ class ResPartner(models.Model):
                     + sc_oper * cfg.peso_operativo
                 ) / 100.0
 
+                grado = self._ag_grado(score, cfg)
+                # Contra quién se comparó de verdad. Importa decirlo: si el
+                # segmento tenía menos de cinco, el percentil salió de la
+                # cartera completa y la letra significa otra cosa.
+                contra = (segmento if len(miembros) >= 5
+                          and segmento != "__sin_segmento__"
+                          else "toda la cartera")
+                subs = [("Rentabilidad", sc_rent, cfg.peso_rentabilidad),
+                        ("Pago", sc_pago, cfg.peso_pago),
+                        ("Valor", sc_valor, cfg.peso_valor),
+                        ("Consistencia", sc_cons, cfg.peso_consistencia),
+                        ("Calidad operativa", sc_oper, cfg.peso_operativo)]
+
                 p.write({
                     "ag_sc_valor": sc_valor,
                     "ag_sc_rentabilidad": sc_rent,
@@ -863,7 +910,8 @@ class ResPartner(models.Model):
                     "ag_sc_consistencia": sc_cons,
                     "ag_sc_operativo": sc_oper,
                     "ag_desemp_score": score,
-                    "ag_desemp_grado": self._ag_grado(score, cfg),
+                    "ag_desemp_grado": grado,
+                    "ag_grado_lectura": self._ag_lectura_grado(grado, subs, contra),
                     "ag_desemp_tendencia": self._ag_clasificar_tendencia(p, cfg),
                 })
 
@@ -871,8 +919,45 @@ class ResPartner(models.Model):
             p.write({
                 "ag_desemp_score": 0.0,
                 "ag_desemp_grado": "nuevo",
+                "ag_grado_lectura": self._ag_lectura_grado("nuevo", [], ""),
                 "ag_desemp_tendencia": self._ag_clasificar_tendencia(p, cfg),
             })
+
+    @staticmethod
+    def _ag_lectura_grado(grado, subs, contra):
+        """Traduce la letra a algo que se lee sin manual.
+
+        Dos líneas: qué significa la letra para este cliente y contra quién se
+        midió, y el desglose de los cinco ejes con su peso vivo. El peso sale
+        de la configuración y no de un texto fijo: si mañana cambian los pesos,
+        esta frase cambia sola y no queda mintiendo.
+        """
+        QUE_ES = {
+            "a": "Lo mejor de su grupo",
+            "b": "Sólido dentro de su grupo",
+            "c": "En el centro de su grupo",
+            "d": "En la cola de su grupo",
+        }
+        if grado == "nuevo" or grado not in QUE_ES:
+            return ("Sin grado todavía: no acumula los meses de compra que "
+                    "exige la configuración. Las cifras de arriba sí son reales.")
+
+        partes = ["%s. Se compara contra %s." % (QUE_ES[grado], contra)]
+
+        # El eje que sostiene y el que arrastra se miden por lo que APORTAN al
+        # score, no por el percentil suelto: un 90 que pesa 10% mueve menos
+        # que un 40 que pesa 25%.
+        activos = [e for e in subs if e[2]]
+        if len(activos) > 1:
+            mejor = max(activos, key=lambda e: e[1] * e[2])
+            peor = min(activos, key=lambda e: e[1] * e[2])
+            partes.append("Lo sostiene %s (%.0f); lo arrastra %s (%.0f)."
+                          % (mejor[0].lower(), mejor[1],
+                             peor[0].lower(), peor[1]))
+
+        linea = " ".join(partes)
+        desglose = " · ".join("%s %.0f×%d%%" % (n, v, w) for n, v, w in activos)
+        return "%s\n%s" % (linea, desglose) if desglose else linea
 
     @staticmethod
     def _ag_grado(score, cfg):
@@ -920,7 +1005,12 @@ class ResPartner(models.Model):
             return "subida"
         if vel < 0 and direc < 0:
             return "baja"
-        return "divergente"
+        # Llegar aquí significa que velocidad y dirección no coinciden. Manda
+        # la velocidad, que es lo que el vendedor siente en la calle; si está
+        # plana, decide la dirección.
+        if vel > 0 or (vel == 0 and direc > 0):
+            return "divergente_sube"
+        return "divergente_baja"
 
     # ------------------------------------------------------------------
     # Alertas

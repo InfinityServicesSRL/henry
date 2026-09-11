@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from odoo import api, fields, models
 
+from .res_partner import GRADOS, TENDENCIAS
+
 
 class AgDesempenoSnapshot(models.Model):
     """Foto mensual del desempeño de un cliente.
@@ -41,15 +43,11 @@ class AgDesempenoSnapshot(models.Model):
     # --- evaluación al corte ---
     score = fields.Float(string="Score", digits=(16, 1))
     grado = fields.Selection(
-        [("a", "A"), ("b", "B"), ("c", "C"), ("d", "D"), ("nuevo", "Nuevo")],
-        string="Grado")
+        GRADOS, string="Grado")
+    # Las listas vienen de res_partner: duplicarlas aquí ya hizo que un
+    # estado nuevo no apareciera en el histórico.
     tendencia = fields.Selection(
-        [("subida_fuerte", "▲▲ Crecimiento fuerte"),
-         ("subida", "▲ Mejora"),
-         ("estable", "► Estable"),
-         ("baja", "▼ Deterioro"),
-         ("baja_fuerte", "▼▼ Deterioro grave"),
-         ("divergente", "⚠ Divergente")],
+        TENDENCIAS,
         string="Tendencia")
     cxc_total = fields.Monetary(string="CxC al corte", currency_field="currency_id")
     cxc_vencido = fields.Monetary(string="Vencido al corte", currency_field="currency_id")
