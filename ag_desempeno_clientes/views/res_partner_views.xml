@@ -56,6 +56,33 @@
             </group>
           </group>
 
+          <!--
+            La letra sola no dice nada, y el que la lee no tiene el manual a
+            mano. Esto va pegado a ella: qué significa para ESTE cliente,
+            contra quién se midió, qué eje lo sostiene y cuál lo arrastra.
+            El texto lo arma el recálculo con los pesos vivos de la
+            configuración, así que no envejece cuando alguien los cambia.
+          -->
+          <div class="alert alert-light border" role="status"
+               invisible="not ag_grado_lectura">
+            <field name="ag_grado_lectura" readonly="1" nolabel="1"/>
+          </div>
+
+          <separator string="Los cinco ejes del score"/>
+          <group col="5">
+            <field name="ag_sc_rentabilidad"/>
+            <field name="ag_sc_pago"/>
+            <field name="ag_sc_valor"/>
+            <field name="ag_sc_consistencia"/>
+            <field name="ag_sc_operativo"/>
+          </group>
+          <div class="text-muted">
+            Cada eje es el percentil del cliente dentro de su segmento, de 0 a
+            100 — no una nota absoluta. 50 es el medio exacto de sus pares. Un
+            almacenista se compara contra almacenistas, no contra un hotel.
+            Los pesos se ajustan en Desempeño → Configuración.
+          </div>
+
           <group>
             <group string="Potencial y captura">
               <field name="ag_venta_mensual"/>
@@ -171,20 +198,6 @@
             <field name="ag_perfil_uid" readonly="1"/>
             <field name="ag_perfil_fecha" readonly="1"/>
           </group>
-
-          <separator string="Composición del score"/>
-          <group col="5">
-            <field name="ag_sc_valor"/>
-            <field name="ag_sc_rentabilidad"/>
-            <field name="ag_sc_pago"/>
-            <field name="ag_sc_consistencia"/>
-            <field name="ag_sc_operativo"/>
-          </group>
-          <div class="text-muted">
-            Cada sub-score es el percentil del cliente dentro de su segmento,
-            no una nota absoluta: un almacenista se compara contra
-            almacenistas, no contra un hotel.
-          </div>
 
           <field name="ag_serie_json" invisible="1"/>
           <field name="ag_snapshot_count" invisible="1"/>
