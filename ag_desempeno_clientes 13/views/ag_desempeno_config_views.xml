@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- Definida antes que la vista porque el botón del header la referencia. -->
+  <record id="action_recalcular_todo" model="ir.actions.server">
+    <field name="name">Recalcular toda la cartera</field>
+    <field name="model_id" ref="base.model_res_partner"/>
+    <field name="state">code</field>
+    <field name="code">
+model._cron_recalcular_desempeno()
+action = {
+    'type': 'ir.actions.client',
+    'tag': 'display_notification',
+    'params': {
+        'title': 'Cartera recalculada',
+        'message': 'El desempeño de todos los clientes quedó actualizado.',
+        'type': 'success',
+        'next': {'type': 'ir.actions.act_window_close'},
+    },
+}
+    </field>
+  </record>
+
+  <record id="view_ag_desempeno_config_form" model="ir.ui.view">
+    <field name="name">ag.desempeno.config.form</field>
+    <field name="model">ag.desempeno.config</field>
+    <field name="arch" type="xml">
+      <form string="Configuración de desempeño">
+        <header>
+          <button name="%(ag_desempeno_clientes.action_recalcular_todo)d"
+                  type="action" string="Recalcular toda la cartera"
+                  class="btn-primary" icon="fa-refresh"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="display_name" readonly="1"/></h1>
+          </div>
+
+          <group>
+            <group string="Ventana de evaluación">
+              <field name="meses_ventana"/>
+              <field name="meses_tendencia_corta"/>
+              <field name="minimo_meses_para_score"/>
+            </group>
+            <group string="Compañía">
+              <field name="company_id"/>
+              <field name="nombre_publico"
+                     placeholder="Se calcula solo desde el nombre de la compañía"/>
+              <field name="active"/>
+            </group>
+          </group>
+
+          <notebook>
+            <page string="Pesos del score" name="pesos">
+              <div class="alert alert-info" role="status">
+                Los cinco pesos deben sumar 100. Subir uno obliga a bajar otro:
+                así el score sigue siendo comparable entre corridas.
+              </div>
+              <group>
+                <group>
+                  <field name="peso_valor"/>
+                  <field name="peso_rentabilidad"/>
+                  <field name="peso_pago"/>
+                  <field name="peso_consistencia"/>
+                  <field name="peso_operativo"/>
+                </group>
+                <group>
+                  <field name="peso_total" readonly="1"
+                         decoration-danger="peso_total != 100"
+                         decoration-success="peso_total == 100"/>
+                </group>
+              </group>
+              <separator string="Cortes de grado"/>
+              <group col="4">
+                <field name="corte_a"/>
+                <field name="corte_b"/>
+                <field name="corte_c"/>
+              </group>
+            </page>
+
+            <page string="Umbrales de alertas" name="alertas">
+              <group>
+                <group string="Actividad">
+                  <field name="dias_dormido"/>
+                  <field name="dias_dormido_critico"/>
+                  <field name="caida_deterioro"/>
+                  <field name="caida_deterioro_grave"/>
+                </group>
+                <group string="Pago y crédito">
+                  <field name="dias_pago_estirado"/>
+                  <field name="uso_credito_alerta"/>
+                  <field name="dias_vencido_critico"/>
+                </group>
+              </group>
+              <group>
+                <group string="Rentabilidad">
+                  <field name="margen_minimo"/>
+                  <field name="margen_sospechoso"/>
+                </group>
+                <group string="Operación">
+                  <field name="dias_backlog_estancado"/>
+                  <field name="dias_sin_facturar"/>
+                  <field name="concentracion_alerta"/>
+                </group>
+              </group>
+              <div class="alert alert-warning" role="status">
+                <b>Margen sospechoso:</b> por encima de ese porcentaje la cifra
+                casi siempre indica costo mal cargado y no rentabilidad real.
+                El módulo levanta una alerta de revisión de costeo y limita el
+                margen a ese tope al puntuar, para no coronar como cliente A a
+                quien sólo tiene un error de costo.
+              </div>
+            </page>
+
+            <page string="Distribución" name="distribucion">
+              <group>
+                <group>
+                  <field name="dias_validez_enlace"/>
+                  <field name="base_url_publica" placeholder="https://odoo.agsupply.com.do"/>
+                </group>
+              </group>
+              <div class="alert alert-info" role="status">
+                El enlace del estado de cuenta caduca a los días indicados. Un
+                enlace se reenvía por WhatsApp y queda circulando fuera de
+                control: la caducidad es la única forma de cerrarlo.
+              </div>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!--
+    Acción de servidor y no act_window: un act_window sobre un formulario sin
+    res_id abre un registro NUEVO cada vez. El usuario nunca veía la
+    calibración guardada y al guardar creaba una segunda configuración para la
+    misma compañía. action_abrir() resuelve el registro real (y lo crea la
+    primera vez) antes de abrir el formulario.
+
+    Lleva xml_id nuevo a propósito: el id viejo ya existía en la base como
+    ir.actions.act_window y Odoo no puede cambiarle el modelo a un registro
+    existente — la actualización moría con un ParseError. Con un id nuevo el
+    viejo queda huérfano y Odoo lo borra solo al actualizar.
+  -->
+  <record id="action_ag_desempeno_config_abrir" model="ir.actions.server">
+    <field name="name">Configuración</field>
+    <field name="model_id" ref="model_ag_desempeno_config"/>
+    <field name="state">code</field>
+    <field name="code">action = model.action_abrir()</field>
+  </record>
+
+</odoo>

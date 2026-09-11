@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data noupdate="1">
+
+    <!--
+      Configuración inicial. noupdate="1" para que actualizar el módulo no
+      pise los pesos que la gerencia haya calibrado.
+    -->
+    <record id="config_default" model="ag.desempeno.config">
+      <field name="company_id" ref="base.main_company"/>
+      <field name="meses_ventana">12</field>
+      <field name="meses_tendencia_corta">3</field>
+      <field name="minimo_meses_para_score">3</field>
+      <field name="peso_valor">20</field>
+      <field name="peso_rentabilidad">25</field>
+      <field name="peso_pago">25</field>
+      <field name="peso_consistencia">20</field>
+      <field name="peso_operativo">10</field>
+      <field name="corte_a">80</field>
+      <field name="corte_b">65</field>
+      <field name="corte_c">45</field>
+      <field name="dias_dormido">60</field>
+      <field name="dias_dormido_critico">90</field>
+      <field name="caida_deterioro">20.0</field>
+      <field name="caida_deterioro_grave">40.0</field>
+      <field name="dias_pago_estirado">10</field>
+      <field name="margen_minimo">10.0</field>
+      <field name="uso_credito_alerta">85.0</field>
+      <field name="dias_backlog_estancado">15</field>
+      <field name="dias_sin_facturar">7</field>
+      <field name="dias_vencido_critico">60</field>
+      <field name="concentracion_alerta">8.0</field>
+      <field name="margen_sospechoso">70.0</field>
+      <field name="dias_validez_enlace">30</field>
+    </record>
+
+  </data>
+</odoo>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_ag_envio_reporte_form" model="ir.ui.view">
+    <field name="name">ag.envio.reporte.form</field>
+    <field name="model">ag.envio.reporte</field>
+    <field name="arch" type="xml">
+      <form string="Enviar reporte">
+        <group>
+          <field name="partner_ids" widget="many2many_tags" options="{'no_create': True}"/>
+          <field name="partner_count" invisible="1"/>
+          <field name="tipo"/>
+          <field name="canal"/>
+          <field name="destinatario"/>
+          <field name="correo_manual" invisible="destinatario != 'manual'"
+                 required="destinatario == 'manual'"/>
+          <field name="adjuntar_pdf" invisible="canal in ('whatsapp', 'descargar')"/>
+        </group>
+
+        <div class="alert alert-danger" role="alert" invisible="not aviso_interno">
+          <field name="aviso_interno" invisible="1"/>
+          <b>La ficha de desempeño y la cartera son documentos internos.</b>
+          Llevan el grado del cliente y su posición frente a otros. Al cliente
+          sólo se le envía el estado de cuenta: hechos, no calificaciones.
+        </div>
+
+        <div class="alert alert-warning" role="status" invisible="sin_destino_count == 0">
+          <b><field name="sin_destino_count" readonly="1" nolabel="1"/> cliente(s)
+          sin contacto registrado</b> para este destinatario y quedarán fuera del envío:
+          <field name="sin_destino_nombres" readonly="1" nolabel="1"/>
+          <div class="mt-1">
+            Complete el correo o el WhatsApp en la ficha del cliente para incluirlos.
+          </div>
+        </div>
+
+        <div class="alert alert-info" role="status" invisible="canal not in ('whatsapp', 'ambos')">
+          Por WhatsApp se envía un <b>enlace</b>, no un adjunto: se abre WhatsApp
+          con el mensaje ya redactado y el enlace del estado de cuenta dentro.
+          El enlace caduca según la configuración. Se envía de a un cliente por vez.
+        </div>
+
+        <group string="Personalizar el mensaje" name="mensaje">
+          <field name="asunto" placeholder="Se genera solo si lo deja vacío"
+                 invisible="canal in ('whatsapp', 'descargar')"/>
+          <field name="mensaje" placeholder="Se genera solo si lo deja vacío"
+                 invisible="canal in ('whatsapp', 'descargar')"/>
+        </group>
+
+        <footer>
+          <button name="action_enviar" type="object" string="Enviar"
+                  class="btn-primary" invisible="canal == 'descargar'"/>
+          <button name="action_previsualizar" type="object" string="Previsualizar"
+                  class="btn-secondary"/>
+          <button name="action_descargar" type="object" string="Descargar PDF"
+                  class="btn-secondary"/>
+          <button string="Cancelar" class="btn-link" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_ag_envio_reporte" model="ir.actions.act_window">
+    <field name="name">Enviar reporte de desempeño</field>
+    <field name="res_model">ag.envio.reporte</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+    <field name="binding_model_id" ref="base.model_res_partner"/>
+    <field name="binding_view_types">list,form</field>
+  </record>
+
+</odoo>

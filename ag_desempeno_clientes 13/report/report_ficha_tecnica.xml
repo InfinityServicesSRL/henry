@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!--
+    Ficha técnica. Este documento SÍ sale de la casa, así que aquí no entra
+    nada de costeo: ni comisión de venta, ni margen mínimo, ni suplidor, ni
+    punto de reorden, ni días en llegar. Son campos que existen en el producto
+    y que el cliente no tiene por qué ver.
+
+    Las filas se imprimen sólo si tienen dato. Una tabla con «Gramaje: 0» es
+    peor que una tabla sin la fila: dice un número falso en vez de callar.
+  -->
+  <template id="report_ag_ficha_tecnica_doc">
+    <t t-call="web.external_layout">
+      <t t-call="ag_desempeno_clientes.ag_report_estilos"/>
+      <div class="page ag membrete">
+
+        <div class="mast">
+          <div class="right">
+            <t t-if="doc.default_code">Código <t t-esc="doc.default_code"/></t>
+            <t t-if="doc.ag_referencia"><br/>Ref. <t t-esc="doc.ag_referencia"/></t>
+          </div>
+          <h1>Ficha técnica</h1>
+          <div class="sub"><t t-esc="doc.name"/></div>
+          <div class="clear"/>
+        </div>
+
+        <div style="margin-top:6px">
+          <span t-if="doc.ag_marca" class="chip chip-key"><t t-esc="doc.ag_marca.name"/></span>
+          <span t-if="doc.ag_categoria" class="chip"><t t-esc="doc.ag_categoria.name"/></span>
+          <span t-if="doc.ag_tipo_de_papel" class="chip"><t t-esc="doc.ag_tipo_de_papel"/></span>
+          <span t-if="doc.ag_color" class="chip"><t t-esc="doc.ag_color"/></span>
+        </div>
+
+        <!-- Foto a la izquierda, especificación a la derecha -->
+        <div style="margin-top:14px">
+          <div class="col-l" t-if="doc.image_1920">
+            <img t-att-src="image_data_uri(doc.image_1920)"
+                 style="width:100%; border:1px solid #e3e0d6"/>
+          </div>
+
+          <div t-attf-class="#{'col-r' if doc.image_1920 else ''}">
+            <div class="sec">Especificación</div>
+            <table class="data">
+              <tbody>
+                <tr t-if="doc.ag_tipo_de_papel">
+                  <td>Tipo de papel</td>
+                  <td class="num"><t t-esc="doc.ag_tipo_de_papel"/></td>
+                </tr>
+                <tr t-if="doc.ag_n_de_capas">
+                  <td>N° de capas</td>
+                  <td class="num"><t t-esc="doc.ag_n_de_capas"/></td>
+                </tr>
+                <tr t-if="doc.ag_gramaje">
+                  <td>Gramaje</td>
+                  <td class="num"><t t-esc="'%g' % doc.ag_gramaje"/> g/m²</td>
+                </tr>
+                <!-- El mismo campo guarda hoja y rollo; el modelo decide
+                     cómo se llama y en qué unidad se lee. -->
+                <t t-set="med" t-value="doc._ag_medida()"/>
+                <tr t-if="med">
+                  <td><t t-esc="med['etiqueta']"/></td>
+                  <td class="num"><t t-esc="med['valor']"/></td>
+                </tr>
+                <tr t-if="doc.ag_cantidad_de_hojas">
+                  <td>Hojas por fardo</td>
+                  <td class="num"><t t-esc="'{:,}'.format(doc.ag_cantidad_de_hojas)"/></td>
+                </tr>
+                <tr t-if="doc.ag_doblez">
+                  <td>Doblez</td>
+                  <td class="num"><t t-esc="doc.ag_doblez"/></td>
+                </tr>
+                <tr t-if="doc.ag_acabado">
+                  <td>Acabado</td>
+                  <td class="num"><t t-esc="doc.ag_acabado"/></td>
+                </tr>
+                <tr t-if="doc.ag_color">
+                  <td>Color</td>
+                  <td class="num"><t t-esc="doc.ag_color"/></td>
+                </tr>
+                <tr t-if="doc.ag_materia_prima_utilizada">
+                  <td>Materia prima</td>
+                  <td class="num"><t t-esc="doc.ag_materia_prima_utilizada"/></td>
+                </tr>
+                <tr t-if="doc.ag_sqf">
+                  <td>Superficie por unidad</td>
+                  <td class="num"><t t-esc="'%g' % doc.ag_sqf"/> sq ft</td>
+                </tr>
+                <tr t-if="doc.ag_tolerancia_peso or doc.ag_tolerancia_longitud">
+                  <td>Tolerancias</td>
+                  <td class="num">
+                    <t t-if="doc.ag_tolerancia_peso">peso ±<t t-esc="'%g' % doc.ag_tolerancia_peso"/>%</t>
+                    <t t-if="doc.ag_tolerancia_peso and doc.ag_tolerancia_longitud"> · </t>
+                    <t t-if="doc.ag_tolerancia_longitud">largo ±<t t-esc="'%g' % doc.ag_tolerancia_longitud"/>%</t>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="clear"/>
+        </div>
+
+        <!-- Presentación: lo que el comprador necesita para cotizar -->
+        <t t-set="hay_presentacion"
+           t-value="doc.ag_paquete or doc.ag_empaque_primario or doc.ag_empaque_secundario or doc.uom_id"/>
+        <div t-if="hay_presentacion">
+          <div class="sec">Presentación</div>
+          <table class="data">
+            <tbody>
+              <tr t-if="doc.ag_paquete">
+                <td>Unidades por fardo</td>
+                <td class="num"><t t-esc="'{:,}'.format(doc.ag_paquete)"/></td>
+              </tr>
+              <tr t-if="doc.ag_empaque_primario">
+                <td>Empaque primario</td>
+                <td class="num"><t t-esc="doc.ag_empaque_primario"/></td>
+              </tr>
+              <tr t-if="doc.ag_empaque_secundario">
+                <td>Empaque secundario</td>
+                <td class="num"><t t-esc="doc.ag_empaque_secundario"/></td>
+              </tr>
+              <tr t-if="doc.ag_dimensiones_fardo_caja">
+                <td>Dimensiones del fardo</td>
+                <td class="num"><t t-esc="doc.ag_dimensiones_fardo_caja"/></td>
+              </tr>
+              <tr t-if="doc.ag_peso_bruto_caja">
+                <td>Peso bruto del fardo</td>
+                <td class="num"><t t-esc="'%g' % doc.ag_peso_bruto_caja"/> kg</td>
+              </tr>
+              <tr t-if="doc.uom_id">
+                <td>Unidad de venta</td>
+                <td class="num"><t t-esc="doc.uom_id.name"/></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Paletizado: sólo aparece si alguien lo llenó -->
+        <t t-set="hay_palet"
+           t-value="doc.ag_fardos_cajas_por_estiba or doc.ag_estiba_por_palet or doc.ag_total_de_fardos_cajas_por_palet"/>
+        <div t-if="hay_palet">
+          <div class="sec">Paletizado</div>
+          <table class="data">
+            <tbody>
+              <tr t-if="doc.ag_fardos_cajas_por_estiba">
+                <td>Fardos por estiba</td>
+                <td class="num"><t t-esc="doc.ag_fardos_cajas_por_estiba"/></td>
+              </tr>
+              <tr t-if="doc.ag_estiba_por_palet">
+                <td>Estibas por palet</td>
+                <td class="num"><t t-esc="doc.ag_estiba_por_palet"/></td>
+              </tr>
+              <tr t-if="doc.ag_total_de_fardos_cajas_por_palet">
+                <td>Total de fardos por palet</td>
+                <td class="num"><t t-esc="doc.ag_total_de_fardos_cajas_por_palet"/></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="nota" t-if="doc.ag_aptitud_legal">
+          <b>Aptitud:</b> <t t-esc="doc.ag_aptitud_legal"/>
+        </div>
+
+        <!--
+          Bloque interno. `ficha_interna` lo fija la plantilla contenedora:
+          la del cliente lo pone en False siempre, así que este bloque no
+          puede colarse en un documento que sale de la casa.
+        -->
+        <div t-if="ficha_interna and doc.ag_ficha_faltantes"
+             class="alert a-warn" style="margin-top:14px">
+          <b>Copia interna — falta por completar</b>
+          <p><t t-esc="doc.ag_ficha_faltantes"/></p>
+          <p t-if="doc.ag_ficha_alerta"><b>Revisar:</b> <t t-esc="doc.ag_ficha_alerta"/></p>
+        </div>
+
+        <div class="foot">
+          <t t-esc="doc.company_id.ag_nombre_publico or res_company.ag_nombre_publico"/> ·
+          Calle Las Palomas #60, Santiago, República Dominicana · (809) 612-2020
+          · Ficha generada el <t t-esc="hoy.strftime('%d/%m/%Y')"/>.
+          Las especificaciones pueden variar dentro de las tolerancias indicadas.
+        </div>
+      </div>
+    </t>
+  </template>
+
+  <!-- La que sale de la casa: sin bloque interno, siempre. -->
+  <template id="report_ag_ficha_tecnica">
+    <t t-set="hoy" t-value="context_timestamp(datetime.datetime.now()).date()"/>
+    <t t-set="ficha_interna" t-value="False"/>
+    <t t-call="web.html_container">
+      <t t-foreach="docs" t-as="doc">
+        <t t-call="ag_desempeno_clientes.report_ag_ficha_tecnica_doc"/>
+      </t>
+    </t>
+  </template>
+
+  <!-- La copia de la casa: misma ficha más el recordatorio de qué falta. -->
+  <template id="report_ag_ficha_tecnica_int">
+    <t t-set="hoy" t-value="context_timestamp(datetime.datetime.now()).date()"/>
+    <t t-set="ficha_interna" t-value="True"/>
+    <t t-call="web.html_container">
+      <t t-foreach="docs" t-as="doc">
+        <t t-call="ag_desempeno_clientes.report_ag_ficha_tecnica_doc"/>
+      </t>
+    </t>
+  </template>
+
+  <!-- ================================================================
+       Página pública de la ficha: lo que abre el enlace de WhatsApp.
+       ================================================================ -->
+  <template id="portal_ficha_tecnica" name="Ficha técnica">
+    <t t-call="web.layout">
+      <t t-set="title">Ficha técnica</t>
+
+      <div class="agf">
+        <style>
+          .agf { max-width:560px; margin:0 auto; padding:0 0 40px;
+                 font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:#17150f; }
+          .agf-top { background:#6c3883; color:#fff; padding:22px 20px; }
+          .agf-top h1 { font-size:18px; margin:0; font-weight:600; }
+          .agf-top .who { font-size:13px; opacity:.85; margin-top:3px; }
+          .agf-img { background:#fff; text-align:center; padding:18px 20px 0; }
+          .agf-img img { max-width:100%; max-height:260px; }
+          .agf-row { display:flex; justify-content:space-between; gap:12px;
+                     padding:11px 20px; border-bottom:1px solid #f2f0e9; background:#fff; }
+          .agf-row .l { font-size:12.5px; color:#56524a; }
+          .agf-row .r { font-size:13px; font-weight:600; text-align:right; }
+          .agf-sec { padding:16px 20px 6px; font-size:11px; color:#8b8578;
+                     text-transform:uppercase; letter-spacing:.08em; font-weight:700; }
+          .agf-cta { display:block; margin:18px 20px; padding:13px; text-align:center;
+                     background:#17150f; color:#fff; border-radius:6px; font-weight:600;
+                     font-size:14px; text-decoration:none; }
+          .agf-cta:hover { color:#fff; text-decoration:none; opacity:.9; }
+          .agf-foot { padding:0 20px; font-size:11.5px; color:#8b8578; }
+          body { background:#f4f2ed; margin:0; }
+        </style>
+
+        <div class="agf-top">
+          <h1><t t-esc="producto.name"/></h1>
+          <div class="who">
+            <t t-if="producto.default_code">Código <t t-esc="producto.default_code"/> · </t>
+            <t t-esc="compania.ag_nombre_publico"/>
+          </div>
+        </div>
+
+        <div class="agf-img" t-if="producto.image_1920">
+          <img t-att-src="image_data_uri(producto.image_1920)" alt="Producto"/>
+        </div>
+
+        <div class="agf-sec">Especificación</div>
+        <t t-foreach="filas" t-as="f">
+          <div class="agf-row">
+            <div class="l"><t t-esc="f[0]"/></div>
+            <div class="r"><t t-esc="f[1]"/></div>
+          </div>
+        </t>
+
+        <a class="agf-cta" t-attf-href="/ag/ficha/#{producto.id}/pdf">Descargar en PDF</a>
+        <div class="agf-foot">
+          <t t-esc="compania.ag_nombre_publico"/> · Calle Las Palomas #60, Santiago ·
+          (809) 612-2020. Las especificaciones pueden variar dentro de las
+          tolerancias indicadas.
+        </div>
+      </div>
+    </t>
+  </template>
+
+  <template id="portal_ficha_no_disponible" name="Ficha no disponible">
+    <t t-call="web.layout">
+      <t t-set="title">Ficha no disponible</t>
+      <div style="max-width:460px;margin:0 auto;padding:60px 24px;
+           font-family:system-ui,sans-serif;color:#17150f;text-align:center">
+        <h2 style="font-size:20px;margin:0 0 10px">Ficha no disponible</h2>
+        <p style="color:#56524a">
+          No tenemos publicada la ficha técnica de este producto. Solicítela a
+          su vendedor y se la enviamos.
+        </p>
+      </div>
+    </t>
+  </template>
+
+</odoo>

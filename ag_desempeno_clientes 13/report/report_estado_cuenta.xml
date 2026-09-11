@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!--
+    El único documento que sale de la casa. Lleva hechos: facturas, saldos,
+    fechas. NO lleva score, grado, tendencia ni comparación con otros
+    clientes: esa información es interna y si se filtra la conversación deja
+    de ser comercial.
+  -->
+  <template id="report_ag_estado_cuenta_doc">
+    <t t-call="web.external_layout">
+      <t t-call="ag_desempeno_clientes.ag_report_estilos"/>
+      <div class="page ag membrete">
+
+        <t t-set="facturas" t-value="doc.ag_facturas_abiertas()"/>
+        <t t-set="vencido" t-value="sum(f.amount_residual for f in facturas if f.invoice_date_due and f.invoice_date_due &lt; hoy)"/>
+        <t t-set="total" t-value="sum(facturas.mapped('amount_residual'))"/>
+
+        <div class="mast">
+          <div class="right">
+            Al <t t-esc="hoy.strftime('%d/%m/%Y')"/>
+            <t t-if="doc.ag_rnc_cedula"><br/>RNC <t t-esc="doc.ag_rnc_cedula"/></t>
+          </div>
+          <h1>Estado de cuenta</h1>
+          <div class="sub"><t t-esc="doc.name"/></div>
+          <div class="clear"/>
+        </div>
+
+        <div style="text-align:center;padding:16px 0;border-bottom:1px solid #eeece4">
+          <div style="font-size:9px;color:#8b8578;text-transform:uppercase;letter-spacing:.08em">Saldo pendiente</div>
+          <div style="font-size:28px;font-weight:700;margin-top:2px">
+            RD$ <t t-esc="'{:,.2f}'.format(total)"/>
+          </div>
+          <div t-if="vencido" class="down" style="font-size:10.5px;margin-top:4px">
+            RD$ <t t-esc="'{:,.2f}'.format(vencido)"/> vencidos
+          </div>
+          <div t-else="" class="up" style="font-size:10.5px;margin-top:4px">
+            Todas las facturas dentro del plazo
+          </div>
+        </div>
+
+        <div class="sec">Detalle de facturas</div>
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Factura</th>
+              <th t-if="any(f.ref for f in facturas)">NCF</th>
+              <th>Emitida</th>
+              <th>Vence</th>
+              <th class="num">Total RD$</th>
+              <th class="num">Saldo RD$</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr t-foreach="facturas" t-as="f">
+              <t t-set="atraso" t-value="(hoy - f.invoice_date_due).days if f.invoice_date_due and f.invoice_date_due &lt; hoy else 0"/>
+              <td class="mono"><t t-esc="f.name"/></td>
+              <td t-if="any(x.ref for x in facturas)" class="mono"><t t-esc="f.ref or ''"/></td>
+              <td><t t-esc="f.invoice_date and f.invoice_date.strftime('%d/%m/%Y') or ''"/></td>
+              <td><t t-esc="f.invoice_date_due and f.invoice_date_due.strftime('%d/%m/%Y') or ''"/></td>
+              <td class="num"><t t-esc="'{:,.2f}'.format(f.amount_total)"/></td>
+              <td class="num"><t t-esc="'{:,.2f}'.format(f.amount_residual)"/></td>
+              <td>
+                <t t-if="atraso">
+                  <span class="badge b-d">Vencida <t t-esc="atraso"/> d</span>
+                </t>
+                <t t-else="">
+                  <span class="badge b-a">Al día</span>
+                </t>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td t-attf-colspan="#{5 if any(f.ref for f in facturas) else 4}"
+                  style="text-align:right;font-weight:700;border-top:2px solid #17150f;padding-top:7px">Total</td>
+              <td class="num" style="font-weight:700;border-top:2px solid #17150f;padding-top:7px">
+                <t t-esc="'{:,.2f}'.format(total)"/>
+              </td>
+              <td style="border-top:2px solid #17150f"></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <!-- Antigüedad: el cliente también gana viendo dónde está parado -->
+        <div class="sec">Antigüedad del saldo</div>
+        <table class="data">
+          <thead>
+            <tr><th>Corriente</th><th class="num">1–30 días</th><th class="num">31–60</th><th class="num">61–90</th><th class="num">+90</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="num"><t t-esc="'{:,.2f}'.format(doc.ag_cxc_corriente)"/></td>
+              <td class="num"><t t-esc="'{:,.2f}'.format(doc.ag_cxc_1_30)"/></td>
+              <td class="num"><t t-esc="'{:,.2f}'.format(doc.ag_cxc_31_60)"/></td>
+              <td class="num"><t t-esc="'{:,.2f}'.format(doc.ag_cxc_61_90)"/></td>
+              <td class="num"><t t-esc="'{:,.2f}'.format(doc.ag_cxc_90_mas)"/></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="nota" t-if="doc.ag_condiciones_de_venta">
+          Condiciones pactadas: <b><t t-esc="doc.ag_condiciones_de_venta"/></b>
+          a <t t-esc="doc.ag_dias_cobro_pactado"/> días
+          <t t-if="doc.ag_dia_de_pago"> · día de pago: <t t-esc="doc.ag_dia_de_pago"/></t>.
+          Para cualquier aclaración sobre este estado, contacte a su vendedor
+          <t t-if="doc.user_id"><b><t t-esc="doc.user_id.name"/></b></t>.
+        </div>
+
+        <div class="foot">
+          <t t-esc="doc.company_id.ag_nombre_publico or res_company.ag_nombre_publico"/> ·
+          Documento generado el <t t-esc="hoy.strftime('%d/%m/%Y')"/>.
+          Si ya efectuó algún pago que no aparece reflejado, favor notificarlo
+          para conciliarlo.
+        </div>
+      </div>
+    </t>
+  </template>
+
+  <template id="report_ag_estado_cuenta">
+    <t t-set="hoy" t-value="context_timestamp(datetime.datetime.now()).date()"/>
+    <t t-call="web.html_container">
+      <t t-foreach="docs" t-as="doc">
+        <t t-call="ag_desempeno_clientes.report_ag_estado_cuenta_doc"/>
+      </t>
+    </t>
+  </template>
+
+  <!-- ================================================================
+       Página pública: el mismo contenido, pensado para el teléfono.
+       ================================================================ -->
+  <!--
+    web.layout y no web.frontend_layout: el layout del frontend lo extiende el
+    módulo `website` y espera un `request.website` en el contexto. Esta ruta es
+    pública y sin website (website=False), así que con frontend_layout la
+    página muere con un 500. web.layout es el esqueleto HTML de `web`, no
+    depende de website y no arrastra los assets del portal, que aquí no
+    hacen falta: todo el estilo va en línea.
+  -->
+  <template id="portal_estado_cuenta" name="Estado de cuenta">
+    <t t-call="web.layout">
+      <!-- web.layout pinta <title t-esc="title or 'Odoo'"/>; el bloque
+           `head` no sirve para esto. -->
+      <t t-set="title">Estado de cuenta</t>
+
+      <!-- El <style> va en el cuerpo a propósito: verificado en staging,
+           es donde el navegador lo aplica sin depender de cómo web.layout
+           arme la cabecera. -->
+      <div class="agp">
+        <style>
+          .agp { max-width:520px; margin:0 auto; padding:0 0 40px;
+                 font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:#17150f; }
+          .agp-top { background:#6c3883; color:#fff; padding:22px 20px; }
+          .agp-top h1 { font-size:18px; margin:0; font-weight:600; }
+          .agp-top .who { font-size:13px; opacity:.85; margin-top:3px; }
+          .agp-bal { text-align:center; padding:22px 20px; background:#fff;
+                     border-bottom:1px solid #eeece4; }
+          .agp-bal .lab { font-size:11px; color:#8b8578; text-transform:uppercase;
+                          letter-spacing:.08em; }
+          .agp-bal .big { font-size:32px; font-weight:700; letter-spacing:-.02em; margin-top:2px; }
+          .agp-inv { display:flex; justify-content:space-between; gap:12px; padding:14px 20px;
+                     border-bottom:1px solid #f2f0e9; background:#fff; }
+          .agp-inv .l { font-size:12.5px; color:#56524a; }
+          .agp-inv .num { font-family:"Courier New",monospace; font-size:12px; }
+          .agp-inv .r { text-align:right; }
+          .agp-inv .amt { font-weight:600; }
+          .agp-pill { display:inline-block; font-size:10.5px; padding:1px 8px;
+                      border-radius:9px; font-weight:600; margin-top:3px; }
+          .agp-late { background:#fbe9e9; color:#d03b3b; }
+          .agp-ok { background:#e8f5e8; color:#0a7a0a; }
+          .agp-cta { display:block; margin:18px 20px; padding:13px; text-align:center;
+                     background:#17150f; color:#fff; border-radius:6px; font-weight:600;
+                     font-size:14px; text-decoration:none; }
+          .agp-cta:hover { color:#fff; text-decoration:none; opacity:.9; }
+          .agp-foot { padding:0 20px; font-size:11.5px; color:#8b8578; }
+          body { background:#f4f2ed; margin:0; }
+        </style>
+
+          <div class="agp-top">
+            <h1>Estado de cuenta</h1>
+            <div class="who">
+              <t t-esc="partner.name"/> · al <t t-esc="hoy.strftime('%d/%m/%Y')"/>
+            </div>
+          </div>
+
+          <t t-set="total" t-value="sum(facturas.mapped('amount_residual'))"/>
+          <t t-set="vencido" t-value="sum(f.amount_residual for f in facturas if f.invoice_date_due and f.invoice_date_due &lt; hoy)"/>
+
+          <div class="agp-bal">
+            <div class="lab">Saldo pendiente</div>
+            <div class="big">RD$ <t t-esc="'{:,.2f}'.format(total)"/></div>
+            <div t-if="vencido" style="font-size:13px;color:#d03b3b;margin-top:6px">
+              RD$ <t t-esc="'{:,.2f}'.format(vencido)"/> vencidos
+            </div>
+            <div t-else="" style="font-size:13px;color:#0a7a0a;margin-top:6px">
+              Todas sus facturas están dentro del plazo
+            </div>
+          </div>
+
+          <div t-foreach="facturas" t-as="f" class="agp-inv">
+            <t t-set="atraso" t-value="(hoy - f.invoice_date_due).days if f.invoice_date_due and f.invoice_date_due &lt; hoy else 0"/>
+            <div>
+              <div class="num">Factura <t t-esc="f.name"/></div>
+              <div class="l">
+                Emitida <t t-esc="f.invoice_date and f.invoice_date.strftime('%d/%m/%Y') or ''"/>
+                · vence <t t-esc="f.invoice_date_due and f.invoice_date_due.strftime('%d/%m/%Y') or ''"/>
+              </div>
+            </div>
+            <div class="r">
+              <div class="amt"><t t-esc="'{:,.2f}'.format(f.amount_residual)"/></div>
+              <span t-if="atraso" class="agp-pill agp-late">Vencida <t t-esc="atraso"/> d</span>
+              <span t-else="" class="agp-pill agp-ok">Al día</span>
+            </div>
+          </div>
+
+          <a class="agp-cta" t-attf-href="/ag/estado-cuenta/#{partner.id}/#{partner.ag_portal_token}/pdf">
+            Descargar en PDF
+          </a>
+          <div class="agp-foot">
+            <t t-esc="compania.ag_nombre_publico"/>
+            <t t-if="partner.user_id"> · Su vendedor: <t t-esc="partner.user_id.name"/></t>.
+            Si ya efectuó algún pago que no aparece aquí, favor notificarlo para conciliarlo.
+          </div>
+      </div>
+    </t>
+  </template>
+
+  <template id="portal_enlace_invalido" name="Enlace no disponible">
+    <t t-call="web.layout">
+      <t t-set="title">Enlace no disponible</t>
+      <div style="max-width:460px;margin:0 auto;padding:60px 24px;
+           font-family:system-ui,sans-serif;color:#17150f;text-align:center">
+        <h2 style="font-size:20px;margin:0 0 10px">Este enlace ya no está disponible</h2>
+        <p style="color:#56524a" t-if="motivo == 'expirado'">
+          El enlace del estado de cuenta caducó por seguridad. Solicite uno nuevo
+          a su vendedor y se lo enviamos de inmediato.
+        </p>
+        <p style="color:#56524a" t-else="">
+          No pudimos encontrar este estado de cuenta. Verifique el enlace o
+          solicite uno nuevo a su vendedor.
+        </p>
+      </div>
+    </t>
+  </template>
+
+</odoo>

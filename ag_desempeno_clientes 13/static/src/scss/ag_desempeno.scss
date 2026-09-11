@@ -1,0 +1,30 @@
+// Desempeño de clientes — retoques mínimos sobre el backend de Odoo.
+// El grueso del diseño vive en las plantillas QWeb de los reportes; aquí
+// sólo lo que hace legible la lista de cartera dentro de Odoo.
+
+.o_list_view {
+    // Las cifras se comparan en vertical: dígitos de ancho fijo o la
+    // comparación de un vistazo no funciona.
+    td[name^="ag_venta"],
+    td[name^="ag_margen"],
+    td[name^="ag_cxc"],
+    td[name="ag_desemp_score"],
+    td[name="ag_credito_disponible"],
+    td[name="ag_backlog_monto"],
+    td[name="ag_tend_velocidad"] {
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+// El grado es la lectura de 5 segundos: peso visual, no un texto más.
+.o_field_badge[name="ag_desemp_grado"] .o_tag {
+    font-weight: 600;
+    min-width: 1.6rem;
+    justify-content: center;
+}
+
+// La tendencia usa símbolo + palabra, nunca color solo: así sobrevive a una
+// fotocopia y a quien no distingue rojo de verde.
+.o_field_widget[name="ag_desemp_tendencia"] {
+    white-space: nowrap;
+}

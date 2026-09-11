@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <template id="report_ag_cartera">
+    <t t-set="hoy" t-value="context_timestamp(datetime.datetime.now()).date()"/>
+    <t t-set="cfg" t-value="env['ag.desempeno.config'].get_config()"/>
+    <t t-call="web.html_container">
+      <t t-call="web.internal_layout">
+        <t t-call="ag_desempeno_clientes.ag_report_estilos"/>
+        <div class="page ag">
+
+          <t t-set="clientes" t-value="docs.sorted(lambda p: p.ag_venta_12m, reverse=True)"/>
+          <t t-set="vendedores" t-value="clientes.mapped('user_id')"/>
+          <t t-set="vendedor" t-value="vendedores.name if len(vendedores) == 1 else False"/>
+          <t t-set="rutas" t-value="clientes.mapped('ag_ruta')"/>
+          <t t-set="ruta" t-value="rutas.name if len(rutas) == 1 else False"/>
+          <t t-set="total" t-value="sum(clientes.mapped('ag_venta_12m'))"/>
+          <t t-set="margen_total" t-value="sum(clientes.mapped('ag_margen_12m'))"/>
+          <t t-set="cxc_total" t-value="sum(clientes.mapped('ag_cxc_total'))"/>
+          <t t-set="vencido_total" t-value="sum(clientes.mapped('ag_cxc_vencido'))"/>
+
+          <div class="mast">
+            <div class="right">
+              <t t-esc="hoy.strftime('%d/%m/%Y')"/><br/>
+              <t t-esc="cfg.meses_ventana"/> meses móviles
+            </div>
+            <h1>Cartera de clientes</h1>
+            <div class="sub">
+              <t t-esc="len(clientes)"/> clientes evaluados
+              <t t-if="vendedor"> · vendedor <t t-esc="vendedor"/></t>
+              <t t-if="ruta"> · ruta <t t-esc="ruta"/></t>
+            </div>
+            <div class="clear"/>
+          </div>
+
+          <table class="tiles">
+            <tr>
+              <td>
+                <div class="lab">Ventas netas</div>
+                <div class="val">RD$ <t t-esc="'{:,.0f}'.format(total)"/></div>
+              </td>
+              <td>
+                <div class="lab">Margen</div>
+                <div class="val"><t t-esc="'%.1f' % (margen_total / total * 100 if total else 0)"/>%</div>
+                <div class="sub">RD$ <t t-esc="'{:,.0f}'.format(margen_total)"/></div>
+              </td>
+              <td>
+                <div class="lab">Cuentas por cobrar</div>
+                <div class="val">RD$ <t t-esc="'{:,.0f}'.format(cxc_total)"/></div>
+                <div class="sub">Vencido RD$ <t t-esc="'{:,.0f}'.format(vencido_total)"/></div>
+              </td>
+              <td>
+                <div class="lab">Requieren acción</div>
+                <div class="val down">
+                  <t t-esc="len(clientes.filtered(lambda p: p.ag_alerta_critica_count &gt; 0))"/>
+                </div>
+                <div class="sub">de <t t-esc="len(clientes)"/> clientes</div>
+              </td>
+              <td>
+                <div class="lab">En deterioro</div>
+                <div class="val down">
+                  <t t-esc="len(clientes.filtered(lambda p: p.ag_desemp_tendencia in ('baja', 'baja_fuerte')))"/>
+                </div>
+                <div class="sub">tendencia a la baja</div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- La franja de severidad va al borde de la fila, de 3 px. Pintar
+               filas completas de rojo y amarillo vuelve la tabla ilegible. -->
+          <table class="data">
+            <thead>
+              <tr>
+                <th style="width:3px"></th>
+                <th>Cliente</th>
+                <th>Segmento</th>
+                <th>Vendedor</th>
+                <th>Ruta</th>
+                <th class="num">Ventas 12M</th>
+                <th class="num">Mensual</th>
+                <th class="num">Margen</th>
+                <th class="num">CxC</th>
+                <th>Tendencia</th>
+                <th>Grado</th>
+                <th>Atención</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr t-foreach="clientes" t-as="p">
+                <t t-set="sev" t-value="'crit' if p.ag_alerta_critica_count else ('warn' if p.ag_alerta_count else 'good')"/>
+                <td t-attf-class="mark m-#{sev}"></td>
+                <td><b><t t-esc="p.name"/></b></td>
+                <td style="font-size:9px;color:#56524a"><t t-esc="p.ag_segmento_categoria or '—'"/></td>
+                <td style="font-size:9px"><t t-esc="p.user_id.name or '—'"/></td>
+                <td style="font-size:9px"><t t-esc="p.ag_ruta.name or '—'"/></td>
+                <td class="num"><t t-esc="'{:,.0f}'.format(p.ag_venta_12m)"/></td>
+                <td class="num"><t t-esc="'{:,.0f}'.format(p.ag_venta_mensual)"/></td>
+                <td class="num"><t t-esc="'%.1f' % p.ag_margen_pct"/>%</td>
+                <td class="num"><t t-esc="'{:,.0f}'.format(p.ag_cxc_total)"/></td>
+                <td style="font-size:9px">
+                  <t t-esc="dict(p._fields['ag_desemp_tendencia'].selection).get(p.ag_desemp_tendencia, '—')"/>
+                  <span t-if="p.ag_tend_velocidad" t-attf-class="#{'up' if p.ag_tend_velocidad &gt; 0 else 'down'}">
+                    <t t-esc="'%+.0f' % p.ag_tend_velocidad"/>%
+                  </span>
+                </td>
+                <td>
+                  <span t-attf-class="badge b-#{p.ag_desemp_grado or 'b'}">
+                    <t t-esc="dict(p._fields['ag_desemp_grado'].selection).get(p.ag_desemp_grado, '—')"/>
+                  </span>
+                </td>
+                <td style="font-size:9px;color:#56524a">
+                  <t t-set="al" t-value="p.ag_alerta_ids.filtered(lambda a: not a.atendida).sorted(lambda a: a.severidad == 'crit', reverse=True)[:1]"/>
+                  <t t-if="al"><t t-esc="al.titulo"/></t>
+                  <t t-else="">—</t>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="legend" style="margin-top:10px">
+            <span><i class="sw" style="background:#0ca30c"/>Sin acción pendiente</span>
+            <span><i class="sw" style="background:#fab219"/>Vigilar</span>
+            <span><i class="sw" style="background:#d03b3b"/>Actuar esta semana</span>
+          </div>
+
+          <div class="foot">
+            Documento interno · <t t-esc="res_company.name"/> ·
+            grados normalizados por percentil dentro de cada segmento ·
+            consolidado por matriz. No compartir con clientes.
+          </div>
+        </div>
+      </t>
+    </t>
+  </template>
+
+</odoo>

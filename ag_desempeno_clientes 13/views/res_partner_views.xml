@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ================================================================
+       Pestaña de desempeño en la ficha del contacto
+       ================================================================ -->
+  <record id="view_partner_form_desempeno" model="ir.ui.view">
+    <field name="name">res.partner.form.desempeno</field>
+    <field name="model">res.partner</field>
+    <field name="inherit_id" ref="base.view_partner_form"/>
+    <field name="arch" type="xml">
+
+      <div name="button_box" position="inside">
+        <button class="oe_stat_button" type="object" name="action_ver_alertas"
+                icon="fa-exclamation-triangle"
+                invisible="ag_alerta_count == 0">
+          <field name="ag_alerta_count" widget="statinfo" string="Alertas"/>
+        </button>
+        <button class="oe_stat_button" type="object" name="action_ver_historial"
+                icon="fa-line-chart" invisible="ag_snapshot_count == 0">
+          <field name="ag_snapshot_count" widget="statinfo" string="Historial"/>
+        </button>
+      </div>
+
+      <notebook position="inside">
+        <page string="Desempeño" name="ag_desempeno"
+              invisible="customer_rank == 0">
+
+          <div class="alert alert-info" role="status"
+               invisible="ag_desemp_evaluable">
+            Este cliente todavía no tiene historia suficiente para recibir un
+            grado. Las cifras se muestran igual; el grado aparece cuando
+            acumule los meses de compra que exige la configuración.
+          </div>
+
+          <group>
+            <group string="Evaluación">
+              <field name="ag_desemp_grado" widget="badge"
+                     decoration-success="ag_desemp_grado == 'a'"
+                     decoration-info="ag_desemp_grado == 'b'"
+                     decoration-warning="ag_desemp_grado == 'c'"
+                     decoration-danger="ag_desemp_grado == 'd'"/>
+              <field name="ag_desemp_score"/>
+              <field name="ag_desemp_tendencia"/>
+              <field name="ag_desemp_fecha"/>
+              <field name="ag_desemp_evaluable" invisible="1"/>
+              <field name="ag_participacion_pct"/>
+            </group>
+            <group string="Acciones">
+              <button name="action_recalcular_desempeno" type="object"
+                      string="Recalcular ahora" class="btn-secondary" icon="fa-refresh"/>
+              <button name="action_enviar_reporte" type="object"
+                      string="Enviar reporte" class="btn-primary" icon="fa-paper-plane"/>
+              <button name="%(ag_desempeno_clientes.report_ag_ficha_cliente_action)d"
+                      type="action" string="Imprimir ficha" class="btn-link" icon="fa-print"/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Potencial y captura">
+              <field name="ag_venta_mensual"/>
+              <field name="ag_potencial_mes"/>
+              <field name="ag_captura_pct"
+                     decoration-danger="ag_captura_pct &lt; 60 and ag_potencial_mes &gt; 0"/>
+              <field name="ag_brecha_mes"/>
+              <field name="ag_potencial_uid" readonly="1"/>
+              <field name="ag_potencial_fecha" readonly="1"/>
+            </group>
+            <group string="Logística de entrega">
+              <field name="ag_km_planta"/>
+              <field name="ag_costo_logistica"/>
+              <field name="ag_costo_logistica_monto"/>
+              <field name="ag_margen_neto_pct"
+                     decoration-danger="ag_margen_neto_pct &lt; 10"/>
+              <field name="ag_ruta"/>
+            </group>
+          </group>
+          <div class="text-muted" invisible="ag_potencial_mes &gt; 0">
+            Sin potencial estimado no hay brecha que perseguir. Lo estima quien
+            visita: cuánto podría comprarnos al mes si le vendiéramos todo lo
+            que consume. El ERP no puede saberlo — las compras a la competencia
+            no pasan por aquí.
+          </div>
+
+          <group>
+            <group string="Compras · 12 meses móviles">
+              <field name="ag_venta_12m"/>
+              <field name="ag_margen_12m"/>
+              <field name="ag_margen_pct"/>
+              <field name="ag_devoluciones_12m"/>
+              <field name="ag_devoluciones_pct"/>
+              <field name="ag_facturas_12m"/>
+              <field name="ag_orden_promedio"/>
+              <field name="ag_skus_12m"/>
+              <field name="ag_meses_activos"/>
+              <field name="ag_cv_compra"/>
+            </group>
+            <group string="Actividad">
+              <field name="ag_primera_compra"/>
+              <field name="ag_ultima_compra"/>
+              <field name="ag_dias_sin_comprar"
+                     decoration-danger="ag_dias_sin_comprar &gt; 60"/>
+              <field name="ag_venta_bloque"/>
+              <field name="ag_venta_bloque_prev"/>
+              <field name="ag_tend_velocidad"/>
+              <field name="ag_tend_direccion"/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Cuentas por cobrar">
+              <field name="ag_cxc_total"/>
+              <field name="ag_cxc_corriente"/>
+              <field name="ag_cxc_1_30"/>
+              <field name="ag_cxc_31_60"/>
+              <field name="ag_cxc_61_90"/>
+              <field name="ag_cxc_90_mas"/>
+              <field name="ag_cxc_vencido"/>
+              <field name="ag_dias_atraso_max"/>
+            </group>
+            <group string="Pago y crédito">
+              <field name="ag_dias_cobro_real"/>
+              <field name="ag_dias_cobro_pactado"/>
+              <field name="ag_desviacion_pago"
+                     decoration-danger="ag_desviacion_pago &gt; 10"/>
+              <field name="ag_pct_a_tiempo"/>
+              <field name="ag_dso"/>
+              <field name="ag_limite_de_credito"/>
+              <field name="ag_credito_disponible"
+                     decoration-danger="ag_credito_disponible &lt; 0"/>
+              <field name="ag_uso_credito_pct"/>
+            </group>
+          </group>
+
+          <group>
+            <group string="Pipeline">
+              <field name="ag_cotiz_monto"/>
+              <field name="ag_cotiz_cant"/>
+              <field name="ag_conversion_pct"/>
+              <field name="ag_backlog_monto"/>
+              <field name="ag_backlog_cant"/>
+              <field name="ag_backlog_dias"/>
+              <field name="ag_sin_facturar_monto"/>
+            </group>
+            <group string="Entregas">
+              <field name="ag_entregas_12m"/>
+              <field name="ag_lead_time_prog"/>
+              <field name="ag_despacho_inmediato_pct"/>
+              <field name="ag_pct_entregas_completas"/>
+            </group>
+          </group>
+
+          <separator string="Alertas abiertas"/>
+          <field name="ag_alerta_ids" readonly="1">
+            <list decoration-danger="severidad == 'crit'"
+                  decoration-warning="severidad == 'warn'">
+              <field name="fecha"/>
+              <field name="tipo"/>
+              <field name="titulo"/>
+              <field name="detalle"/>
+              <field name="severidad"/>
+              <button name="action_marcar_atendida" type="object"
+                      string="Atendida" icon="fa-check" class="btn-link"/>
+            </list>
+          </field>
+
+          <separator string="Lo que sabemos de este cliente"/>
+          <field name="ag_perfil_notas" nolabel="1"
+                 placeholder="Quién decide · cómo prefiere que le hablen · qué no tolera · cada cuánto quiere que lo visiten · en qué temporada compra más. Escríbalo como se lo contaría a un compañero que va a cubrirle la ruta."/>
+          <group col="4">
+            <field name="ag_perfil_uid" readonly="1"/>
+            <field name="ag_perfil_fecha" readonly="1"/>
+          </group>
+
+          <separator string="Composición del score"/>
+          <group col="5">
+            <field name="ag_sc_valor"/>
+            <field name="ag_sc_rentabilidad"/>
+            <field name="ag_sc_pago"/>
+            <field name="ag_sc_consistencia"/>
+            <field name="ag_sc_operativo"/>
+          </group>
+          <div class="text-muted">
+            Cada sub-score es el percentil del cliente dentro de su segmento,
+            no una nota absoluta: un almacenista se compara contra
+            almacenistas, no contra un hotel.
+          </div>
+
+          <field name="ag_serie_json" invisible="1"/>
+          <field name="ag_snapshot_count" invisible="1"/>
+        </page>
+      </notebook>
+    </field>
+  </record>
+
+  <!-- ================================================================
+       Vista de cartera
+       ================================================================ -->
+  <record id="view_partner_list_desempeno" model="ir.ui.view">
+    <field name="name">res.partner.list.desempeno</field>
+    <field name="model">res.partner</field>
+    <field name="arch" type="xml">
+      <list string="Desempeño de clientes" create="false"
+            decoration-danger="ag_alerta_critica_count &gt; 0"
+            decoration-muted="ag_desemp_grado == 'nuevo'"
+            default_order="ag_venta_12m desc">
+        <field name="name"/>
+        <field name="ag_segmento_categoria" optional="show"/>
+        <field name="user_id" optional="show"/>
+        <field name="ag_ruta" optional="show"/>
+        <field name="ag_desemp_grado" widget="badge"
+               decoration-success="ag_desemp_grado == 'a'"
+               decoration-info="ag_desemp_grado == 'b'"
+               decoration-warning="ag_desemp_grado == 'c'"
+               decoration-danger="ag_desemp_grado == 'd'"/>
+        <field name="ag_desemp_score" sum="—" optional="show"/>
+        <field name="ag_desemp_tendencia"/>
+        <field name="ag_tend_velocidad" optional="show"/>
+        <field name="ag_venta_12m" sum="Total"/>
+        <field name="ag_venta_mensual" sum="Mensual" optional="show"/>
+        <field name="ag_potencial_mes" sum="Potencial" optional="hide"/>
+        <field name="ag_captura_pct" optional="hide"/>
+        <field name="ag_margen_pct" optional="show"/>
+        <field name="ag_costo_logistica" optional="hide"/>
+        <field name="ag_margen_neto_pct" optional="hide"/>
+        <field name="ag_km_planta" optional="hide"/>
+        <field name="ag_margen_12m" sum="Total" optional="hide"/>
+        <field name="ag_cxc_total" sum="Total"/>
+        <field name="ag_cxc_vencido" sum="Vencido" optional="show"/>
+        <field name="ag_credito_disponible" optional="hide"/>
+        <field name="ag_backlog_monto" sum="Backlog" optional="hide"/>
+        <field name="ag_dias_sin_comprar" optional="show"/>
+        <field name="ag_alerta_count" string="Alertas"/>
+        <field name="ag_alerta_critica_count" column_invisible="1"/>
+        <field name="currency_id" column_invisible="1"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="view_partner_search_desempeno" model="ir.ui.view">
+    <field name="name">res.partner.search.desempeno</field>
+    <field name="model">res.partner</field>
+    <field name="arch" type="xml">
+      <search string="Desempeño">
+        <field name="name" string="Cliente"/>
+        <field name="user_id" string="Vendedor"/>
+        <field name="ag_segmento_categoria"/>
+
+        <filter name="g_a" string="Grado A" domain="[('ag_desemp_grado','=','a')]"/>
+        <filter name="g_b" string="Grado B" domain="[('ag_desemp_grado','=','b')]"/>
+        <filter name="g_c" string="Grado C" domain="[('ag_desemp_grado','=','c')]"/>
+        <filter name="g_d" string="Grado D" domain="[('ag_desemp_grado','=','d')]"/>
+        <separator/>
+        <filter name="con_alertas" string="Con alertas abiertas"
+                domain="[('ag_alerta_count','&gt;',0)]"/>
+        <filter name="criticos" string="Requieren acción esta semana"
+                domain="[('ag_alerta_critica_count','&gt;',0)]"/>
+        <separator/>
+        <filter name="deterioro" string="En deterioro"
+                domain="[('ag_desemp_tendencia','in',['baja','baja_fuerte'])]"/>
+        <filter name="crecimiento" string="En crecimiento"
+                domain="[('ag_desemp_tendencia','in',['subida','subida_fuerte'])]"/>
+        <filter name="dormidos" string="Sin comprar hace 60+ días"
+                domain="[('ag_dias_sin_comprar','&gt;=',60),('ag_venta_12m','&gt;',0)]"/>
+        <filter name="sin_contacto" string="Sin correo ni WhatsApp"
+                domain="[('ag_sin_contacto','=',True)]"/>
+        <separator/>
+        <filter name="vencido" string="Con saldo vencido"
+                domain="[('ag_cxc_vencido','&gt;',0)]"/>
+        <filter name="credito_excedido" string="Crédito excedido"
+                domain="[('ag_credito_disponible','&lt;',0)]"/>
+        <filter name="backlog" string="Con backlog abierto"
+                domain="[('ag_backlog_monto','&gt;',0)]"/>
+        <separator/>
+        <filter name="mis_clientes" string="Mis clientes"
+                domain="[('user_id','=',uid)]"/>
+        <separator/>
+        <filter name="brecha" string="Capturamos menos del 60% de su potencial"
+                domain="[('ag_potencial_mes','&gt;',0),('ag_captura_pct','&lt;',60)]"/>
+        <filter name="sin_potencial" string="Sin potencial estimado"
+                domain="[('ag_potencial_mes','=',0),('ag_venta_12m','&gt;',0)]"/>
+        <filter name="sin_perfil" string="Sin perfil escrito"
+                domain="[('ag_perfil_notas','=',False),('ag_venta_12m','&gt;',0)]"/>
+        <filter name="logistica_cara" string="La entrega se come el margen"
+                domain="[('ag_margen_neto_pct','&lt;',10),('ag_costo_logistica','!=',False)]"/>
+
+        <group expand="0" string="Agrupar por">
+          <filter name="g_segmento" string="Segmento"
+                  context="{'group_by':'ag_segmento_categoria'}"/>
+          <filter name="g_grado" string="Grado"
+                  context="{'group_by':'ag_desemp_grado'}"/>
+          <filter name="g_tendencia" string="Tendencia"
+                  context="{'group_by':'ag_desemp_tendencia'}"/>
+          <filter name="g_vendedor" string="Vendedor"
+                  context="{'group_by':'user_id'}"/>
+          <filter name="g_vendedor_recencia" string="Recencia"
+                  context="{'group_by':'ag_recencia'}"/>
+          <filter name="g_ruta" string="Ruta" context="{'group_by':'ag_ruta'}"/>
+          <filter name="g_estado_credito" string="Estado de crédito"
+                  context="{'group_by':'ag_estado_de_credito'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="view_partner_kanban_desempeno" model="ir.ui.view">
+    <field name="name">res.partner.kanban.desempeno</field>
+    <field name="model">res.partner</field>
+    <field name="arch" type="xml">
+      <kanban class="o_kanban_mobile" create="false" default_order="ag_venta_12m desc">
+        <field name="ag_desemp_grado"/>
+        <field name="ag_alerta_critica_count"/>
+        <field name="currency_id"/>
+        <templates>
+          <t t-name="card">
+            <div class="row">
+              <div class="col-8">
+                <strong><field name="name"/></strong>
+                <div class="text-muted small">
+                  <field name="ag_segmento_categoria"/>
+                </div>
+              </div>
+              <div class="col-4 text-end">
+                <span t-attf-class="badge #{record.ag_desemp_grado.raw_value == 'a' and 'text-bg-success' or record.ag_desemp_grado.raw_value == 'b' and 'text-bg-info' or record.ag_desemp_grado.raw_value == 'c' and 'text-bg-warning' or 'text-bg-danger'}">
+                  <field name="ag_desemp_grado"/>
+                </span>
+              </div>
+            </div>
+            <div class="row mt-2">
+              <div class="col-6">
+                <span class="text-muted small">Ventas 12M</span><br/>
+                <field name="ag_venta_12m" widget="monetary"/>
+              </div>
+              <div class="col-6 text-end">
+                <span class="text-muted small">CxC</span><br/>
+                <field name="ag_cxc_total" widget="monetary"/>
+              </div>
+            </div>
+            <div class="mt-2">
+              <field name="ag_desemp_tendencia"/>
+              <span t-if="record.ag_alerta_critica_count.raw_value"
+                    class="badge text-bg-danger float-end">
+                <field name="ag_alerta_critica_count"/> alertas
+              </span>
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
+  <record id="action_desempeno_clientes" model="ir.actions.act_window">
+    <field name="name">Desempeño de clientes</field>
+    <field name="res_model">res.partner</field>
+    <field name="view_mode">list,kanban,form</field>
+    <field name="domain">[('customer_rank','&gt;',0),('parent_id','=',False)]</field>
+    <field name="context">{'search_default_g_segmento': 0}</field>
+    <field name="search_view_id" ref="view_partner_search_desempeno"/>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Todavía no hay clientes evaluados</p>
+      <p>Corra <b>Recalcular desempeño</b> desde el menú de configuración, o
+         espere a que el proceso nocturno lo haga solo.</p>
+    </field>
+  </record>
+
+  <record id="action_desempeno_clientes_list" model="ir.actions.act_window.view">
+    <field name="sequence" eval="1"/>
+    <field name="view_mode">list</field>
+    <field name="view_id" ref="view_partner_list_desempeno"/>
+    <field name="act_window_id" ref="action_desempeno_clientes"/>
+  </record>
+
+  <record id="action_desempeno_clientes_kanban" model="ir.actions.act_window.view">
+    <field name="sequence" eval="2"/>
+    <field name="view_mode">kanban</field>
+    <field name="view_id" ref="view_partner_kanban_desempeno"/>
+    <field name="act_window_id" ref="action_desempeno_clientes"/>
+  </record>
+
+  <record id="action_mi_cartera" model="ir.actions.act_window">
+    <field name="name">Mi cartera</field>
+    <field name="res_model">res.partner</field>
+    <field name="view_mode">list,kanban,form</field>
+    <field name="domain">[('customer_rank','&gt;',0),('parent_id','=',False),('user_id','=',uid)]</field>
+    <field name="search_view_id" ref="view_partner_search_desempeno"/>
+    <field name="context">{'search_default_criticos': 1}</field>
+  </record>
+
+  <record id="action_mi_cartera_list" model="ir.actions.act_window.view">
+    <field name="sequence" eval="1"/>
+    <field name="view_mode">list</field>
+    <field name="view_id" ref="view_partner_list_desempeno"/>
+    <field name="act_window_id" ref="action_mi_cartera"/>
+  </record>
+
+</odoo>

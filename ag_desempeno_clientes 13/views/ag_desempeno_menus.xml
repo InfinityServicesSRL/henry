@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <menuitem id="menu_ag_desempeno_root"
+            name="Desempeño"
+            web_icon="ag_desempeno_clientes,static/description/icon.png"
+            sequence="47"
+            groups="ag_desempeno_clientes.group_desempeno_vendedor"/>
+
+  <!--
+    Tablero primero: es la pantalla desde la que se decide a quién mirar.
+    Las comparaciones entre vendedores son de gerencia — un vendedor que ve
+    la facturación de los demás no obtiene información, obtiene un conflicto.
+  -->
+  <menuitem id="menu_ag_tablero_root"
+            name="Tablero"
+            parent="menu_ag_desempeno_root"
+            sequence="5"/>
+
+  <menuitem id="menu_ag_tablero_grado"
+            name="Distribución por grado"
+            parent="menu_ag_tablero_root"
+            action="action_tablero_grado"
+            sequence="10"/>
+
+  <menuitem id="menu_ag_tablero_riesgo"
+            name="Grado × tendencia"
+            parent="menu_ag_tablero_root"
+            action="action_tablero_riesgo"
+            sequence="20"/>
+
+  <menuitem id="menu_ag_tablero_evolucion"
+            name="Evolución de la cartera"
+            parent="menu_ag_tablero_root"
+            action="action_tablero_evolucion"
+            sequence="30"/>
+
+  <menuitem id="menu_ag_tablero_vendedor"
+            name="Facturación por vendedor"
+            parent="menu_ag_tablero_root"
+            action="action_tablero_vendedor"
+            sequence="40"
+            groups="ag_desempeno_clientes.group_desempeno_gerente"/>
+
+  <menuitem id="menu_ag_tablero_vendedor_mes"
+            name="Evolución por vendedor"
+            parent="menu_ag_tablero_root"
+            action="action_tablero_vendedor_mes"
+            sequence="50"
+            groups="ag_desempeno_clientes.group_desempeno_gerente"/>
+
+  <menuitem id="menu_ag_tablero_cartera"
+            name="Cartera del vendedor"
+            parent="menu_ag_tablero_root"
+            action="action_tablero_cartera_vendedor"
+            sequence="60"
+            groups="ag_desempeno_clientes.group_desempeno_gerente"/>
+
+  <menuitem id="menu_ag_tablero_contacto"
+            name="Clientes sin contacto"
+            parent="menu_ag_tablero_root"
+            action="action_tablero_contacto"
+            sequence="70"/>
+
+  <menuitem id="menu_ag_desempeno_clientes"
+            name="Clientes"
+            parent="menu_ag_desempeno_root"
+            sequence="10"/>
+
+  <menuitem id="menu_ag_mi_cartera"
+            name="Mi cartera"
+            parent="menu_ag_desempeno_clientes"
+            action="action_mi_cartera"
+            sequence="10"/>
+
+  <menuitem id="menu_ag_todos_clientes"
+            name="Todos los clientes"
+            parent="menu_ag_desempeno_clientes"
+            action="action_desempeno_clientes"
+            sequence="20"
+            groups="ag_desempeno_clientes.group_desempeno_gerente"/>
+
+  <menuitem id="menu_ag_alertas"
+            name="Alertas"
+            parent="menu_ag_desempeno_root"
+            action="action_ag_alertas"
+            sequence="20"/>
+
+  <menuitem id="menu_ag_historial"
+            name="Historial mensual"
+            parent="menu_ag_desempeno_root"
+            action="action_ag_snapshots"
+            sequence="30"/>
+
+  <menuitem id="menu_ag_config_root"
+            name="Configuración"
+            parent="menu_ag_desempeno_root"
+            sequence="90"
+            groups="ag_desempeno_clientes.group_desempeno_gerente"/>
+
+  <menuitem id="menu_ag_config"
+            name="Pesos y umbrales"
+            parent="menu_ag_config_root"
+            action="action_ag_desempeno_config_abrir"
+            sequence="10"/>
+
+  <!-- La auditoría es de datos, no de clientes: cuelga del menú propio -->
+  <menuitem id="menu_ag_fichas_root"
+            name="Fichas técnicas"
+            parent="menu_ag_desempeno_root"
+            sequence="60"/>
+
+  <menuitem id="menu_ag_auditoria_fichas"
+            name="Auditoría de datos"
+            parent="menu_ag_fichas_root"
+            action="action_ag_auditoria_fichas"
+            sequence="10"/>
+
+</odoo>

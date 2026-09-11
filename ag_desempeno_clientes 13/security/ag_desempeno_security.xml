@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data noupdate="0">
+
+    <record id="module_category_desempeno" model="ir.module.category">
+      <field name="name">Desempeño de Clientes</field>
+      <field name="description">Evaluación y seguimiento de la cartera de clientes</field>
+      <field name="sequence">22</field>
+    </record>
+
+    <record id="group_desempeno_vendedor" model="res.groups">
+      <field name="name">Vendedor</field>
+      <field name="category_id" ref="module_category_desempeno"/>
+      <field name="comment">Ve y trabaja el desempeño de sus propios clientes.</field>
+    </record>
+
+    <record id="group_desempeno_gerente" model="res.groups">
+      <field name="name">Gerente</field>
+      <field name="category_id" ref="module_category_desempeno"/>
+      <field name="implied_ids" eval="[(4, ref('group_desempeno_vendedor'))]"/>
+      <field name="comment">Ve la cartera completa, configura pesos y umbrales.</field>
+      <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!--
+      Un vendedor ve las alertas de sus clientes, no las de toda la casa.
+      El gerente ve todo. Sin esta regla, la vista de alertas expone la
+      cartera completa a cualquiera con acceso a ventas.
+    -->
+    <record id="rule_alerta_vendedor" model="ir.rule">
+      <field name="name">Alertas: sólo mis clientes</field>
+      <field name="model_id" ref="model_ag_desempeno_alerta"/>
+      <field name="domain_force">['|', ('user_id', '=', user.id), ('partner_id.user_id', '=', user.id)]</field>
+      <field name="groups" eval="[(4, ref('group_desempeno_vendedor'))]"/>
+      <field name="perm_read" eval="True"/>
+      <field name="perm_write" eval="True"/>
+      <field name="perm_create" eval="False"/>
+      <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_alerta_gerente" model="ir.rule">
+      <field name="name">Alertas: cartera completa</field>
+      <field name="model_id" ref="model_ag_desempeno_alerta"/>
+      <field name="domain_force">[(1, '=', 1)]</field>
+      <field name="groups" eval="[(4, ref('group_desempeno_gerente'))]"/>
+    </record>
+
+    <record id="rule_snapshot_vendedor" model="ir.rule">
+      <field name="name">Historial: sólo mis clientes</field>
+      <field name="model_id" ref="model_ag_desempeno_snapshot"/>
+      <field name="domain_force">['|', ('user_id', '=', user.id), ('partner_id.user_id', '=', user.id)]</field>
+      <field name="groups" eval="[(4, ref('group_desempeno_vendedor'))]"/>
+    </record>
+
+    <record id="rule_snapshot_gerente" model="ir.rule">
+      <field name="name">Historial: cartera completa</field>
+      <field name="model_id" ref="model_ag_desempeno_snapshot"/>
+      <field name="domain_force">[(1, '=', 1)]</field>
+      <field name="groups" eval="[(4, ref('group_desempeno_gerente'))]"/>
+    </record>
+
+    <record id="rule_config_compania" model="ir.rule">
+      <field name="name">Configuración por compañía</field>
+      <field name="model_id" ref="model_ag_desempeno_config"/>
+      <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+  </data>
+</odoo>

@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!--
+    Estilos compartidos por los tres reportes.
+
+    Nota técnica: wkhtmltopdf corre sobre un WebKit antiguo que NO soporta
+    variables CSS (custom properties) ni flex-gap. Todo aquí va con valores
+    literales y con float/table donde el flex no es seguro. Es la razón por
+    la que este archivo no reutiliza los tokens del prototipo HTML.
+  -->
+  <template id="ag_report_estilos">
+    <style type="text/css">
+      .ag { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            color:#17150f; font-size:11px; line-height:1.45; }
+      .ag h1,.ag h2,.ag h3 { margin:0; font-weight:700; letter-spacing:-.01em; }
+      .ag .mast { border-bottom:2px solid #17150f; padding-bottom:10px; margin-bottom:14px; }
+      .ag .mast h1 { font-size:17px; }
+      .ag .mast .sub { color:#56524a; font-size:10.5px; margin-top:3px; }
+      .ag .mast .right { float:right; text-align:right; font-size:9.5px; color:#8b8578;
+                         text-transform:uppercase; letter-spacing:.07em; }
+      .ag .clear { clear:both; }
+
+      /* Los documentos que salen de la casa van sobre el membrete de la
+         compañia (logo, RNC, direccion y eslogan), que el layout dibuja
+         posicionado sobre el fondo de la pagina. Sin este empuje el titulo
+         del reporte queda encima del logo. Los reportes internos usan
+         internal_layout, sin membrete, y no llevan esta clase. */
+      .ag.membrete { padding-top: 36mm; }
+
+      .ag .chip { display:inline-block; font-size:9.5px; padding:1px 7px; margin:0 3px 3px 0;
+                  border:1px solid #e3e0d6; border-radius:9px; color:#56524a; background:#faf9f5; }
+      .ag .chip-key { border-color:#6c3883; color:#6c3883; background:#f4eef8; }
+
+      .ag .grade { float:right; text-align:center; padding:4px 14px; min-width:96px;
+                   border-left:3px solid #8b8578; }
+      .ag .grade .g { font-size:34px; font-weight:700; line-height:1; }
+      .ag .grade .s { font-size:9px; color:#8b8578; text-transform:uppercase;
+                      letter-spacing:.07em; margin-top:2px; }
+      .ag .g-a { border-left-color:#0ca30c; } .ag .g-a .g { color:#0ca30c; }
+      .ag .g-b { border-left-color:#6c3883; } .ag .g-b .g { color:#6c3883; }
+      .ag .g-c { border-left-color:#fab219; } .ag .g-c .g { color:#8a6100; }
+      .ag .g-d { border-left-color:#d03b3b; } .ag .g-d .g { color:#d03b3b; }
+      .ag .g-nuevo { border-left-color:#8b8578; } .ag .g-nuevo .g { font-size:20px; color:#56524a; }
+
+      .ag .tiles { width:100%; border-collapse:collapse; margin:14px 0;
+                   border-top:1px solid #eeece4; border-bottom:1px solid #eeece4; }
+      .ag .tiles td { padding:9px 12px; border-right:1px solid #eeece4;
+                      vertical-align:top; width:20%; }
+      .ag .tiles td:last-child { border-right:0; }
+      .ag .tiles .lab { font-size:9px; color:#8b8578; }
+      .ag .tiles .val { font-size:15px; font-weight:700; margin-top:2px; }
+      .ag .tiles .sub { font-size:9px; color:#56524a; margin-top:1px; }
+      .ag .up { color:#0ca30c; } .ag .down { color:#d03b3b; }
+
+      .ag .sec { margin:16px 0 8px; font-size:9px; font-weight:700; color:#8b8578;
+                 text-transform:uppercase; letter-spacing:.08em; }
+
+      .ag table.data { width:100%; border-collapse:collapse; font-size:10px; }
+      .ag table.data th { text-align:left; font-size:8.5px; color:#8b8578; font-weight:700;
+                          text-transform:uppercase; letter-spacing:.06em;
+                          padding:0 7px 5px; border-bottom:1px solid #e3e0d6; }
+      .ag table.data td { padding:6px 7px; border-bottom:1px solid #f2f0e9; }
+      .ag table.data td.num, .ag table.data th.num { text-align:right; }
+      .ag .mono { font-family:"Courier New",monospace; font-size:9.5px; }
+
+      .ag .mark { width:3px; padding:0 !important; }
+      .ag .m-good { background:#0ca30c; } .ag .m-warn { background:#fab219; }
+      .ag .m-crit { background:#d03b3b; }
+
+      .ag .badge { display:inline-block; min-width:20px; text-align:center; font-weight:700;
+                   font-size:10px; padding:1px 6px; border-radius:3px; }
+      .ag .b-a { background:#e8f5e8; color:#0a7a0a; }
+      .ag .b-b { background:#f4eef8; color:#6c3883; }
+      .ag .b-c { background:#fdf3dd; color:#8a6100; }
+      .ag .b-d { background:#fbe9e9; color:#d03b3b; }
+
+      .ag .alert { padding:8px 10px; margin-bottom:5px; border-left:3px solid #8b8578;
+                   background:#faf9f5; }
+      .ag .alert b { font-size:10.5px; }
+      .ag .alert p { margin:2px 0 0; color:#56524a; font-size:9.5px; }
+      .ag .a-crit { border-left-color:#d03b3b; background:#fbe9e9; }
+      .ag .a-warn { border-left-color:#fab219; background:#fdf3dd; }
+      .ag .a-info { border-left-color:#6c3883; background:#f4eef8; }
+
+      /* nowrap + overflow: los segmentos son porcentajes que suman 100;
+         cualquier pixel extra hacia saltar el ultimo tramo a una segunda
+         linea, encima de la leyenda. */
+      .ag .meter { height:16px; background:#f4eef8; margin-top:5px; font-size:0;
+                   white-space:nowrap; overflow:hidden; }
+      .ag .meter i { display:inline-block; height:16px; vertical-align:top; }
+      .ag .legend { margin-top:5px; font-size:9px; color:#56524a; }
+      .ag .legend span { margin-right:14px; }
+      .ag .sw { display:inline-block; width:8px; height:8px; margin-right:4px; }
+
+      .ag .col-l { float:left; width:48%; }
+      .ag .col-r { float:right; width:48%; }
+      .ag .foot { margin-top:18px; padding-top:8px; border-top:1px solid #e3e0d6;
+                  font-size:8.5px; color:#8b8578; }
+      .ag .bars { width:100%; height:112px; }
+      .ag .nota { font-size:9px; color:#56524a; background:#faf9f5;
+                  border-left:3px solid #e3e0d6; padding:7px 9px; margin-top:10px; }
+      .ag .perfil { font-size:10px; color:#17150f; background:#f4eef8;
+                    border-left:3px solid #6c3883; padding:9px 11px;
+                    white-space:pre-line; }
+      .ag .perfil .quien { margin-top:6px; font-size:8.5px; color:#8b8578; }
+    </style>
+  </template>
+
+  <!--
+    Gráfico de columnas en SVG puro. wkhtmltopdf no ejecuta JavaScript en el
+    render por defecto, así que las barras se calculan en QWeb, no en el
+    navegador. Es la única forma de que el PDF y el HTML muestren lo mismo.
+  -->
+  <template id="ag_grafico_columnas">
+    <t t-set="serie" t-value="serie or []"/>
+    <t t-set="maximo" t-value="max([abs(p['valor']) for p in serie] + [1.0])"/>
+    <svg class="bars" viewBox="0 0 720 130" preserveAspectRatio="xMidYMid meet">
+      <line x1="46" y1="100" x2="710" y2="100" stroke="#c3c2b7" stroke-width="1"/>
+      <line x1="46" y1="55"  x2="710" y2="55"  stroke="#eeece4" stroke-width="1"/>
+      <line x1="46" y1="10"  x2="710" y2="10"  stroke="#eeece4" stroke-width="1"/>
+      <text x="40" y="103" text-anchor="end" font-size="8" fill="#8b8578">0</text>
+      <text x="40" y="13" text-anchor="end" font-size="8" fill="#8b8578">
+        <t t-esc="'{:,.1f} MM'.format(maximo / 1000000.0)"/>
+      </text>
+      <t t-foreach="serie" t-as="punto">
+        <t t-set="i" t-value="serie.index(punto)"/>
+        <t t-set="cx" t-value="46 + (664.0 / len(serie)) * i + (664.0 / len(serie)) / 2"/>
+        <t t-set="alto" t-value="(abs(punto['valor']) / maximo) * 90.0"/>
+        <rect t-att-x="cx - 11" t-att-y="100 - alto" width="22" t-att-height="alto"
+              fill="#2a78d6" t-att-opacity="'1' if punto['valor'] &gt;= maximo * 0.999 else '0.55'"/>
+        <t t-if="not punto['valor']">
+          <text t-att-x="cx" y="94" text-anchor="middle" font-size="7.5"
+                fill="#d03b3b" font-weight="bold">sin compras</text>
+        </t>
+        <text t-att-x="cx" y="114" text-anchor="middle" font-size="8" fill="#8b8578">
+          <t t-esc="punto['mes']"/>
+        </text>
+        <t t-if="i == 0 or punto['mes'] == 'ene'">
+          <text t-att-x="cx" y="124" text-anchor="middle" font-size="7" fill="#8b8578">
+            <t t-esc="punto['anio']"/>
+          </text>
+        </t>
+      </t>
+    </svg>
+  </template>
+
+</odoo>

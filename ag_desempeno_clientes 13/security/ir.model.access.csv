@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ag_config_vendedor,ag.desempeno.config vendedor,model_ag_desempeno_config,group_desempeno_vendedor,1,0,0,0
+access_ag_config_gerente,ag.desempeno.config gerente,model_ag_desempeno_config,group_desempeno_gerente,1,1,1,1
+access_ag_snapshot_vendedor,ag.desempeno.snapshot vendedor,model_ag_desempeno_snapshot,group_desempeno_vendedor,1,0,0,0
+access_ag_snapshot_gerente,ag.desempeno.snapshot gerente,model_ag_desempeno_snapshot,group_desempeno_gerente,1,1,1,1
+access_ag_alerta_vendedor,ag.desempeno.alerta vendedor,model_ag_desempeno_alerta,group_desempeno_vendedor,1,1,0,0
+access_ag_alerta_gerente,ag.desempeno.alerta gerente,model_ag_desempeno_alerta,group_desempeno_gerente,1,1,1,1
+access_ag_envio_vendedor,ag.envio.reporte vendedor,model_ag_envio_reporte,group_desempeno_vendedor,1,1,1,1
+access_ag_envio_gerente,ag.envio.reporte gerente,model_ag_envio_reporte,group_desempeno_gerente,1,1,1,1
+access_ag_envio_ficha_vendedor,ag.envio.ficha vendedor,model_ag_envio_ficha,group_desempeno_vendedor,1,1,1,1
+access_ag_envio_ficha_gerente,ag.envio.ficha gerente,model_ag_envio_ficha,group_desempeno_gerente,1,1,1,1

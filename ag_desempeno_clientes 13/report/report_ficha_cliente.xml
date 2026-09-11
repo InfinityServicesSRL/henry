@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <template id="report_ag_ficha_cliente_doc">
+    <t t-call="web.internal_layout">
+      <t t-call="ag_desempeno_clientes.ag_report_estilos"/>
+      <div class="page ag">
+
+        <!-- Encabezado: identidad a la izquierda, grado a la derecha.
+             Una sola cosa grande por página; el resto baja de tamaño. -->
+        <div class="mast">
+          <div class="grade" t-attf-class="grade g-#{doc.ag_desemp_grado or 'nuevo'}">
+            <div class="g"><t t-esc="dict(doc._fields['ag_desemp_grado'].selection).get(doc.ag_desemp_grado, '—')"/></div>
+            <div class="s">
+              <t t-if="doc.ag_desemp_evaluable"><t t-esc="'%.0f' % doc.ag_desemp_score"/> / 100</t>
+              <t t-else="">sin historia</t>
+            </div>
+          </div>
+          <h1><t t-esc="doc.name"/></h1>
+          <div class="sub">
+            <span class="chip chip-key" t-if="doc.ag_segmento_categoria"><t t-esc="doc.ag_segmento_categoria"/></span>
+            <span class="chip" t-if="doc.ag_categoria_cliente"><t t-esc="doc.ag_categoria_cliente"/></span>
+            <span class="chip" t-if="doc.ag_ruta">Ruta <t t-esc="doc.ag_ruta.name"/></span>
+            <span class="chip" t-if="doc.city"><t t-esc="doc.city"/></span>
+            <span class="chip" t-if="doc.ag_condiciones_de_venta"><t t-esc="doc.ag_condiciones_de_venta"/> · <t t-esc="doc.ag_dias_cobro_pactado"/> d</span>
+            <span class="chip" t-if="doc.user_id">Vendedor: <t t-esc="doc.user_id.name"/></span>
+            <span class="chip" t-if="doc.ag_primera_compra">Cliente desde <t t-esc="doc.ag_primera_compra.year"/></span>
+          </div>
+          <div class="clear"/>
+        </div>
+
+        <!-- Cinco números que explican el grado -->
+        <table class="tiles">
+          <tr>
+            <td>
+              <div class="lab">Compra promedio mensual</div>
+              <div class="val">RD$ <t t-esc="'{:,.0f}'.format(doc.ag_venta_mensual)"/></div>
+              <div class="sub">RD$ <t t-esc="'{:,.0f}'.format(doc.ag_venta_12m)"/> en 12 meses ·
+                <t t-esc="doc.ag_facturas_12m"/> facturas</div>
+            </td>
+            <td>
+              <div class="lab">Potencial estimado</div>
+              <t t-if="doc.ag_potencial_mes">
+                <div class="val">RD$ <t t-esc="'{:,.0f}'.format(doc.ag_potencial_mes)"/>/mes</div>
+                <div class="sub">
+                  Captura <t t-esc="'%.0f' % doc.ag_captura_pct"/>%
+                  <span t-if="doc.ag_brecha_mes" class="down">
+                    · RD$ <t t-esc="'{:,.0f}'.format(doc.ag_brecha_mes)"/> sin tomar
+                  </span>
+                </div>
+              </t>
+              <t t-else="">
+                <div class="val" style="color:#8b8578">—</div>
+                <div class="sub">Sin estimar</div>
+              </t>
+            </td>
+            <td>
+              <div class="lab">Margen de contribución</div>
+              <div class="val"><t t-esc="'%.1f' % doc.ag_margen_pct"/>%</div>
+              <div class="sub">
+                RD$ <t t-esc="'{:,.2f}'.format(doc.ag_margen_12m)"/>
+                <span t-if="doc.ag_costo_logistica">
+                  · neto <t t-esc="'%.1f' % doc.ag_margen_neto_pct"/>%
+                </span>
+              </div>
+            </td>
+            <td>
+              <div class="lab">Días de cobro reales</div>
+              <div class="val"><t t-esc="'%.1f' % doc.ag_dias_cobro_real"/> d</div>
+              <div class="sub">
+                Pactado: <t t-esc="doc.ag_dias_cobro_pactado"/> d
+                <span t-if="doc.ag_desviacion_pago &gt; 3" class="down"> · +<t t-esc="'%.0f' % doc.ag_desviacion_pago"/> d</span>
+                <span t-else="" class="up"> · al día</span>
+              </div>
+            </td>
+            <td>
+              <div class="lab">Crédito disponible</div>
+              <div t-attf-class="val #{'down' if doc.ag_credito_disponible &lt; 0 else ''}">
+                RD$ <t t-esc="'{:,.0f}'.format(doc.ag_credito_disponible)"/>
+              </div>
+              <div class="sub">de RD$ <t t-esc="'{:,.0f}'.format(doc.ag_limite_de_credito or 0)"/> · <t t-esc="'%.0f' % doc.ag_uso_credito_pct"/>% usado</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Franja de servicio: datos operativos, no de evaluación -->
+        <table class="tiles" style="margin-top:-8px;border-top:0">
+          <tr>
+            <td style="width:25%">
+              <div class="lab">Última compra</div>
+              <div t-attf-class="val #{'down' if doc.ag_dias_sin_comprar &gt;= 45 else ''}"
+                   style="font-size:13px">
+                hace <t t-esc="doc.ag_dias_sin_comprar"/> d
+              </div>
+              <div class="sub"><t t-esc="doc.ag_ultima_compra and doc.ag_ultima_compra.strftime('%d/%m/%Y') or '—'"/></div>
+            </td>
+            <td style="width:25%">
+              <div class="lab">Costo logística entrega</div>
+              <div class="val" style="font-size:13px">
+                <t t-esc="doc.ag_costo_logistica or '—'"/><t t-if="doc.ag_costo_logistica">%</t>
+              </div>
+              <div class="sub" t-if="doc.ag_costo_logistica_monto">
+                RD$ <t t-esc="'{:,.0f}'.format(doc.ag_costo_logistica_monto)"/>/mes
+              </div>
+            </td>
+            <td style="width:25%">
+              <div class="lab">Distancia desde planta</div>
+              <div class="val" style="font-size:13px">
+                <t t-if="doc.ag_km_planta"><t t-esc="'%.0f' % doc.ag_km_planta"/> km</t>
+                <t t-else="">—</t>
+              </div>
+              <div class="sub">Santiago → <t t-esc="doc.city or 'sin ciudad'"/></div>
+            </td>
+            <td style="width:25%">
+              <div class="lab">Ruta</div>
+              <div class="val" style="font-size:13px"><t t-esc="doc.ag_ruta.name or '—'"/></div>
+              <div class="sub" t-if="doc.ag_dia_de_visita_al_cliente">Visita: <t t-esc="doc.ag_dia_de_visita_al_cliente"/></div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Serie mensual -->
+        <div class="sec">Compras mensuales · últimos 12 meses</div>
+        <t t-call="ag_desempeno_clientes.ag_grafico_columnas">
+          <t t-set="serie" t-value="doc.ag_serie()"/>
+        </t>
+        <div style="font-size:9px;color:#56524a;margin-top:2px">
+          Bloque reciente RD$ <t t-esc="'{:,.0f}'.format(doc.ag_venta_bloque)"/>
+          contra RD$ <t t-esc="'{:,.0f}'.format(doc.ag_venta_bloque_prev)"/> del anterior
+          (<t t-esc="'%+.1f' % doc.ag_tend_velocidad"/>%) ·
+          dirección de 12 meses <t t-esc="'%+.1f' % doc.ag_tend_direccion"/>% ·
+          <b><t t-esc="dict(doc._fields['ag_desemp_tendencia'].selection).get(doc.ag_desemp_tendencia, '')"/></b>
+        </div>
+
+        <!-- CxC y pipeline, dos columnas -->
+        <div style="margin-top:14px">
+          <div class="col-l">
+            <div class="sec">Cuentas por cobrar · RD$ <t t-esc="'{:,.2f}'.format(doc.ag_cxc_total)"/></div>
+            <t t-set="tot" t-value="doc.ag_cxc_total or 1.0"/>
+            <div class="meter">
+              <i t-attf-style="width:#{doc.ag_cxc_corriente / tot * 100}%;background:#2a78d6"/><i style="width:2px;background:#ffffff"/>
+              <i t-attf-style="width:#{doc.ag_cxc_1_30 / tot * 100}%;background:#fab219"/><i style="width:2px;background:#ffffff"/>
+              <i t-attf-style="width:#{(doc.ag_cxc_31_60 + doc.ag_cxc_61_90) / tot * 100}%;background:#ec835a"/><i style="width:2px;background:#ffffff"/>
+              <i t-attf-style="width:#{doc.ag_cxc_90_mas / tot * 100}%;background:#d03b3b"/>
+            </div>
+            <div class="legend">
+              <span><i class="sw" style="background:#2a78d6"/>Corriente <t t-esc="'{:,.0f}'.format(doc.ag_cxc_corriente)"/></span>
+              <span t-if="doc.ag_cxc_1_30"><i class="sw" style="background:#fab219"/>1–30 <t t-esc="'{:,.0f}'.format(doc.ag_cxc_1_30)"/></span>
+              <span t-if="doc.ag_cxc_31_60 or doc.ag_cxc_61_90"><i class="sw" style="background:#ec835a"/>31–90 <t t-esc="'{:,.0f}'.format(doc.ag_cxc_31_60 + doc.ag_cxc_61_90)"/></span>
+              <span t-if="doc.ag_cxc_90_mas"><i class="sw" style="background:#d03b3b"/>+90 <t t-esc="'{:,.0f}'.format(doc.ag_cxc_90_mas)"/></span>
+            </div>
+            <table class="data" style="margin-top:10px">
+              <thead><tr><th>Factura</th><th>Vence</th><th class="num">Saldo RD$</th></tr></thead>
+              <tbody>
+                <tr t-foreach="doc.ag_facturas_abiertas()[:8]" t-as="f">
+                  <td class="mono"><t t-esc="f.name"/></td>
+                  <td>
+                    <t t-esc="f.invoice_date_due and f.invoice_date_due.strftime('%d/%m/%Y') or '—'"/>
+                    <span t-if="f.invoice_date_due and f.invoice_date_due &lt; hoy" class="down">
+                      · <t t-esc="(hoy - f.invoice_date_due).days"/> d
+                    </span>
+                  </td>
+                  <td class="num"><t t-esc="'{:,.2f}'.format(f.amount_residual)"/></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="col-r">
+            <div class="sec">Pipeline y entregas</div>
+            <table class="data">
+              <tbody>
+                <tr><td>Cotizaciones vivas</td><td class="num">RD$ <t t-esc="'{:,.0f}'.format(doc.ag_cotiz_monto)"/> · <t t-esc="doc.ag_cotiz_cant"/></td></tr>
+                <tr><td>Conversión de cotizaciones</td><td class="num"><t t-esc="'%.0f' % doc.ag_conversion_pct"/>%</td></tr>
+                <tr><td>Backlog por entregar</td><td class="num">RD$ <t t-esc="'{:,.0f}'.format(doc.ag_backlog_monto)"/> · <t t-esc="doc.ag_backlog_cant"/></td></tr>
+                <tr t-if="doc.ag_backlog_dias"><td>Orden abierta más antigua</td><td class="num"><t t-esc="doc.ag_backlog_dias"/> días</td></tr>
+                <tr t-if="doc.ag_sin_facturar_monto"><td>Entregado sin facturar</td><td class="num down">RD$ <t t-esc="'{:,.0f}'.format(doc.ag_sin_facturar_monto)"/></td></tr>
+                <tr><td>Entregas 12M</td><td class="num"><t t-esc="doc.ag_entregas_12m"/></td></tr>
+                <tr><td>Días de entrega programada</td><td class="num"><t t-esc="'%.1f' % doc.ag_lead_time_prog"/> d</td></tr>
+                <tr><td>Despacho inmediato (mostrador)</td><td class="num"><t t-esc="'%.0f' % doc.ag_despacho_inmediato_pct"/>%</td></tr>
+                <tr><td>Devoluciones sobre ventas</td><td class="num"><t t-esc="'%.2f' % doc.ag_devoluciones_pct"/>%</td></tr>
+                <tr><td>Orden promedio</td><td class="num">RD$ <t t-esc="'{:,.0f}'.format(doc.ag_orden_promedio)"/></td></tr>
+                <tr><td>Meses activos de 12</td><td class="num"><t t-esc="doc.ag_meses_activos"/></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="clear"/>
+        </div>
+
+        <!-- Alertas: cada una con su cifra y su causa -->
+        <t t-set="alertas" t-value="doc.ag_alerta_ids.filtered(lambda a: not a.atendida)"/>
+        <t t-if="alertas">
+          <div class="sec">Qué requiere acción</div>
+          <div t-foreach="alertas" t-as="al" t-attf-class="alert a-#{al.severidad}">
+            <b><t t-esc="al.titulo"/></b>
+            <p t-if="al.detalle"><t t-esc="al.detalle"/></p>
+          </div>
+        </t>
+
+        <!-- Descomposición del score -->
+        <div class="sec">Cómo se compone el score</div>
+        <table class="data">
+          <thead><tr><th>Dimensión</th><th class="num">Sub-score</th><th class="num">Peso</th><th class="num">Aporte</th></tr></thead>
+          <tbody>
+            <tr><td>Valor</td><td class="num"><t t-esc="'%.0f' % doc.ag_sc_valor"/></td><td class="num"><t t-esc="cfg.peso_valor"/>%</td><td class="num"><t t-esc="'%.1f' % (doc.ag_sc_valor * cfg.peso_valor / 100.0)"/></td></tr>
+            <tr><td>Rentabilidad</td><td class="num"><t t-esc="'%.0f' % doc.ag_sc_rentabilidad"/></td><td class="num"><t t-esc="cfg.peso_rentabilidad"/>%</td><td class="num"><t t-esc="'%.1f' % (doc.ag_sc_rentabilidad * cfg.peso_rentabilidad / 100.0)"/></td></tr>
+            <tr><td>Comportamiento de pago</td><td class="num"><t t-esc="'%.0f' % doc.ag_sc_pago"/></td><td class="num"><t t-esc="cfg.peso_pago"/>%</td><td class="num"><t t-esc="'%.1f' % (doc.ag_sc_pago * cfg.peso_pago / 100.0)"/></td></tr>
+            <tr><td>Consistencia</td><td class="num"><t t-esc="'%.0f' % doc.ag_sc_consistencia"/></td><td class="num"><t t-esc="cfg.peso_consistencia"/>%</td><td class="num"><t t-esc="'%.1f' % (doc.ag_sc_consistencia * cfg.peso_consistencia / 100.0)"/></td></tr>
+            <tr><td>Calidad operativa</td><td class="num"><t t-esc="'%.0f' % doc.ag_sc_operativo"/></td><td class="num"><t t-esc="cfg.peso_operativo"/>%</td><td class="num"><t t-esc="'%.1f' % (doc.ag_sc_operativo * cfg.peso_operativo / 100.0)"/></td></tr>
+          </tbody>
+        </table>
+        <div class="nota">
+          Cada sub-score es el percentil del cliente dentro de
+          <b><t t-esc="doc.ag_segmento_categoria or 'la cartera completa'"/></b>, no una nota
+          absoluta: un almacenista se compara contra almacenistas. Margen promedio del segmento:
+          <t t-esc="'%.1f' % doc.ag_promedio_segmento('ag_margen_pct')"/>%.
+        </div>
+
+        <!-- Lo único de esta ficha que no sale de un cálculo -->
+        <t t-if="doc.ag_perfil_notas">
+          <div class="sec">Lo que sabemos de este cliente</div>
+          <div class="perfil">
+            <t t-esc="doc.ag_perfil_notas"/>
+            <div class="quien" t-if="doc.ag_perfil_uid">
+              Escrito por <t t-esc="doc.ag_perfil_uid.name"/><t t-if="doc.ag_perfil_fecha">
+              · <t t-esc="doc.ag_perfil_fecha.strftime('%d/%m/%Y')"/></t>
+            </div>
+          </div>
+        </t>
+        <t t-else="">
+          <div class="nota">
+            <b>Este cliente no tiene perfil escrito.</b> Quien lo visite puede
+            llenarlo en la ficha de contacto: quién decide, cómo prefiere que le
+            hablen, qué no tolera, cada cuánto quiere que lo visiten. Es lo que
+            evita que un vendedor nuevo llegue en frío.
+          </div>
+        </t>
+
+        <div class="foot">
+          Documento interno · <t t-esc="doc.company_id.name or res_company.name"/> ·
+          calculado el <t t-esc="doc.ag_desemp_fecha and doc.ag_desemp_fecha.strftime('%d/%m/%Y %H:%M') or '—'"/> ·
+          ventana de <t t-esc="cfg.meses_ventana"/> meses móviles, consolidado por matriz.
+          No compartir con el cliente.
+        </div>
+      </div>
+    </t>
+  </template>
+
+  <template id="report_ag_ficha_cliente">
+    <t t-set="hoy" t-value="context_timestamp(datetime.datetime.now()).date()"/>
+    <t t-set="cfg" t-value="env['ag.desempeno.config'].get_config()"/>
+    <t t-call="web.html_container">
+      <t t-foreach="docs" t-as="doc">
+        <t t-call="ag_desempeno_clientes.report_ag_ficha_cliente_doc"/>
+      </t>
+    </t>
+  </template>
+
+</odoo>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="report_ag_ficha_cliente_action" model="ir.actions.report">
+    <field name="name">Ficha de desempeño</field>
+    <field name="model">res.partner</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">ag_desempeno_clientes.report_ag_ficha_cliente</field>
+    <field name="report_file">ag_desempeno_clientes.report_ag_ficha_cliente</field>
+    <field name="print_report_name">'Desempeno_%s' % (object.name or '').replace(' ', '_')[:40]</field>
+    <field name="binding_model_id" ref="base.model_res_partner"/>
+    <field name="binding_type">report</field>
+    <field name="paperformat_id" ref="base.paperformat_euro"/>
+  </record>
+
+  <record id="report_ag_cartera_action" model="ir.actions.report">
+    <field name="name">Cartera de clientes</field>
+    <field name="model">res.partner</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">ag_desempeno_clientes.report_ag_cartera</field>
+    <field name="report_file">ag_desempeno_clientes.report_ag_cartera</field>
+    <field name="print_report_name">'Cartera_clientes'</field>
+    <field name="binding_model_id" ref="base.model_res_partner"/>
+    <field name="binding_type">report</field>
+    <field name="paperformat_id" ref="base.paperformat_euro"/>
+  </record>
+
+  <record id="report_ag_estado_cuenta_action" model="ir.actions.report">
+    <field name="name">Estado de cuenta</field>
+    <field name="model">res.partner</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">ag_desempeno_clientes.report_ag_estado_cuenta</field>
+    <field name="report_file">ag_desempeno_clientes.report_ag_estado_cuenta</field>
+    <field name="print_report_name">'Estado_cuenta_%s' % (object.name or '').replace(' ', '_')[:40]</field>
+    <field name="binding_model_id" ref="base.model_res_partner"/>
+    <field name="binding_type">report</field>
+    <field name="paperformat_id" ref="base.paperformat_euro"/>
+  </record>
+
+  <!--
+    Dos acciones sobre el mismo cuerpo. La interna añade el bloque de «falta
+    por completar»; la del cliente no lo lleva nunca. Se separan por plantilla
+    y no por contexto: una variable de plantilla no se puede olvidar de pasar.
+  -->
+  <record id="report_ag_ficha_tecnica_action" model="ir.actions.report">
+    <field name="name">Ficha técnica (interna)</field>
+    <field name="model">product.template</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">ag_desempeno_clientes.report_ag_ficha_tecnica_int</field>
+    <field name="report_file">ag_desempeno_clientes.report_ag_ficha_tecnica_int</field>
+    <field name="print_report_name">'Ficha_%s' % (object.name or '').replace(' ', '_')[:40]</field>
+    <field name="binding_model_id" ref="product.model_product_template"/>
+    <field name="binding_type">report</field>
+    <field name="paperformat_id" ref="base.paperformat_euro"/>
+  </record>
+
+  <record id="report_ag_ficha_tecnica_cliente_action" model="ir.actions.report">
+    <field name="name">Ficha técnica (para el cliente)</field>
+    <field name="model">product.template</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">ag_desempeno_clientes.report_ag_ficha_tecnica</field>
+    <field name="report_file">ag_desempeno_clientes.report_ag_ficha_tecnica</field>
+    <field name="print_report_name">'Ficha_%s' % (object.name or '').replace(' ', '_')[:40]</field>
+    <field name="binding_model_id" ref="product.model_product_template"/>
+    <field name="binding_type">report</field>
+    <field name="paperformat_id" ref="base.paperformat_euro"/>
+  </record>
+
+  <record id="report_ag_auditoria_fichas_action" model="ir.actions.report">
+    <field name="name">Auditoría de fichas</field>
+    <field name="model">product.template</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">ag_desempeno_clientes.report_ag_auditoria_fichas</field>
+    <field name="report_file">ag_desempeno_clientes.report_ag_auditoria_fichas</field>
+    <field name="print_report_name">'Auditoria_fichas'</field>
+    <field name="binding_model_id" ref="product.model_product_template"/>
+    <field name="binding_type">report</field>
+    <field name="paperformat_id" ref="base.paperformat_euro"/>
+  </record>
+
+</odoo>

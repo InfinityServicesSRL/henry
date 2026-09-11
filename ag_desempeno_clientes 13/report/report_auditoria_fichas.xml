@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!--
+    Auditoría de datos de producto. Documento interno: dice qué falta para que
+    cada producto tenga ficha, ordenado por facturación de doce meses.
+
+    El orden es lo que lo hace útil. Llenar el catálogo completo son 374
+    productos; llenar los veinte que concentran la facturación cubre casi todo
+    lo que un cliente pregunta. La columna de venta 12M es la que decide por
+    dónde empezar, no el orden alfabético.
+  -->
+  <template id="report_ag_auditoria_fichas_doc">
+    <t t-call="ag_desempeno_clientes.ag_report_estilos"/>
+    <div class="page ag">
+
+      <t t-set="completas" t-value="docs.filtered(lambda p: p.ag_ficha_estado == 'completa')"/>
+      <t t-set="parciales" t-value="docs.filtered(lambda p: p.ag_ficha_estado == 'parcial')"/>
+      <t t-set="vacios" t-value="docs.filtered(lambda p: p.ag_ficha_estado == 'sin_datos')"/>
+      <t t-set="con_alerta" t-value="docs.filtered(lambda p: p.ag_ficha_alerta)"/>
+
+      <div class="mast">
+        <div class="right">
+          <t t-esc="hoy.strftime('%d/%m/%Y')"/><br/>
+          Ordenado por venta 12M
+        </div>
+        <h1>Auditoría de fichas técnicas</h1>
+        <div class="sub"><t t-esc="len(docs)"/> productos vendibles</div>
+        <div class="clear"/>
+      </div>
+
+      <table class="data" style="margin-top:10px">
+        <tbody>
+          <tr>
+            <td style="width:25%">
+              <div style="font-size:22px;font-weight:700"><t t-esc="len(completas)"/></div>
+              <div style="font-size:9px;color:#8b8578;text-transform:uppercase;letter-spacing:.08em">Completas</div>
+            </td>
+            <td style="width:25%">
+              <div style="font-size:22px;font-weight:700"><t t-esc="len(parciales)"/></div>
+              <div style="font-size:9px;color:#8b8578;text-transform:uppercase;letter-spacing:.08em">Parciales · se pueden enviar</div>
+            </td>
+            <td style="width:25%">
+              <div style="font-size:22px;font-weight:700" class="down"><t t-esc="len(vacios)"/></div>
+              <div style="font-size:9px;color:#8b8578;text-transform:uppercase;letter-spacing:.08em">Sin ficha posible</div>
+            </td>
+            <td style="width:25%">
+              <div style="font-size:22px;font-weight:700" class="down"><t t-esc="len(con_alerta)"/></div>
+              <div style="font-size:9px;color:#8b8578;text-transform:uppercase;letter-spacing:.08em">Con contradicción</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="sec">Qué falta, por producto</div>
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Código</th>
+            <th class="num">Venta 12M</th>
+            <th class="num">Vacíos</th>
+            <th>Falta por completar</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr t-foreach="docs" t-as="p">
+            <td>
+              <b><t t-esc="p.name"/></b>
+              <div t-if="p.ag_ficha_alerta" class="down" style="font-size:8.5px">
+                ⚠ <t t-esc="p.ag_ficha_alerta"/>
+              </div>
+            </td>
+            <td class="mono"><t t-esc="p.default_code or ''"/></td>
+            <td class="num"><t t-esc="'{:,.0f}'.format(p.ag_venta_12m or 0)"/></td>
+            <td class="num">
+              <span t-if="p.ag_ficha_estado == 'completa'" class="badge b-a">0</span>
+              <span t-elif="p.ag_ficha_estado == 'parcial'" class="badge b-c">
+                <t t-esc="p.ag_ficha_faltan_n"/>
+              </span>
+              <span t-else="" class="badge b-d"><t t-esc="p.ag_ficha_faltan_n"/></span>
+            </td>
+            <td style="font-size:8.5px;color:#56524a">
+              <t t-esc="p.ag_ficha_faltantes or '—'"/>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="foot">
+        Documento interno · <t t-esc="res_company.name"/> ·
+        «Sin ficha posible» significa que falta el núcleo —tipo de papel,
+        capas o medidas— y el módulo no genera la ficha hasta completarlo.
+      </div>
+    </div>
+  </template>
+
+  <template id="report_ag_auditoria_fichas">
+    <t t-set="hoy" t-value="context_timestamp(datetime.datetime.now()).date()"/>
+    <t t-call="web.html_container">
+      <t t-call="web.internal_layout">
+        <t t-call="ag_desempeno_clientes.report_ag_auditoria_fichas_doc"/>
+      </t>
+    </t>
+  </template>
+
+</odoo>

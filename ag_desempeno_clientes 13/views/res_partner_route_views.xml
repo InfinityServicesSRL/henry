@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_partner_route_list" model="ir.ui.view">
+    <field name="name">res.partner.route.list</field>
+    <field name="model">res.partner.route</field>
+    <field name="arch" type="xml">
+      <list string="Rutas" editable="bottom" default_order="zona, sequence, name">
+        <field name="zona"/>
+        <field name="sequence" widget="handle"/>
+        <field name="name"/>
+        <field name="state_id" optional="show"/>
+        <field name="km_desde_planta"/>
+        <field name="costo_logistica_sugerido"/>
+        <field name="dia_visita" optional="show"/>
+        <field name="frecuencia" optional="show"/>
+        <field name="user_id" optional="show"/>
+        <field name="partner_count" string="Clientes"/>
+        <field name="venta_12m" sum="Total" widget="monetary"/>
+        <field name="currency_id" column_invisible="1"/>
+        <field name="activa" widget="boolean_toggle"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="view_partner_route_form" model="ir.ui.view">
+    <field name="name">res.partner.route.form</field>
+    <field name="model">res.partner.route</field>
+    <field name="arch" type="xml">
+      <form string="Ruta">
+        <sheet>
+          <div class="oe_button_box" name="button_box">
+            <button class="oe_stat_button" type="object" name="action_ver_clientes"
+                    icon="fa-users">
+              <field name="partner_count" widget="statinfo" string="Clientes"/>
+            </button>
+          </div>
+          <div class="oe_title">
+            <label for="name"/>
+            <h1><field name="name" placeholder="Santiago Norte"/></h1>
+          </div>
+          <group>
+            <group string="Geografía">
+              <field name="zona"/>
+              <field name="state_id"/>
+              <field name="km_desde_planta"/>
+              <field name="costo_logistica_sugerido"/>
+            </group>
+            <group string="Operación">
+              <field name="dia_visita"/>
+              <field name="frecuencia"/>
+              <field name="user_id"/>
+              <field name="sequence"/>
+              <field name="activa"/>
+            </group>
+          </group>
+          <div class="alert alert-info" role="status">
+            La ruta responde <b>dónde está</b> el cliente. Quién lo atiende vive
+            en el vendedor de su ficha, y por qué canal compra, en el segmento.
+            Mezclar las tres cosas en una sola casilla es lo que dejó el maestro
+            actual sin poder agruparse.
+          </div>
+          <field name="venta_12m" invisible="1"/>
+          <field name="currency_id" invisible="1"/>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="view_partner_route_search" model="ir.ui.view">
+    <field name="name">res.partner.route.search</field>
+    <field name="model">res.partner.route</field>
+    <field name="arch" type="xml">
+      <search string="Rutas">
+        <field name="name"/>
+        <field name="zona"/>
+        <field name="user_id"/>
+        <filter name="activas" string="Activas" domain="[('activa','=',True)]"/>
+        <filter name="sin_zona" string="Sin zona asignada" domain="[('zona','=',False)]"/>
+        <filter name="sin_km" string="Sin distancia" domain="[('km_desde_planta','=',0)]"/>
+        <group expand="1" string="Agrupar por">
+          <filter name="g_zona" string="Zona" context="{'group_by':'zona'}"/>
+          <filter name="g_dia" string="Día de visita" context="{'group_by':'dia_visita'}"/>
+          <filter name="g_vendedor" string="Vendedor" context="{'group_by':'user_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_partner_routes" model="ir.actions.act_window">
+    <field name="name">Rutas</field>
+    <field name="res_model">res.partner.route</field>
+    <field name="view_mode">list,form</field>
+    <field name="search_view_id" ref="view_partner_route_search"/>
+    <field name="context">{'search_default_g_zona': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Defina las rutas por geografía</p>
+      <p>Cada ruta es una zona real con su distancia, su día de visita y su
+         costo logístico sugerido. El canal de venta y el vendedor van en
+         campos aparte.</p>
+    </field>
+  </record>
+
+  <menuitem id="menu_ag_rutas"
+            name="Rutas"
+            parent="menu_ag_config_root"
+            action="action_partner_routes"
+            sequence="20"/>
+
+</odoo>
