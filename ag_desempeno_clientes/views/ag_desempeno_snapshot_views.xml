@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_ag_snapshot_list" model="ir.ui.view">
+    <field name="name">ag.desempeno.snapshot.list</field>
+    <field name="model">ag.desempeno.snapshot</field>
+    <field name="arch" type="xml">
+      <list string="Historial mensual" create="false" default_order="fecha_corte desc">
+        <field name="fecha_corte"/>
+        <field name="periodo"/>
+        <field name="partner_id"/>
+        <field name="segmento" optional="show"/>
+        <field name="user_id" optional="hide"/>
+        <field name="venta_neta" sum="Total"/>
+        <field name="margen_monto" sum="Total" optional="hide"/>
+        <field name="margen_pct" optional="show"/>
+        <field name="facturas" sum="Facturas" optional="hide"/>
+        <field name="devoluciones" optional="hide"/>
+        <field name="venta_12m" optional="show"/>
+        <field name="score" optional="show"/>
+        <field name="grado" widget="badge"
+               decoration-success="grado == 'a'"
+               decoration-info="grado == 'b'"
+               decoration-warning="grado == 'c'"
+               decoration-danger="grado == 'd'"/>
+        <field name="tendencia" optional="show"/>
+        <field name="cxc_total" optional="hide"/>
+        <field name="dias_cobro" optional="hide"/>
+        <field name="currency_id" column_invisible="1"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="view_ag_snapshot_graph" model="ir.ui.view">
+    <field name="name">ag.desempeno.snapshot.graph</field>
+    <field name="model">ag.desempeno.snapshot</field>
+    <field name="arch" type="xml">
+      <graph string="Evolución" type="line" sample="1">
+        <field name="fecha_corte" interval="month"/>
+        <field name="venta_neta" type="measure"/>
+      </graph>
+    </field>
+  </record>
+
+  <record id="view_ag_snapshot_pivot" model="ir.ui.view">
+    <field name="name">ag.desempeno.snapshot.pivot</field>
+    <field name="model">ag.desempeno.snapshot</field>
+    <field name="arch" type="xml">
+      <pivot string="Evolución" sample="1">
+        <field name="segmento" type="row"/>
+        <field name="fecha_corte" interval="month" type="col"/>
+        <field name="venta_neta" type="measure"/>
+        <field name="margen_monto" type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <record id="view_ag_snapshot_search" model="ir.ui.view">
+    <field name="name">ag.desempeno.snapshot.search</field>
+    <field name="model">ag.desempeno.snapshot</field>
+    <field name="arch" type="xml">
+      <search string="Historial">
+        <field name="partner_id"/>
+        <field name="periodo"/>
+        <field name="segmento"/>
+        <field name="user_id"/>
+        <filter name="anio_actual" string="Año en curso"
+                domain="[('fecha_corte','&gt;=', (context_today() - relativedelta(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
+        <group expand="0" string="Agrupar por">
+          <filter name="g_mes" string="Mes" context="{'group_by':'fecha_corte:month'}"/>
+          <filter name="g_cliente" string="Cliente" context="{'group_by':'partner_id'}"/>
+          <filter name="g_segmento" string="Segmento" context="{'group_by':'segmento'}"/>
+          <filter name="g_grado" string="Grado" context="{'group_by':'grado'}"/>
+          <filter name="g_vendedor" string="Vendedor" context="{'group_by':'user_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_ag_snapshots" model="ir.actions.act_window">
+    <field name="name">Historial mensual</field>
+    <field name="res_model">ag.desempeno.snapshot</field>
+    <field name="view_mode">list,graph,pivot,form</field>
+    <field name="search_view_id" ref="view_ag_snapshot_search"/>
+    <field name="context">{'search_default_anio_actual': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Todavía no hay meses cerrados</p>
+      <p>El módulo congela una foto de cada cliente al cerrar el mes. De ahí
+         salen las series de los gráficos y la respuesta a "¿por qué este
+         cliente tenía grado B en abril?".</p>
+    </field>
+  </record>
+
+</odoo>

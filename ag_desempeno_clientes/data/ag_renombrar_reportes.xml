@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!--
+    Sin noupdate: queremos que corra también en cada actualización, para que
+    el nombre se restituya si una actualización de infinity_statement lo
+    devuelve a "Estado de Cuenta Cliente".
+  -->
+  <function model="ir.actions.report" name="_ag_renombrar_consolidado"/>
+</odoo>

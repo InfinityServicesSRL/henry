@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <data noupdate="1">
+
+    <!--
+      Estado de cuenta al cliente. Hechos: saldo, facturas, fechas.
+      Sin score, sin grado, sin comparación con otros clientes.
+    -->
+    <record id="mail_template_estado_cuenta" model="mail.template">
+      <field name="name">Desempeño: estado de cuenta al cliente</field>
+      <field name="model_id" ref="base.model_res_partner"/>
+      <field name="subject">Estado de cuenta {{ object.name }} — al {{ format_date(datetime.date.today()) }}</field>
+      <field name="email_from">{{ user.email_formatted or object.company_id.email }}</field>
+      <field name="email_to">{{ object.ag_email_contacto_compra or object.ag_email_encargado or object.email }}</field>
+      <field name="lang">{{ object.lang }}</field>
+      <field name="body_html" type="html">
+<div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#17150f;max-width:560px">
+  <p>Estimado(a) <t t-out="object.ag_nombre_contacto_compra or object.ag_nombre_encargado or object.name">cliente</t>,</p>
+  <p>Le compartimos el estado de cuenta de <b t-out="object.name">Cliente</b>.</p>
+
+  <div style="text-align:center;padding:18px;background:#faf9f5;border-radius:6px;margin:16px 0">
+    <div style="font-size:11px;color:#8b8578;text-transform:uppercase;letter-spacing:.08em">Saldo pendiente</div>
+    <div style="font-size:28px;font-weight:700;margin-top:4px">
+      RD$ <t t-out="'{:,.2f}'.format(object.ag_cxc_total or 0.0)">0.00</t>
+    </div>
+    <div t-if="object.ag_cxc_vencido" style="color:#d03b3b;font-size:13px;margin-top:6px">
+      RD$ <t t-out="'{:,.2f}'.format(object.ag_cxc_vencido)">0.00</t> vencidos
+    </div>
+  </div>
+
+  <p>El detalle por factura está en el PDF adjunto. Si prefiere verlo en el
+     teléfono, puede abrirlo aquí:</p>
+  <p>
+    <a t-att-href="object.ag_url_estado_cuenta()"
+       style="display:inline-block;padding:11px 20px;background:#6c3883;color:#fff;
+              border-radius:5px;text-decoration:none;font-weight:600">
+      Ver estado de cuenta
+    </a>
+  </p>
+  <p style="font-size:12px;color:#8b8578">
+    Si ya efectuó algún pago que no aparece reflejado, favor notificarlo para conciliarlo.
+  </p>
+  <p>
+    <t t-out="user.name">Vendedor</t><br/>
+    <span style="color:#56524a" t-out="object.company_id.name or ''">AG Supply</span>
+  </p>
+</div>
+      </field>
+      <field name="auto_delete" eval="False"/>
+      <field name="report_template_ids" eval="[(4, ref('ag_desempeno_clientes.report_ag_estado_cuenta_action'))]"/>
+    </record>
+
+    <!--
+      Resumen semanal al vendedor. Interno: aquí sí van grado y alertas.
+    -->
+    <record id="mail_template_cartera_vendedor" model="mail.template">
+      <field name="name">Desempeño: cartera semanal al vendedor</field>
+      <field name="model_id" ref="base.model_res_partner"/>
+      <field name="subject">Su cartera al {{ format_date(datetime.date.today()) }} — {{ object.name }}</field>
+      <field name="email_from">{{ user.email_formatted }}</field>
+      <field name="email_to">{{ object.user_id.email }}</field>
+      <field name="body_html" type="html">
+<div style="font-family:system-ui,sans-serif;color:#17150f;max-width:560px">
+  <p>Adjunto el reporte de desempeño de <b t-out="object.name">Cliente</b>.</p>
+  <p style="font-size:12px;color:#8b8578">
+    Documento interno: contiene el grado del cliente y su posición frente a
+    otros. No reenviar al cliente.
+  </p>
+</div>
+      </field>
+      <field name="auto_delete" eval="False"/>
+      <field name="report_template_ids" eval="[(4, ref('ag_desempeno_clientes.report_ag_ficha_cliente_action'))]"/>
+    </record>
+
+  </data>
+</odoo>

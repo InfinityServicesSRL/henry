@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!--
+    Una pestaña nueva, no una reorganización de las que ya existen.
+
+    `module_agsupply` define los 41 campos ag_* sobre product.template pero no
+    los pone en ningún formulario: hoy no hay pantalla donde escribirlos, y por
+    eso 692 de 726 productos vendibles están vacíos. Aquí quedan editables,
+    agrupados en el mismo orden en que salen impresos, para que llenar la ficha
+    y verla impresa sean el mismo recorrido.
+
+    Los campos de costeo —comisión, margen mínimo, suplidor, punto de reorden,
+    días en llegar— NO están aquí: no son parte de la ficha y ya viven en las
+    pestañas comerciales del producto.
+  -->
+  <record id="view_product_template_form_ag_ficha" model="ir.ui.view">
+    <field name="name">product.template.form.ag.ficha</field>
+    <field name="model">product.template</field>
+    <field name="inherit_id" ref="product.product_template_form_view"/>
+    <field name="arch" type="xml">
+      <xpath expr="//notebook" position="inside">
+        <page string="Ficha técnica" name="ag_ficha">
+          <div class="oe_button_box" style="margin-bottom:8px">
+            <button name="action_ag_imprimir_ficha" type="object"
+                    class="btn-primary" icon="fa-print"
+                    string="Imprimir ficha"
+                    invisible="ag_ficha_estado == 'sin_datos'"/>
+            <button name="action_ag_enviar_ficha" type="object"
+                    class="btn-secondary" icon="fa-paper-plane"
+                    string="Enviar al cliente"
+                    invisible="ag_ficha_estado == 'sin_datos'"/>
+          </div>
+
+          <group>
+            <group string="Estado">
+              <field name="ag_ficha_estado" readonly="1"/>
+              <field name="ag_ficha_faltan_n" readonly="1"/>
+              <field name="ag_venta_12m" readonly="1"/>
+            </group>
+            <group string="Enlace público">
+              <div colspan="2" class="text-muted"
+                   invisible="ag_ficha_estado == 'sin_datos'">
+                La ficha se publica en <code>/ag/ficha/&lt;id&gt;</code> y es el
+                enlace que viaja por WhatsApp. No lleva costo, margen ni suplidor.
+              </div>
+              <div colspan="2" class="text-muted"
+                   invisible="ag_ficha_estado != 'sin_datos'">
+                Sin el núcleo completo la ficha no se genera ni se publica.
+              </div>
+            </group>
+          </group>
+
+          <div class="alert alert-warning" role="status"
+               invisible="not ag_ficha_faltantes">
+            <b>Falta por completar:</b>&#160;
+            <field name="ag_ficha_faltantes" readonly="1" nolabel="1"/>
+          </div>
+
+          <div class="alert alert-danger" role="alert"
+               invisible="not ag_ficha_alerta">
+            <b>Revisar antes de imprimir:</b>&#160;
+            <field name="ag_ficha_alerta" readonly="1" nolabel="1"/>
+          </div>
+
+          <!-- Los cuatro del núcleo van primero y juntos: sin ellos no hay
+               ficha, y separarlos hace que alguien llene diez campos y siga
+               sin poder imprimir. -->
+          <group string="Núcleo — sin esto no se genera la ficha">
+            <group>
+              <field name="ag_tipo_de_papel"
+                     placeholder="bath tissue, facial, toalla…"/>
+              <field name="ag_n_de_capas"/>
+            </group>
+            <group>
+              <field name="ag_largo_de_hoja"/>
+              <field name="ag_ancho"/>
+            </group>
+          </group>
+
+          <group string="Especificación">
+            <group>
+              <field name="ag_gramaje"/>
+              <field name="ag_cantidad_de_hojas"/>
+              <field name="ag_color" placeholder="blanco, natural…"/>
+              <field name="ag_doblez" placeholder="interfold, 1/4 fold…"/>
+              <field name="ag_acabado"/>
+            </group>
+            <group>
+              <field name="ag_materia_prima_utilizada"/>
+              <field name="ag_marca" options="{'no_create': True}"/>
+              <field name="ag_categoria" options="{'no_create': True}"/>
+              <field name="ag_referencia"/>
+              <field name="ag_sqf"/>
+            </group>
+          </group>
+
+          <group string="Tolerancias y aptitud">
+            <group>
+              <field name="ag_tolerancia_peso"/>
+              <field name="ag_tolerancia_longitud"/>
+            </group>
+            <group>
+              <field name="ag_aptitud_legal"
+                     placeholder="Apto para contacto con alimentos…"/>
+            </group>
+          </group>
+
+          <group string="Presentación y empaque">
+            <group>
+              <field name="ag_paquete"/>
+              <field name="ag_empaque_primario"/>
+              <field name="ag_empaque_secundario"/>
+            </group>
+            <group>
+              <field name="ag_dimensiones_fardo_caja"/>
+              <field name="ag_peso_bruto_paquete"/>
+              <field name="ag_peso_bruto_caja"/>
+            </group>
+          </group>
+
+          <group string="Paletizado">
+            <group>
+              <field name="ag_paletizado"/>
+              <field name="ag_fardos_cajas_por_estiba"/>
+            </group>
+            <group>
+              <field name="ag_estiba_por_palet"/>
+              <field name="ag_total_de_fardos_cajas_por_palet"/>
+            </group>
+          </group>
+
+          <div class="text-muted" style="margin-top:6px">
+            La foto sale de la imagen del producto, arriba a la derecha del
+            formulario. Para llenar muchos productos a la vez conviene
+            exportar la lista de la auditoría, completarla en Excel e
+            importarla de vuelta.
+          </div>
+        </page>
+      </xpath>
+    </field>
+  </record>
+
+  <!--
+    Auditoría: la lista que dice por dónde empezar. Ordenada por facturación,
+    no alfabéticamente, porque el catálogo son 374 productos y la pregunta
+    real es cuáles veinte llenar primero.
+  -->
+  <record id="view_product_template_ag_auditoria" model="ir.ui.view">
+    <field name="name">product.template.list.ag.auditoria</field>
+    <field name="model">product.template</field>
+    <field name="arch" type="xml">
+      <list string="Auditoría de fichas" create="false"
+            default_order="ag_venta_12m desc">
+        <field name="name"/>
+        <field name="default_code" string="Código"/>
+        <field name="ag_venta_12m" sum="Venta 12M" widget="monetary"
+               options="{'currency_field': 'currency_id'}"/>
+        <field name="currency_id" column_invisible="1"/>
+        <field name="ag_ficha_estado" widget="badge"
+               decoration-success="ag_ficha_estado == 'completa'"
+               decoration-warning="ag_ficha_estado == 'parcial'"
+               decoration-danger="ag_ficha_estado == 'sin_datos'"/>
+        <field name="ag_ficha_faltan_n" string="Vacíos"/>
+        <field name="ag_ficha_faltantes" string="Falta por completar"/>
+        <field name="ag_ficha_alerta" string="Revisar"
+               decoration-danger="ag_ficha_alerta != False"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="view_product_template_ag_auditoria_search" model="ir.ui.view">
+    <field name="name">product.template.search.ag.auditoria</field>
+    <field name="model">product.template</field>
+    <field name="arch" type="xml">
+      <search>
+        <field name="name"/>
+        <field name="default_code"/>
+        <filter name="f_sin_datos" string="Sin ficha posible"
+                domain="[('ag_ficha_estado', '=', 'sin_datos')]"/>
+        <filter name="f_parcial" string="Parciales"
+                domain="[('ag_ficha_estado', '=', 'parcial')]"/>
+        <filter name="f_completa" string="Completas"
+                domain="[('ag_ficha_estado', '=', 'completa')]"/>
+        <separator/>
+        <filter name="f_alerta" string="Con contradicción"
+                domain="[('ag_ficha_alerta', '!=', False)]"/>
+        <filter name="f_vende" string="Se vendió en 12 meses"
+                domain="[('ag_venta_12m', '>', 0)]"/>
+        <group expand="0" string="Agrupar por">
+          <filter name="g_estado" string="Estado de la ficha"
+                  context="{'group_by': 'ag_ficha_estado'}"/>
+          <filter name="g_categoria" string="Categoría"
+                  context="{'group_by': 'categ_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_ag_auditoria_fichas" model="ir.actions.act_window">
+    <field name="name">Auditoría de fichas</field>
+    <field name="res_model">product.template</field>
+    <field name="view_mode">list,form</field>
+    <field name="view_id" ref="view_product_template_ag_auditoria"/>
+    <field name="search_view_id" ref="view_product_template_ag_auditoria_search"/>
+    <field name="domain">[('sale_ok', '=', True)]</field>
+    <field name="context">{'search_default_f_vende': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Nada que auditar</p>
+      <p>Aquí aparecen los productos vendibles con los datos que les faltan
+         para tener ficha técnica, ordenados por lo que más se factura.</p>
+    </field>
+  </record>
+
+</odoo>

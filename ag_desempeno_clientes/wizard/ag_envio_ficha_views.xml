@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_ag_envio_ficha_form" model="ir.ui.view">
+    <field name="name">ag.envio.ficha.form</field>
+    <field name="model">ag.envio.ficha</field>
+    <field name="arch" type="xml">
+      <form string="Enviar ficha técnica">
+        <group>
+          <field name="product_ids" widget="many2many_tags"
+                 options="{'no_create': True}"/>
+          <field name="partner_id" options="{'no_create': True}"
+                 required="canal != 'descargar'"
+                 invisible="canal == 'descargar'"/>
+          <field name="canal"/>
+          <field name="destinatario" invisible="canal == 'descargar'"/>
+          <field name="correo_manual" invisible="destinatario != 'manual'"
+                 required="destinatario == 'manual' and canal != 'descargar'"/>
+        </group>
+
+        <field name="bloqueadas" invisible="1"/>
+        <field name="aviso_incompletas" invisible="1"/>
+        <field name="sin_destino" invisible="1"/>
+
+        <div class="alert alert-danger" role="alert" invisible="not bloqueadas">
+          <b>Sin ficha posible</b> — estos productos quedan fuera del envío
+          porque les falta el núcleo (tipo de papel, capas o medidas):
+          <field name="bloqueadas" readonly="1" nolabel="1"/>
+        </div>
+
+        <div class="alert alert-warning" role="status" invisible="not aviso_incompletas">
+          <b>Fichas parciales</b> — se envían, pero les faltan datos y el
+          cliente lo va a notar:
+          <field name="aviso_incompletas" readonly="1" nolabel="1"/>
+        </div>
+
+        <div class="alert alert-warning" role="status"
+             invisible="not sin_destino or canal == 'descargar'">
+          El cliente no tiene registrado el dato de contacto para este canal.
+          Complete el correo o el WhatsApp en su ficha, o escriba un correo a mano.
+        </div>
+
+        <div class="alert alert-info" role="status" invisible="canal != 'whatsapp'">
+          Por WhatsApp se manda un <b>enlace público</b> a la ficha, no un
+          adjunto: el cliente la abre en el teléfono y puede reenviarla. Nunca
+          incluye costo, margen ni suplidor.
+        </div>
+
+        <group string="Personalizar el mensaje" invisible="canal == 'descargar'">
+          <field name="asunto" invisible="canal == 'whatsapp'"/>
+          <field name="mensaje" invisible="canal == 'whatsapp'"/>
+        </group>
+
+        <footer>
+          <button name="action_enviar" type="object" string="Enviar"
+                  class="btn-primary"/>
+          <button name="action_previsualizar" type="object"
+                  string="Previsualizar" class="btn-secondary"/>
+          <button string="Cancelar" class="btn-link" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_ag_envio_ficha" model="ir.actions.act_window">
+    <field name="name">Enviar ficha técnica</field>
+    <field name="res_model">ag.envio.ficha</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+    <field name="binding_model_id" ref="product.model_product_template"/>
+    <field name="binding_view_types">list,form</field>
+  </record>
+
+</odoo>
