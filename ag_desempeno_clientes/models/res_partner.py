@@ -944,13 +944,15 @@ class ResPartner(models.Model):
 
         partes = ["%s. Se compara contra %s." % (QUE_ES[grado], contra)]
 
-        # El eje que sostiene y el que arrastra se miden por lo que APORTAN al
-        # score, no por el percentil suelto: un 90 que pesa 10% mueve menos
-        # que un 40 que pesa 25%.
+        # Sostiene: el que más puntos APORTA. Arrastra: el que más puntos
+        # PIERDE contra su máximo, no el que tiene el percentil más bajo ni el
+        # que aporta menos. Un eje que pesa 10% nunca hunde un score aunque
+        # marque 20, y señalarlo manda al vendedor a perseguir lo que no mueve
+        # la aguja.
         activos = [e for e in subs if e[2]]
         if len(activos) > 1:
             mejor = max(activos, key=lambda e: e[1] * e[2])
-            peor = min(activos, key=lambda e: e[1] * e[2])
+            peor = max(activos, key=lambda e: (100.0 - e[1]) * e[2])
             partes.append("Lo sostiene %s (%.0f); lo arrastra %s (%.0f)."
                           % (mejor[0].lower(), mejor[1],
                              peor[0].lower(), peor[1]))
