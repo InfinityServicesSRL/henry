@@ -435,9 +435,9 @@ class AgsConfig(models.Model):
     def get_config(self, company=None):
         """Devuelve la configuracion de la compania, creandola si no existe."""
         company = company or self.env.company
-        config = self.search([("company_id", "=", company.id)], limit=1)
+        config = self.sudo().search([("company_id", "=", company.id)], limit=1)
         if not config:
-            config = self.create({"company_id": company.id})
+            config = self.sudo().create({"company_id": company.id})
         return config
 
     # ------------------------------------------------------------------

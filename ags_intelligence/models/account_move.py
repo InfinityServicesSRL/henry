@@ -40,7 +40,7 @@ class AccountMove(models.Model):
 
     @api.depends("partner_id", "move_type")
     def _compute_es_factura_energia(self):
-        config = self.env["ags.config"].search(
+        config = self.env["ags.config"].sudo().search(
             [("company_id", "=", self.env.company.id)], limit=1)
         proveedor = config.proveedor_energia_id if config else False
         for rec in self:

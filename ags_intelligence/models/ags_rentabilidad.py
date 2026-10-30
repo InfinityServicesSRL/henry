@@ -141,7 +141,7 @@ class AgsRentabilidad(models.Model):
     @api.depends("ventas", "costo", "notas_credito", "dias_cobro",
                  "dias_pactados", "n_facturas")
     def _compute_margenes(self):
-        cfg = self.env["ags.config"].search([], limit=1)
+        cfg = self.env["ags.config"].sudo().search([], limit=1)
         tasa = (cfg.tasa_costo_capital if cfg else 12.3) / 100.0
         base = (cfg.dias_base_anio if cfg else 365) or 365
         for r in self:

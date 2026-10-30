@@ -178,7 +178,7 @@ class PurchaseOrder(models.Model):
                  "order_line.price_subtotal", "order_line.product_qty",
                  "payment_term_id", "ags_costo_disrupcion")
     def _compute_sobrecostos(self):
-        cfg = self.env["ags.config"].search([], limit=1)
+        cfg = self.env["ags.config"].sudo().search([], limit=1)
         tasa = cfg.tasa_costo_capital if cfg else 12.3
         base = cfg.dias_base_anio if cfg else 365
         for o in self:

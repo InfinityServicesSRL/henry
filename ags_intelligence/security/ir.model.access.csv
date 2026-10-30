@@ -47,4 +47,5 @@ access_ags_ajuste_auditor,ags.ajuste.auditor,model_ags_ajuste,ags_intelligence.g
 access_ags_componente_auditor,ags.componente.auditor,model_ags_componente,ags_intelligence.group_ags_auditor,1,0,0,0
 access_ags_alerta_auditor,ags.alerta.auditor,model_ags_alerta,ags_intelligence.group_ags_auditor,1,0,0,0
 access_ags_config_auditor,ags.config.auditor,model_ags_config,ags_intelligence.group_ags_auditor,1,0,0,0
+access_ags_config_user,ags.config.user,model_ags_config,base.group_user,1,0,0,0
 access_ags_welcome_auditor,ags.welcome.auditor,model_ags_welcome,ags_intelligence.group_ags_auditor,1,0,0,0
