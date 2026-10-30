@@ -165,4 +165,15 @@
         </field>
     </record>
 
+    <record id="view_partner_form_invoices_salesman" model="ir.ui.view">
+        <field name="name">res.partner.form.invoices.salesman</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account.view_partner_property_form"/>
+        <field name="arch" type="xml">
+            <button name="action_view_partner_invoices" position="attributes">
+                <attribute name="groups">account.group_account_invoice,account.group_account_readonly,sales_team.group_sale_salesman</attribute>
+            </button>
+        </field>
+    </record>
+
 </odoo>
