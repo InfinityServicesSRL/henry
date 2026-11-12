@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "AG Supply - Desempeño de Clientes",
-    "version": "18.0.1.0.0",
+    "version": "18.0.1.1.0",
     "summary": "Evaluación cuantitativa de clientes: score, tendencia, alertas y envío de reportes",
     "description": """
 Desempeño de Clientes — AG Supply
