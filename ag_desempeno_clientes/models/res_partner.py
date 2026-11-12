@@ -47,6 +47,21 @@ TENDENCIAS = [
     ("divergente", "⚠ Divergente (histórico)"),
     ("sin_historia", "· Sin historia"),
 ]
+# Margen de una factura expresado en moneda de la compañía y con el signo
+# de la venta. `x_total_margin_amount` trae dos trampas:
+#   1. Se guarda en la moneda de la FACTURA, mientras `amount_untaxed_signed`
+#      está en pesos. En una factura en dólares, dividir uno entre otro da un
+#      margen ~60 veces menor al real. Se convierte con la tasa implícita de
+#      la propia factura (base en pesos / base en su moneda).
+#   2. En las notas de crédito viene con el mismo signo que en la factura.
+#      Sumarlo tal cual AGREGA margen por cada devolución, cuando la venta
+#      correspondiente se está restando. Se invierte el signo.
+SQL_MARGEN = """
+    COALESCE(m.x_total_margin_amount, 0)
+    * CASE WHEN m.move_type = 'out_refund' THEN -1 ELSE 1 END
+    * COALESCE(ABS(m.amount_untaxed_signed)
+               / NULLIF(ABS(m.amount_untaxed), 0), 1)
+"""
 # Tramos de recencia. `ag_dias_sin_comprar` es un entero suelto: agrupar un
 # gráfico por él produce una columna por valor distinto y no se lee. El tramo
 # es el mismo dato en la forma en que se mira.
@@ -103,8 +118,8 @@ class ResPartner(models.Model):
              "facturas a tiempo y saldo vencido. " + _AYUDA_SUBSCORE)
     ag_sc_consistencia = fields.Float(
         "Consistencia", digits=(16, 1), readonly=True,
-        help="Meses activos, regularidad de la compra y recencia. Premia al "
-             "cliente predecible. " + _AYUDA_SUBSCORE)
+        help="Meses activos, regularidad de la compra, recencia y años de "
+             "relación. Premia al cliente predecible y fiel. " + _AYUDA_SUBSCORE)
     ag_sc_operativo = fields.Float(
         "Calidad operativa", digits=(16, 1), readonly=True,
         help="Devoluciones y entregas completas. " + _AYUDA_SUBSCORE)
@@ -400,6 +415,7 @@ class ResPartner(models.Model):
         ids = matrices.ids
 
         ventas = self._ag_sql_ventas(ids, desde, fin)
+        primeras = self._ag_sql_primera_compra(ids)
         serie = self._ag_sql_serie_mensual(ids, desde, fin)
         cxc = self._ag_sql_cxc(ids, hoy)
         pagos = self._ag_sql_dias_pago(ids, desde, fin)
@@ -465,7 +481,7 @@ class ResPartner(models.Model):
                 "ag_meses_activos": meses_activos,
                 "ag_cv_compra": self._ag_coef_variacion(s),
                 "ag_skus_12m": skus.get(p.id, 0),
-                "ag_primera_compra": v.get("primera"),
+                "ag_primera_compra": primeras.get(p.id),
                 "ag_ultima_compra": ultima,
                 "ag_dias_sin_comprar": min(dias_sin, 9999),
                 "ag_recencia": self._ag_recencia(ultima, dias_sin),
@@ -528,11 +544,10 @@ class ResPartner(models.Model):
                             THEN m.amount_untaxed_signed ELSE 0 END)
                  + SUM(CASE WHEN m.move_type = 'out_refund'
                             THEN m.amount_untaxed_signed ELSE 0 END) AS venta,
-                   SUM(COALESCE(m.x_total_margin_amount, 0))          AS margen,
+                   SUM(""" + SQL_MARGEN + """)                          AS margen,
                    SUM(CASE WHEN m.move_type = 'out_refund'
                             THEN m.amount_untaxed_signed ELSE 0 END)  AS devoluciones,
                    COUNT(*) FILTER (WHERE m.move_type = 'out_invoice') AS facturas,
-                   MIN(m.invoice_date) AS primera,
                    MAX(m.invoice_date) FILTER (WHERE m.move_type = 'out_invoice') AS ultima
               FROM account_move m
              WHERE m.commercial_partner_id IN %s
@@ -542,6 +557,23 @@ class ResPartner(models.Model):
           GROUP BY m.commercial_partner_id
         """, (tuple(ids), desde, hasta))
         return {r["pid"]: r for r in self.env.cr.dictfetchall()}
+
+    def _ag_sql_primera_compra(self, ids):
+        """Fecha de la primera factura de la HISTORIA del cliente.
+
+        Antes salía de la consulta de ventas, que sólo mira la ventana: un
+        cliente de diez años aparecía como «cliente desde» el año pasado, y
+        la antigüedad no se podía puntuar.
+        """
+        self.env.cr.execute("""
+            SELECT m.commercial_partner_id AS pid, MIN(m.invoice_date) AS primera
+              FROM account_move m
+             WHERE m.commercial_partner_id IN %s
+               AND m.move_type = 'out_invoice'
+               AND m.state = 'posted'
+          GROUP BY m.commercial_partner_id
+        """, (tuple(ids),))
+        return {r["pid"]: r["primera"] for r in self.env.cr.dictfetchall()}
 
     def _ag_sql_serie_mensual(self, ids, desde, hasta):
         """Serie de venta neta por mes, alineada a la ventana completa.
@@ -833,6 +865,8 @@ class ResPartner(models.Model):
 
     def _ag_puntuar(self, cfg, bruto):
         """Normaliza por percentil dentro del segmento y arma el score."""
+        hoy = fields.Date.context_today(self)
+        anulan = cfg.estados_nota_cero()
         grupos = {}
         for p in self:
             if not p.ag_desemp_evaluable:
@@ -855,6 +889,7 @@ class ResPartner(models.Model):
             v_freq = [p.ag_meses_activos for p in poblacion]
             v_cv = [p.ag_cv_compra for p in poblacion]
             v_recencia = [p.ag_dias_sin_comprar for p in poblacion]
+            v_antig = [self._ag_antiguedad(p, hoy) for p in poblacion]
             v_devol = [p.ag_devoluciones_pct for p in poblacion]
 
             for p in miembros:
@@ -871,10 +906,15 @@ class ResPartner(models.Model):
                     + self._ag_percentil(p.ag_cxc_vencido_pct, v_venc, invertir=True) * 0.20
                 )
 
+                # Fidelidad: un cuarto del eje. Con el peso por defecto del
+                # eje (20) son 5 puntos del score, lo que se pidió darle a
+                # los años de relación. Los otros tres conservan entre sí la
+                # proporción que tenían (40/30/30).
                 sc_cons = (
-                    self._ag_percentil(p.ag_meses_activos, v_freq) * 0.40
-                    + self._ag_percentil(p.ag_cv_compra, v_cv, invertir=True) * 0.30
-                    + self._ag_percentil(p.ag_dias_sin_comprar, v_recencia, invertir=True) * 0.30
+                    self._ag_percentil(p.ag_meses_activos, v_freq) * 0.30
+                    + self._ag_percentil(p.ag_cv_compra, v_cv, invertir=True) * 0.225
+                    + self._ag_percentil(p.ag_dias_sin_comprar, v_recencia, invertir=True) * 0.225
+                    + self._ag_percentil(self._ag_antiguedad(p, hoy), v_antig) * 0.25
                 )
 
                 sc_oper = (
@@ -889,6 +929,15 @@ class ResPartner(models.Model):
                     + sc_cons * cfg.peso_consistencia
                     + sc_oper * cfg.peso_operativo
                 ) / 100.0
+
+                # Crédito cerrado o en legal: la nota se anula, pero los
+                # cinco ejes se guardan igual. Sirven para ver qué cliente
+                # era antes de cerrarle, y siguen contando en la población
+                # de sus pares: sus cifras son reales.
+                estado = (p.ag_estado_de_credito or "").strip()
+                anulada = estado.lower() in anulan
+                if anulada:
+                    score = 0.0
 
                 grado = self._ag_grado(score, cfg)
                 # Contra quién se comparó de verdad. Importa decirlo: si el
@@ -911,7 +960,13 @@ class ResPartner(models.Model):
                     "ag_sc_operativo": sc_oper,
                     "ag_desemp_score": score,
                     "ag_desemp_grado": grado,
-                    "ag_grado_lectura": self._ag_lectura_grado(grado, subs, contra),
+                    "ag_grado_lectura": (
+                        "Nota 0 por regla de la casa: el crédito está en estado "
+                        "«%s». Los cinco ejes de abajo siguen siendo reales y "
+                        "muestran cómo compra y paga; la nota vuelve cuando el "
+                        "crédito se reabra." % estado
+                        if anulada else
+                        self._ag_lectura_grado(grado, subs, contra)),
                     "ag_desemp_tendencia": self._ag_clasificar_tendencia(p, cfg),
                 })
 
@@ -922,6 +977,11 @@ class ResPartner(models.Model):
                 "ag_grado_lectura": self._ag_lectura_grado("nuevo", [], ""),
                 "ag_desemp_tendencia": self._ag_clasificar_tendencia(p, cfg),
             })
+
+    @staticmethod
+    def _ag_antiguedad(p, hoy):
+        """Días desde la primera factura. Cero si nunca compró."""
+        return (hoy - p.ag_primera_compra).days if p.ag_primera_compra else 0
 
     @staticmethod
     def _ag_lectura_grado(grado, subs, contra):
@@ -1187,7 +1247,7 @@ class ResPartner(models.Model):
         self.env.cr.execute("""
             SELECT m.commercial_partner_id AS pid,
                    SUM(m.amount_untaxed_signed)              AS venta,
-                   SUM(COALESCE(m.x_total_margin_amount, 0)) AS margen,
+                   SUM(""" + SQL_MARGEN + """)                 AS margen,
                    COUNT(*) FILTER (WHERE m.move_type = 'out_invoice') AS facturas,
                    SUM(CASE WHEN m.move_type = 'out_refund'
                             THEN -m.amount_untaxed_signed ELSE 0 END) AS devol
