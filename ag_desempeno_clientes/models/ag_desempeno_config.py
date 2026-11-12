@@ -110,6 +110,13 @@ class AgDesempenoConfig(models.Model):
         help="Sobre este margen la cifra casi siempre señala costo mal cargado, "
              "no rentabilidad real. Se marca para revisión y NO premia el score.")
 
+    estados_credito_nota_cero = fields.Char(
+        string="Estados de crédito que anulan la nota",
+        default="Cerrado, Legal",
+        help="Estados de crédito, separados por coma, en los que el cliente "
+             "recibe nota 0 sin importar sus cifras. Se compara sin distinguir "
+             "mayúsculas ni espacios. Dejar vacío apaga la regla.")
+
     # ------------------------------------------------------------------
     # Distribución
     # ------------------------------------------------------------------
@@ -149,6 +156,13 @@ class AgDesempenoConfig(models.Model):
                 raise ValidationError(
                     "Los cortes de grado deben ir de mayor a menor: "
                     "A > B > C > 0.")
+
+    def estados_nota_cero(self):
+        """Conjunto normalizado de estados de crédito que anulan la nota."""
+        self.ensure_one()
+        return {e.strip().lower()
+                for e in (self.estados_credito_nota_cero or "").split(",")
+                if e.strip()}
 
     @api.model
     def get_config(self, company=None):
