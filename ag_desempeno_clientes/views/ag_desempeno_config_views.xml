@@ -96,6 +96,7 @@ action = {
                 <group string="Rentabilidad">
                   <field name="margen_minimo"/>
                   <field name="margen_sospechoso"/>
+                  <field name="estados_credito_nota_cero"/>
                 </group>
                 <group string="Operación">
                   <field name="dias_backlog_estancado"/>
